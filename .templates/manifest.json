@@ -4,7 +4,6 @@
   "generated": "2026-08-20",
   "types": [
     "education",
-    "research",
     "software"
   ],
   "modules": {
@@ -23,9 +22,6 @@
     "identity": "0.1.0",
     "principles": "0.1.0",
     "problem": "0.1.0",
-    "research-methodology": "0.1.0",
-    "research-question": "0.1.0",
-    "research-reproducibility": "0.1.0",
     "roadmap": "0.1.0",
     "software-api": "0.1.0",
     "software-data-model": "0.1.0",
@@ -37,7 +33,6 @@
     "101-context.md": "0.1.0",
     "102-problem.md": "0.1.0",
     "103-stakeholders.md": "0.1.0",
-    "104-research-question.md": "0.1.0",
     "105-education-learners.md": "0.1.0",
     "200-goals.md": "0.1.0",
     "201-constraints.md": "0.1.0",
@@ -47,12 +42,10 @@
     "301-decisions.md": "0.1.0",
     "302-software-api.md": "0.1.0",
     "303-software-data-model.md": "0.1.0",
-    "304-research-methodology.md": "0.1.0",
     "306-education-pedagogy-curriculum.md": "0.1.0",
     "307-education-content-structure.md": "0.1.0",
     "400-roadmap.md": "0.1.0",
     "500-software-testing.md": "0.1.0",
-    "501-research-reproducibility.md": "0.1.0",
     "503-education-assessment-evaluation.md": "0.1.0",
     "600-changelog.md": "0.1.0",
     "601-agents.md": "0.1.0"
