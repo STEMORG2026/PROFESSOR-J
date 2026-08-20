@@ -33,8 +33,8 @@ PHASE 9 ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pip
 - [x] Core documents: `AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`,
       `ARCHITECTURE-ESSENTIALS.md`, `IMPLEMENTATION-PLAN.md`.
 - [x] Project Operating System foundation answers in `docs/100-601` modules.
-- [ ] Initialize Python 3.11+ virtual environment (`.venv/`) and `requirements.txt`.
-- [ ] Set up pre-commit hooks, strict mypy config, pytest scaffolding.
+- [x] Initialize Python 3.11+ virtual environment (`.venv/`) and `requirements.txt`.
+- [x] Set up pre-commit hooks, strict mypy config, pytest scaffolding.
 - **Acceptance Criteria:** `pytest` runs and passes; directory structure verified.
 
 ### Phase 1: Core Domain Models & LearningHubSTEM Consumer Seam

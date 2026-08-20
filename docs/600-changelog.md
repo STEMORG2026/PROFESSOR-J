@@ -17,6 +17,8 @@
 - Project Operating System foundation modules `docs/100-601` answered for the JARVIS-2.0
   (general-purpose platform) positioning.
 - Product positioning: successor to JARVIS — renamed, upgraded, generalized.
+- Backend scaffolding: `.venv/`, pinned `requirements.txt`, strict mypy config,
+  pre-commit hooks, pytest smoke test (`1 passed`).
 
 ---
 
