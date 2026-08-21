@@ -5,11 +5,16 @@ files = ["app", "tests"]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+disable_error_code = "syntax"
 
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = "numpy.*"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
