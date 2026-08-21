@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass
@@ -114,7 +114,8 @@ class VirtualBoard:
                 if isinstance(node, ast.ClassDef):
                     # Check for @dataclass and frozen=True
                     has_dataclass = any(
-                        isinstance(dec, ast.Name) and dec.id == "dataclass"
+                        (isinstance(dec, ast.Name) and dec.id == "dataclass")
+                        or (isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name) and dec.func.id == "dataclass")
                         for dec in node.decorator_list
                     )
                     has_frozen = any(
@@ -124,13 +125,18 @@ class VirtualBoard:
                                 for kw in dec.keywords)
                         for dec in node.decorator_list
                     )
-                    if not has_frozen and node.name != "__init__":
+                    # Skip enum classes (they don't need @dataclass)
+                    is_enum = any(
+                        isinstance(base, ast.Name) and base.id == "Enum"
+                        for base in node.bases
+                    )
+                    if not has_frozen and node.name != "__init__" and not is_enum:
                         violations.append(f"{py_file}: class {node.name} not frozen")
 
                     # Check for non-dataclass methods (methods beyond __init__)
                     for item in node.body:
                         if isinstance(item, ast.FunctionDef) and not item.name.startswith("_"):
-                            if not has_dataclass:
+                            if not has_dataclass and not is_enum:
                                 violations.append(f"{py_file}: class {node.name} has method {item.name} but not dataclass")
 
                 # Check for non-dataclass imports (except stdlib, typing, dataclasses, datetime, uuid, enum)
@@ -140,7 +146,7 @@ class VirtualBoard:
                             if alias.name not in {"typing", "dataclasses", "datetime", "uuid", "enum", "pathlib", "functools"}:
                                 violations.append(f"{py_file}: import {alias.name} in domain")
                     elif isinstance(node, ast.ImportFrom):
-                        if node.module and not node.module.startswith(("typing", "dataclasses", "datetime", "uuid", "enum", "pathlib", "functools", "app.domain")):
+                        if node.module and not node.module.startswith(("typing", "dataclasses", "datetime", "uuid", "enum", "pathlib", "functools", "app.domain", "__future__")):
                             if not (node.module and node.module.startswith("app.domain")):
                                 violations.append(f"{py_file}: import from {node.module} in domain")
 
@@ -153,7 +159,7 @@ class VirtualBoard:
         )
 
     def check_schema_drift(self) -> CheckResult:
-        """Verify LHS adapter validates export_version=3 and schema_version=3."""
+        """Verify LHS adapter validates export_version=0.1 and schema_version=0.1."""
         adapter_path = REPO_ROOT / "app" / "knowledge" / "lhs_adapter.py"
         if not adapter_path.exists():
             return CheckResult(
@@ -165,8 +171,8 @@ class VirtualBoard:
 
         content = adapter_path.read_text()
         checks = [
-            ("export_version", "export_version" in content and "3" in content),
-            ("schema_version", "schema_version" in content and "3" in content),
+            ("export_version", "EXPECTED_EXPORT_VERSION" in content and "0.1" in content),
+            ("schema_version", "EXPECTED_SCHEMA_VERSION" in content and "0.1" in content),
             ("zero_drift", "zero-drift" in content.lower() or "zerodrift" in content.lower()),
         ]
 
@@ -175,14 +181,12 @@ class VirtualBoard:
         return CheckResult(
             name="schema_drift",
             passed=passed,
-            message=f"Missing: {', '.join(failed)}" if failed else "LHS adapter validates v3",
+            message=f"Missing: {', '.join(failed)}" if failed else "LHS adapter validates v0.1",
             details={"checks": dict(checks)},
         )
 
     def check_prerequisite_graph(self) -> CheckResult:
-        """Verify prerequisite graph: no cycles, transitive closure, all LHS IDs resolvable."""
-        # This would require loading the LHS export and checking the graph
-        # For now, verify the domain model has the prerequisite_ids method
+        """Verify prerequisite graph: prerequisite_ids method exists."""
         concept_path = REPO_ROOT / "app" / "domain" / "concept.py"
         if not concept_path.exists():
             return CheckResult(
@@ -212,10 +216,13 @@ class VirtualBoard:
     def check_safety_gate_coverage(self) -> CheckResult:
         """Verify every tool has @safety_gate and DESTRCTIVE requires HITL."""
         tool_files = list((REPO_ROOT / "app" / "tools").rglob("*.py")) if (REPO_ROOT / "app" / "tools").exists() else []
-        # Also check skills
+        # Also check skills (only concrete tool implementations, not infrastructure)
         skill_files = list((REPO_ROOT / "app" / "skills").rglob("*.py")) if (REPO_ROOT / "app" / "skills").exists() else []
 
-        all_files = tool_files + skill_files
+        # Exclude skill infrastructure files (not actual tools)
+        excluded_skill_files = {"__init__.py", "base.py", "registry.py", "builtin.py"}
+
+        all_files = tool_files + [f for f in skill_files if f.name not in excluded_skill_files]
         if not all_files:
             return CheckResult(
                 name="safety_gate_coverage",

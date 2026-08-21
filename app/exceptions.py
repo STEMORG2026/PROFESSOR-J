@@ -145,7 +145,7 @@ class LHSAdapterError(KnowledgeError):
 
 class LHSSchemaDriftError(LHSAdapterError):
     """Raised when LHS export schema version mismatches."""
-    def __init__(self, expected: int, found: int, **kwargs: Any) -> None:
+    def __init__(self, expected: str, found: str, **kwargs: Any) -> None:
         super().__init__(
             f"LHS schema drift: expected version {expected}, found {found}",
             code="LHS_SCHEMA_DRIFT",
