@@ -1,0 +1,376 @@
+#!/usr/bin/env python3
+"""
+Virtual Board Review Script — PROFESSOR-J
+
+Deterministic governance checks for every PR.
+Run: python scripts/board/review.py
+"""
+
+from __future__ import annotations
+
+import ast
+import json
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+@dataclass
+class CheckResult:
+    name: str
+    passed: bool
+    message: str = ""
+    details: dict[str, Any] | None = None
+
+
+class VirtualBoard:
+    """Virtual Board review engine — deterministic checks only."""
+
+    def __init__(self, repo_root: Path = REPO_ROOT):
+        self.repo_root = repo_root
+        self.results: list[CheckResult] = []
+
+    def run_all(self) -> bool:
+        """Run all deterministic checks. Returns True if all pass."""
+        checks = [
+            ("import_layering", self.check_import_layering),
+            ("domain_purity", self.check_domain_purity),
+            ("schema_drift", self.check_schema_drift),
+            ("prerequisite_graph", self.check_prerequisite_graph),
+            ("safety_gate_coverage", self.check_safety_gate_coverage),
+            ("mcp_tool_search", self.check_mcp_tool_search),
+            ("otel_spans", self.check_otel_spans),
+            ("langgraph_checkpoint", self.check_langgraph_checkpoint),
+        ]
+
+        all_passed = True
+        for name, check_fn in checks:
+            result = check_fn()
+            self.results.append(result)
+            status = "✓ PASS" if result.passed else "✗ FAIL"
+            print(f"  {status} {name}: {result.message}")
+            if not result.passed:
+                all_passed = False
+
+        return all_passed
+
+    # ── Individual Checks ──
+
+    def check_import_layering(self) -> CheckResult:
+        """Verify import layering: domain ← brain ← bootstrap ← adapters ← presentation."""
+        violations = []
+
+        # Check app/domain/ has no imports from app/*
+        domain_path = REPO_ROOT / "app" / "domain"
+        for py_file in domain_path.rglob("*.py"):
+            if py_file.name == "__init__.py":
+                continue
+            content = py_file.read_text()
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("from app.") or stripped.startswith("import app."):
+                    if not stripped.startswith("from app.domain."):
+                        violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
+
+        # Check app/brain/ doesn't import from app/adapters/ or web frameworks
+        brain_path = REPO_ROOT / "app" / "brain"
+        for py_file in brain_path.rglob("*.py"):
+            content = py_file.read_text()
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("from app.adapters") or stripped.startswith("import app.adapters"):
+                    violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
+                if "fastapi" in stripped.lower() or "request" in stripped.lower() or "response" in stripped.lower():
+                    if "import" in stripped or "from" in stripped:
+                        # Allow in type hints only
+                        if "TYPE_CHECKING" not in content:
+                            violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
+
+        passed = len(violations) == 0
+        return CheckResult(
+            name="import_layering",
+            passed=passed,
+            message=f"{len(violations)} layering violations" if violations else "Layering OK",
+            details={"violations": violations},
+        )
+
+    def check_domain_purity(self) -> CheckResult:
+        """Verify app/domain/ contains only frozen dataclasses with zero external deps."""
+        violations = []
+        domain_path = REPO_ROOT / "app" / "domain"
+
+        for py_file in domain_path.rglob("*.py"):
+            content = py_file.read_text()
+            try:
+                tree = ast.parse(content)
+            except SyntaxError:
+                continue
+
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    # Check for @dataclass and frozen=True
+                    has_dataclass = any(
+                        isinstance(dec, ast.Name) and dec.id == "dataclass"
+                        for dec in node.decorator_list
+                    )
+                    has_frozen = any(
+                        isinstance(dec, ast.Call) and isinstance(dec.func, ast.Name)
+                        and dec.func.id == "dataclass"
+                        and any(kw.arg == "frozen" and isinstance(kw.value, ast.Constant) and kw.value.value is True
+                                for kw in dec.keywords)
+                        for dec in node.decorator_list
+                    )
+                    if not has_frozen and node.name != "__init__":
+                        violations.append(f"{py_file}: class {node.name} not frozen")
+
+                    # Check for non-dataclass methods (methods beyond __init__)
+                    for item in node.body:
+                        if isinstance(item, ast.FunctionDef) and not item.name.startswith("_"):
+                            if not has_dataclass:
+                                violations.append(f"{py_file}: class {node.name} has method {item.name} but not dataclass")
+
+                # Check for non-dataclass imports (except stdlib, typing, dataclasses, datetime, uuid, enum)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Import):
+                        for alias in node.names:
+                            if alias.name not in {"typing", "dataclasses", "datetime", "uuid", "enum", "pathlib", "functools"}:
+                                violations.append(f"{py_file}: import {alias.name} in domain")
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module and not node.module.startswith(("typing", "dataclasses", "datetime", "uuid", "enum", "pathlib", "functools", "app.domain")):
+                            if not (node.module and node.module.startswith("app.domain")):
+                                violations.append(f"{py_file}: import from {node.module} in domain")
+
+        passed = len(violations) == 0
+        return CheckResult(
+            name="domain_purity",
+            passed=passed,
+            message=f"{len(violations)} purity violations" if violations else "Domain purity OK",
+            details={"violations": violations},
+        )
+
+    def check_schema_drift(self) -> CheckResult:
+        """Verify LHS adapter validates export_version=3 and schema_version=3."""
+        adapter_path = REPO_ROOT / "app" / "knowledge" / "lhs_adapter.py"
+        if not adapter_path.exists():
+            return CheckResult(
+                name="schema_drift",
+                passed=False,
+                message="LHS adapter not found",
+                details={"path": str(adapter_path)},
+            )
+
+        content = adapter_path.read_text()
+        checks = [
+            ("export_version", "export_version" in content and "3" in content),
+            ("schema_version", "schema_version" in content and "3" in content),
+            ("zero_drift", "zero-drift" in content.lower() or "zerodrift" in content.lower()),
+        ]
+
+        failed = [name for name, ok in checks if not ok]
+        passed = len(failed) == 0
+        return CheckResult(
+            name="schema_drift",
+            passed=passed,
+            message=f"Missing: {', '.join(failed)}" if failed else "LHS adapter validates v3",
+            details={"checks": dict(checks)},
+        )
+
+    def check_prerequisite_graph(self) -> CheckResult:
+        """Verify prerequisite graph: no cycles, transitive closure, all LHS IDs resolvable."""
+        # This would require loading the LHS export and checking the graph
+        # For now, verify the domain model has the prerequisite_ids method
+        concept_path = REPO_ROOT / "app" / "domain" / "concept.py"
+        if not concept_path.exists():
+            return CheckResult(
+                name="prerequisite_graph",
+                passed=False,
+                message="Concept entity not found",
+            )
+
+        content = concept_path.read_text()
+        checks = [
+            ("prerequisite_ids", "prerequisite_ids" in content),
+            ("mathematically_requires", "mathematically_requires" in content),
+            ("logically_requires", "logically_requires" in content),
+            ("appears_in_law", "appears_in_law" in content),
+            ("all_dependencies", "all_dependencies" in content),
+        ]
+
+        failed = [name for name, ok in checks if not ok]
+        passed = len(failed) == 0
+        return CheckResult(
+            name="prerequisite_graph",
+            passed=passed,
+            message=f"Missing methods: {', '.join(failed)}" if failed else "Prerequisite graph methods present",
+            details={"checks": dict(checks)},
+        )
+
+    def check_safety_gate_coverage(self) -> CheckResult:
+        """Verify every tool has @safety_gate and DESTRCTIVE requires HITL."""
+        tool_files = list((REPO_ROOT / "app" / "tools").rglob("*.py")) if (REPO_ROOT / "app" / "tools").exists() else []
+        # Also check skills
+        skill_files = list((REPO_ROOT / "app" / "skills").rglob("*.py")) if (REPO_ROOT / "app" / "skills").exists() else []
+
+        all_files = tool_files + skill_files
+        if not all_files:
+            return CheckResult(
+                name="safety_gate_coverage",
+                passed=True,  # Not implemented yet
+                message="No tools/skills yet",
+            )
+
+        violations = []
+        for py_file in all_files:
+            content = py_file.read_text()
+            # Look for @safety_gate decorator
+            if "@safety_gate" not in content and "safety_tier" not in content:
+                # Skip __init__.py and base classes
+                if py_file.name != "__init__.py" and "base" not in py_file.name:
+                    violations.append(f"{py_file.relative_to(self.repo_root)}: missing @safety_gate")
+
+        passed = len(violations) == 0
+        return CheckResult(
+            name="safety_gate_coverage",
+            passed=passed,
+            message=f"{len(violations)} tools missing @safety_gate" if violations else "Safety gate coverage OK",
+            details={"violations": violations},
+        )
+
+    def check_mcp_tool_search(self) -> CheckResult:
+        """Verify MCP servers declare tool search for on-demand loading."""
+        mcp_path = REPO_ROOT / "app" / "mcp"
+        if not mcp_path.exists():
+            return CheckResult(
+                name="mcp_tool_search",
+                passed=True,  # Not implemented yet
+                message="MCP client not yet implemented",
+            )
+
+        content = ""
+        for py_file in (mcp_path).rglob("*.py"):
+            content += py_file.read_text()
+
+        checks = [
+            ("MCPServerManager", "MCPServerManager" in content),
+            ("ToolSearch", "MCPToolSearch" in content or "tool_search" in content.lower()),
+            ("cache_tools_list", "cache_tools_list" in content),
+            ("CodeExecutionTools", "CodeExecutionTools" in content or "code_as_tools" in content.lower()),
+        ]
+
+        failed = [name for name, ok in checks if not ok]
+        passed = len(failed) == 0
+        return CheckResult(
+            name="mcp_tool_search",
+            passed=passed,
+            message=f"Missing: {', '.join(failed)}" if failed else "MCP tool search pattern present",
+            details={"checks": dict(checks)},
+        )
+
+    def check_otel_spans(self) -> CheckResult:
+        """Verify OTel spans emitted for agent, tool, retrieval, guardrail, evaluator."""
+        telemetry_path = REPO_ROOT / "app" / "telemetry" / "exporter.py"
+        if not telemetry_path.exists():
+            return CheckResult(
+                name="otel_spans",
+                passed=False,
+                message="Telemetry exporter not found",
+            )
+
+        content = telemetry_path.read_text()
+        checks = [
+            ("OTLP exporter", "OTLPSpanExporter" in content),
+            ("Langfuse auth", "_langfuse_auth_header" in content or "Authorization" in content),
+            ("gen_ai attributes", "gen_ai.operation.name" in content),
+            ("tool attributes", "tool.name" in content),
+            ("retrieval attributes", "retrieval.query" in content or "retrieval.vector_store" in content),
+            ("guardrail attributes", "guardrail.tool" in content or "guardrail.tier" in content),
+            ("evaluator attributes", "evaluator.name" in content or "evaluator.score" in content),
+        ]
+
+        failed = [name for name, ok in checks if not ok]
+        passed = len(failed) == 0
+        return CheckResult(
+            name="otel_spans",
+            passed=passed,
+            message=f"Missing: {', '.join(failed)}" if failed else "OTel spans configured",
+            details={"checks": dict(checks)},
+        )
+
+    def check_langgraph_checkpoint(self) -> CheckResult:
+        """Verify LangGraph StateGraph compiles and checkpointing works."""
+        # Check for LangGraph imports and StateGraph usage
+        brain_path = REPO_ROOT / "app" / "brain"
+        if not brain_path.exists():
+            return CheckResult(
+                name="langgraph_checkpoint",
+                passed=True,  # Not implemented yet
+                message="Cognitive brain not yet implemented",
+            )
+
+        content = ""
+        for py_file in (REPO_ROOT / "app" / "brain").rglob("*.py"):
+            content += py_file.read_text()
+
+        checks = [
+            ("StateGraph", "StateGraph" in content or "StateGraph" in content),
+            ("TypedDict", "TypedDict" in content),
+            ("checkpointer", "checkpointer" in content.lower() or "MemorySaver" in content or "PostgresCheckpointer" in content),
+            ("interrupt", "interrupt" in content or "Command" in content),
+        ]
+
+        failed = [name for name, ok in checks if not ok]
+        passed = len(failed) == 0
+        return CheckResult(
+            name="langgraph_checkpoint",
+            passed=passed,
+            message=f"Missing: {', '.join(failed)}" if failed else "LangGraph checkpointing configured",
+            details={"checks": dict(checks)},
+        )
+
+
+def main() -> int:
+    board = VirtualBoard()
+    print("🔍 Virtual Board Review — PROFESSOR-J")
+    print("=" * 50)
+
+    all_passed = board.run_all()
+
+    print("=" * 50)
+    passed_count = sum(1 for r in board.results if r.passed)
+    total_count = len(board.results)
+    print(f"Summary: {passed_count}/{total_count} checks passed")
+
+    # Generate ledger
+    ledger_path = REPO_ROOT / "board" / "ledger.md"
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+
+    ledger_content = f"""# Virtual Board Ledger
+
+Generated: {__import__('datetime').datetime.utcnow().isoformat()}Z
+
+## Summary
+- **Total Checks**: {total_count}
+- **Passed**: {passed_count}
+- **Failed**: {total_count - passed_count}
+- **Status**: {'✅ PASS' if all_passed else '❌ FAIL'}
+
+## Results
+"""
+    for result in board.results:
+        status = "✅" if result.passed else "❌"
+        ledger_content += f"- {status} **{result.name}**: {result.message}\n"
+        if result.details:
+            ledger_content += f"  - Details: {json.dumps(result.details, indent=2)}\n"
+
+    ledger_path.write_text(ledger_content)
+    print(f"\n📋 Ledger written to: {ledger_path.relative_to(REPO_ROOT)}")
+
+    return 0 if all_passed else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -33,5 +33,6 @@ Thumbs.db
 
 # Data (runtime-generated, not source of truth)
 data/runtime/
+data/test_*.txt
 *.sqlite3
 *.db

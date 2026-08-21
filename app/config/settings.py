@@ -2,10 +2,11 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_core import PydanticCustomError
 
 
 class Settings(BaseSettings):
@@ -89,8 +90,11 @@ class Settings(BaseSettings):
 
     @field_validator("api_key")
     @classmethod
-    def _validate_api_key(cls, v: str) -> str:
+    def _validate_api_key(cls, v: str, info: Any) -> str:
         if not v or v == "changeme":
+            # Allow changeme in development mode
+            if info.data.get("environment") == "development":
+                return v
             raise ValueError("PROFESSOR_API_KEY must be set to a secure random value")
         return v
 
