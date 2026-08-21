@@ -1,7 +1,7 @@
 # PROFESSOR-J — System Architecture
 
-> **Architecture Style:** Clean Layered Architecture + Multi-Agent Cognitive Orchestrator +
-> Pragmatic Hybrid Async Engine (inherited from JARVIS, upgraded)
+> **Architecture Style:** Clean Layered Architecture + **LangGraph Orchestration Runtime** +
+> Multi-Agent Cognitive Engine (JARVIS patterns adapted)
 > **Status:** Living Architecture at Inception
 > **Version:** 0.1.0
 
@@ -26,6 +26,18 @@ where no canonical entity exists.
 | FastAPI + Next.js UI | **Inherited** |
 | Socratic tutoring, research, pedagogy | **New** (primary domain) |
 
+**Ratified Architecture Decisions (Infrastructure Audit §6):**
+
+| Decision | Choice | Phase |
+|---|---|---|
+| Orchestration Runtime | **LangGraph** — graph-based, checkpointing, interrupts, OTel | 0.5 |
+| Observability | **Self-host Langfuse** — prompt mgmt, datasets, evals, OTel | 0.5 |
+| MCP Integration | **Phase 1 design** — stdio + Streamable HTTP, tool search, code-as-tools | 1 |
+| Local Inference | **Bundle llama.cpp** (desktop); **External Ollama** (server) | 5 |
+| Provider Catalog | **Curated defaults + dynamic discovery** | 2 |
+| Memory Backend | **Abstract interface + ChromaDB impl** (pluggable) | 1 |
+| Frontend | **Next.js 15 web** (per PRD); desktop wraps later | 7 |
+
 Integration with JARVIS is **pattern-level only**: PROFESSOR-J never couples to JARVIS at
 the package level. Ported code is adapted under this repository's governance and recorded
 in `docs/adr/`.
@@ -39,6 +51,10 @@ graph TD
     Client[Next.js 15 Canvas & Voice UI] -->|HTTP / SSE / WSS / WebRTC| Adapters[app/adapters/ Layer]
     Adapters -->|Token Auth & Validation| Bootstrap[app/bootstrap.py Composition Root]
     Bootstrap -->|Dependency Injection| Brain[app/brain/ Multi-Agent Cognitive Engine]
+
+    subgraph Orchestration ["LangGraph Orchestration Runtime"]
+        Brain -->|StateGraph| LangGraph[LangGraph Pregel Runtime<br/>Checkpointing · Interrupts · Streaming]
+    end
 
     subgraph CognitiveEngine ["Cognitive Engine (app/brain/)"]
         Cognitive[CognitiveBrain<br/>IntentAnalyzer · TaskPlanner ·<br/>ExecutionRunner · ResponseSynthesizer]
@@ -57,10 +73,12 @@ graph TD
     subgraph Guardrails ["Safety Policy & Guardrails (app/guardrails/)"]
         SafetyGate["@safety_gate<br/>SAFE / SENSITIVE / DESTRUCTIVE"]
         InjectionGuard[PromptInjectionDetector]
+        PIIGuard[PII Redactor]
     end
 
     ToolAgent --> SafetyGate
     SafetyGate --> InjectionGuard
+    InjectionGuard --> PIIGuard
 
     subgraph Foundations ["Knowledge & Memory Layer"]
         LHSAdapter[LHSKnowledgeAdapter<br/>LearningHubSTEM Consumer Seam]
@@ -79,10 +97,12 @@ graph TD
     subgraph ModelPool ["Multi-Provider LLM Pool (app/models/, app/resources/)"]
         Router[ModelRouter]
         CircuitBreaker[ResourceManager & 3-State Breakers]
+        Catalog[Live Provider Catalog<br/>Curated Defaults + Dynamic Discovery]
     end
 
     Brain --> Router
     Router --> CircuitBreaker
+    Router --> Catalog
 
     subgraph PlatformServices ["Platform Services (from JARVIS)"]
         Session[SessionManager<br/>Per-user session state]
@@ -93,6 +113,26 @@ graph TD
     Brain --> Session
     Brain --> Workspace
     ToolAgent --> Tools
+
+    subgraph MCPIntegration ["MCP Client (Phase 1)"]
+        MCPManager[MCPServerManager<br/>stdio + Streamable HTTP]
+        ToolSearch[MCP Tool Search<br/>On-demand loading]
+        CodeExec[Code-as-Tools Pattern<br/>Filesystem code APIs]
+    end
+
+    ToolAgent --> MCPManager
+    MCPManager --> ToolSearch
+    MCPManager --> CodeExec
+
+    subgraph Observability ["Observability (Langfuse + OTel)"]
+        OTel[OpenTelemetry SDK<br/>Spans: agent, tool, retrieval, guardrail, evaluator]
+        Langfuse[Langfuse Self-Hosted<br/>Prompt Hub · Datasets · Evals · Traces]
+    end
+
+    Brain -.->|OTel Spans| OTel
+    OTel -.->|Export| Langfuse
+    Tools -.->|OTel Spans| OTel
+    MCPManager -.->|OTel Spans| OTel
 
     subgraph PassiveTelemetry ["Passive Telemetry (app/events/, app/telemetry/)"]
         Bus[InMemoryAsyncBus]
@@ -158,16 +198,31 @@ graph TD
 - **`ModelRouter`:** Multi-provider load balancer across local and cloud LLM providers.
 - **`ResourceManager`:** Tracks TPM/RPM budgets and 3-state circuit breakers
   (`CLOSED`, `OPEN`, `HALF_OPEN`) for automatic failover on 429/503.
+- **`ProviderCatalog`:** Live dynamic discovery of available endpoints; curated defaults
+  for UX (Ollama, OpenAI, Anthropic, Google, Groq, Cerebras, OpenRouter, etc.);
+  no hardcoded fallbacks.
 
 ### 3.8. Safety & Guardrails Layer (`app/guardrails/`)
 - **`@safety_gate`:**
   - `SAFE`: read-only (concept lookup, LaTeX) → auto-approved.
   - `SENSITIVE`: file parsing, web search → policy verified.
   - `DESTRUCTIVE`: code sandbox, file modification, DB resets → mandatory HITL approval.
+- **`PromptInjectionDetector`:** Heuristic + embedding-based detection on all string args.
+- **`PIIRedactor`:** Tokenization of sensitive data before model context; detokenization on return.
 
-### 3.9. Telemetry & Events (`app/events/`, `app/telemetry/`)
-- **`InMemoryAsyncBus`:** passive pub/sub for background job logs, streaming telemetry,
-  token usage metrics.
+### 3.9. MCP Client Layer (`app/mcp/`) — Phase 1
+- **`MCPServerManager`:** Manages stdio and Streamable HTTP transports; connection pooling;
+  health checks; automatic reconnection.
+- **`MCPToolSearch`:** On-demand tool definition loading; reduces context by 98%+ (Anthropic pattern).
+- **`CodeExecutionTools`:** Presents MCP tools as filesystem code APIs; agent writes Python
+  to invoke tools; PII stays in execution environment.
+- **`MCPRegistry`:** Tool discovery + caching (`cache_tools_list`); filters per agent/run.
+
+### 3.10. Observability Layer (`app/telemetry/`) — Phase 0.5
+- **`OTelInstrumentation`:** OpenTelemetry SDK with semantic conventions (OpenInference):
+  spans for `agent`, `tool`, `retrieval`, `guardrail`, `evaluator`, `embedding`, `prompt`.
+- **`LangfuseExporter`:** OTLP export to self-hosted Langfuse; Prompt Hub, Datasets, Evals.
+- **`Tracer` / `MetricsCollector` / `EventLogger`:** Structured telemetry with correlation IDs.
 
 ---
 

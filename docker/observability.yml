@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  # ── PostgreSQL (Langfuse metadata) ─────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: professor-langfuse-postgres
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: ${LANGFUSE_POSTGRES_PASSWORD:-langfuse}
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - professor-observability
+    restart: unless-stopped
+
+  # ── ClickHouse (Langfuse traces/observations) ──────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8-alpine
+    container_name: professor-langfuse-clickhouse
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - professor-observability
+    restart: unless-stopped
+
+  # ── Langfuse ───────────────────────────────────────────────────────
+  langfuse:
+    image: langfuse/langfuse:3
+    container_name: professor-langfuse
+    environment:
+      # Database
+      DATABASE_URL: postgresql://langfuse:${LANGFUSE_POSTGRES_PASSWORD:-langfuse}@postgres:5432/langfuse
+      # ClickHouse
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: ""
+      # Auth
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-$(openssl rand -base64 32)}
+      LANGFUSE_SALT: ${LANGFUSE_SALT:-$(openssl rand -base64 32)}
+      # Features
+      NEXT_PUBLIC_SIGN_UP_DISABLED: "false"
+      # Telemetry
+      TELEMETRY_ENABLED: "false"
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - professor-observability
+    restart: unless-stopped
+
+  # ── OTel Collector (optional, for production) ──────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112
+    container_name: professor-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # Prometheus metrics
+    networks:
+      - professor-observability
+    restart: unless-stopped
+    profiles:
+      - production
+
+networks:
+  professor-observability:
+    driver: bridge
+
+volumes:
+  langfuse_postgres_data:
+  langfuse_clickhouse_data:
