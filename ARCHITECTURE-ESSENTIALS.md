@@ -23,13 +23,16 @@ specialized on demand.
 | **Presentation** | `frontend/` | Next.js 15 UI, KaTeX math canvas, Plotly/D3 graphs, WebRTC Voice HUD. |
 | **Adapters** | `app/adapters/` | FastAPI REST, SSE streaming, WebSocket & WebRTC signaling, Bearer Auth. |
 | **Composition Root** | `app/bootstrap.py` | `ApplicationContainer` DI wiring singletons. |
+| **Orchestration** | *(LangGraph)* | `StateGraph`, `Pregel` runtime, checkpointing, interrupts, streaming. |
 | **Cognitive Brain** | `app/brain/` | `CognitiveBrain` (Intent→Plan→Execute→Synthesize), `ProfessorAgent`, `ResearchAgent`, `EvaluatorAgent`, `ToolExecutorAgent`. |
-| **Guardrails** | `app/guardrails/` | `@safety_gate` (`SAFE`/`SENSITIVE`/`DESTRUCTIVE`), `PromptInjectionDetector`. |
-| **Knowledge & Memory** | `app/knowledge/`, `app/memory/`, `app/db/` | `LHSKnowledgeAdapter` (LearningHubSTEM seam), `GeneralKnowledgeAdapter`, `MemoryService` (ChromaDB+BM25), `DatabaseEngine`. |
+| **Guardrails** | `app/guardrails/` | `@safety_gate` (`SAFE`/`SENSITIVE`/`DESTRUCTIVE`), `PromptInjectionDetector`, `PIIRedactor`. |
+| **Knowledge & Memory** | `app/knowledge/`, `app/memory/`, `app/db/` | `LHSKnowledgeAdapter` (LHSTEM seam), `GeneralKnowledgeAdapter`, `MemoryService` (ChromaDB+BM25), `DatabaseEngine`. |
 | **Platform Services** | `app/session/`, `app/workspace/`, `app/tools/` | `SessionManager`, `WorkspaceManager`, sandboxed `ToolExecutor`. |
-| **Models & Resources** | `app/models/`, `app/resources/` | `ModelRouter` (multi-provider), `ResourceManager` (3-state circuit breakers). |
+| **Models & Resources** | `app/models/`, `app/resources/` | `ModelRouter` (multi-provider), `ResourceManager` (3-state breakers), `ProviderCatalog` (live + curated). |
+| **MCP Client** | `app/mcp/` | `MCPServerManager`, `MCPToolSearch`, `CodeExecutionTools`, `MCPRegistry`. |
+| **Observability** | `app/telemetry/` | OTel SDK (OpenInference), `LangfuseExporter`, `Tracer`, `MetricsCollector`. |
 | **Domain Layer** | `app/domain/` | Pure Python 3.11+ dataclasses (`LearnerState`, `ExecutionPlan`, `ConceptEntity`). |
-| **Passive Telemetry** | `app/events/`, `app/telemetry/` | `InMemoryAsyncBus`, `EventLogger`, `MetricsCollector`. |
+| **Passive Telemetry** | `app/events/` | `InMemoryAsyncBus`, `EventLogger`, `MetricsCollector`. |
 
 ---
 
@@ -37,11 +40,13 @@ specialized on demand.
 
 ```
 frontend/ ──► app/adapters/ ──► app/bootstrap.py ──► app/brain/ ──► app/domain/
-                                                        │
-                                                        ├──► app/guardrails/
-                                                        ├──► app/knowledge/ & app/memory/
-                                                        ├──► app/session/ & app/workspace/
-                                                        └──► app/models/ & app/resources/
+                                                         │
+                                                         ├──► app/guardrails/
+                                                         ├──► app/knowledge/ & app/memory/
+                                                         ├──► app/session/ & app/workspace/
+                                                         ├──► app/models/ & app/resources/
+                                                         ├──► app/mcp/
+                                                         └──► app/telemetry/
 ```
 
 - ❌ `app/domain/` MUST NOT import from any other layer (zero dependencies).
@@ -50,6 +55,7 @@ frontend/ ──► app/adapters/ ──► app/bootstrap.py ──► app/brain
   `app/tools/sandbox.py`.
 - ❌ No package-level coupling to JARVIS or LearningHubSTEM (contracts/adapters only).
 - ✅ All cross-layer communications go through DI in `app/bootstrap.py`.
+- ❌ `app/mcp/` MUST NOT import from `app/brain/` (MCP is a tool provider, not a brain component).
 
 ---
 
@@ -104,10 +110,79 @@ it is a general-purpose AI OS that reuses JARVIS's proven patterns.
 
 ---
 
-## 7. Quick Verification Commands
+## 7. MCP Client Quick Reference
+
+```python
+# app/mcp/client.py
+class MCPServerManager:
+    def __init__(self, config: MCPConfig):
+        self.servers: dict[str, MCPServer] = {}
+
+    async def connect_stdio(self, name: str, command: str, args: list[str]) -> None:
+        """Connect to local MCP server via stdio."""
+        ...
+
+    async def connect_http(self, name: str, url: str, headers: dict = None) -> None:
+        """Connect to remote MCP server via Streamable HTTP."""
+        ...
+
+    async def list_tools(self, server: str, cache: bool = True) -> list[Tool]:
+        """List tools with optional caching (98% token reduction)."""
+        ...
+
+# app/mcp/tools.py
+class CodeExecutionTools:
+    """Present MCP tools as filesystem code APIs (Anthropic pattern)."""
+    def write_tool_code(self, tool: Tool, path: Path) -> None:
+        """Write Python wrapper for tool to ./servers/{name}/{tool}.py"""
+        ...
+```
+
+**Transports:** stdio (local) + Streamable HTTP (remote). SSE is legacy.
+**Tool Search:** On-demand loading — agent reads only needed tool definitions.
+**Code-as-Tools:** Agent writes Python to call tools; PII stays in execution env.
+
+---
+
+## 8. Observability Quick Reference (Langfuse + OTel)
+
+```python
+# app/telemetry/exporter.py
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+exporter = OTLPSpanExporter(endpoint="http://langfuse:4318/v1/traces")
+processor = BatchSpanProcessor(exporter)
+provider.add_span_processor(processor)
+
+# Semantic conventions (OpenInference):
+# span.kind = "agent" | "tool" | "retrieval" | "guardrail" | "evaluator" | "embedding" | "prompt"
+# attributes: gen_ai.operation.name, gen_ai.model, gen_ai.usage.prompt_tokens, etc.
+```
+
+**Langfuse Self-Host:** `docker-compose -f docker/observability.yml up -d`
+- Postgres (metadata) + ClickHouse (traces) + Langfuse UI
+- Prompt Hub: versioned prompts, A/B testing
+- Datasets: curated eval sets from production traces
+- Evals: LLM-as-judge + code evaluators + CI gating
+
+**Spans to Emit:** `agent` (cognitive steps), `tool` (sandbox/MCP), `retrieval` (vector/BM25),
+`guardrail` (safety gate), `evaluator` (step verification), `embedding` (indexing).
+
+---
+
+## 9. Quick Verification Commands
 
 ```bash
-.venv/bin/python -m pytest tests/   # Python backend tests
-.venv/bin/mypy app/                 # strict typecheck
+# Backend
+make test              # pytest (unit + integration + contract)
+make typecheck         # mypy --strict app/
+make lint              # pre-commit (ruff, trailing-whitespace, etc.)
+
+# Observability
+make langfuse-up       # docker-compose -f docker/observability.yml up -d
+make langfuse-down     # docker-compose -f docker/observability.yml down
+
+# Frontend (Phase 7+)
 cd frontend && pnpm typecheck && pnpm lint
 ```

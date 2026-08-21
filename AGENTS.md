@@ -111,7 +111,55 @@ cd frontend && pnpm typecheck && pnpm lint
 
 ---
 
-## 6. Escalation
+## 6. Branching & Commit Strategy
+
+**All work happens on branches.** Never commit directly to `main`.
+
+| Branch Type | Pattern | Purpose | Lifetime |
+|-------------|---------|---------|----------|
+| **Phase** | `phase/X.Y-description` | Major phase from IMPLEMENTATION-PLAN | Until phase complete + merged |
+| **Task** | `task/phase-X.Y-description` | Single task within a phase | Until task complete + PR merged |
+| **Fix** | `fix/description` | Bug fixes, hotfixes | Until merged |
+| **Docs** | `docs/description` | Documentation-only changes | Until merged |
+| **Experiment** | `exp/description` | Throwaway spikes, prototypes | Discarded or converted |
+
+**Workflow:**
+1. Create branch from `main` (or parent phase branch): `git checkout -b phase/0.5-foundation-hardening`
+2. For multi-task phases, create task sub-branches: `git checkout -b task/phase-0.5-config-settings`
+3. Work in small increments; commit with Conventional Commits
+4. Run verification (pytest, mypy, pre-commit) before pushing
+5. Open PR against parent branch (or `main` for phase branches)
+6. After review + CI green, squash-merge; delete branch
+7. Update `docs/600-changelog.md` in the merge commit
+
+**Sub-branch example for Phase 1 (4 tasks):**
+```
+phase/1.0-domain-lhstem
+  ├─ task/phase-1.0-domain-dataclasses
+  ├─ task/phase-1.0-lhstem-adapter
+  ├─ task/phase-1.0-db-engine
+  └─ task/phase-1.0-contract-tests
+```
+
+---
+
+## 7. Architecture Decisions (Section 6 Applied)
+
+The following decisions from the Infrastructure Audit §6 are now **ratified** and reflected in code/docs:
+
+| # | Decision | Choice | Reflected In |
+|---|----------|--------|--------------|
+| 1 | Orchestration Runtime | **LangGraph** (graph-based, checkpointing, OTel) | `ARCHITECTURE.md`, `docs/300-architecture.md`, `IMPLEMENTATION-PLAN.md` |
+| 2 | Observability | **Self-host Langfuse** (Phase 0.5, instrument from day 1) | `docs/300-architecture.md`, `requirements.txt` |
+| 3 | MCP Integration | **Phase 1** (design adapters for it from start) | `ARCHITECTURE.md`, `docs/302-software-api.md` |
+| 4 | Local Inference | **Bundle llama.cpp** (desktop); **External Ollama** (server) | `docs/201-constraints.md`, `IMPLEMENTATION-PLAN.md` |
+| 5 | Frontend | **Next.js 15 web** (per PRD); desktop wraps later | `PRD.md`, `ARCHITECTURE.md` |
+| 6 | Provider Catalog | **Curated defaults + dynamic discovery** | `docs/302-software-api.md`, `app/models/catalog.py` |
+| 7 | Memory Backend | **Abstract interface + ChromaDB impl** (pluggable) | `docs/303-software-data-model.md`, `app/memory/` |
+
+---
+
+## 8. Escalation
 
 If a conflict arises between subagent recommendations, tooling, or architectural layers
 that cannot be resolved by the authority hierarchy, **stop, flag the conflict, and request
