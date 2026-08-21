@@ -8,8 +8,8 @@
 
 **Principles the project will not trade away, and why.**
 
-1. **Grounded over generative** — a confident-sounding hallucination is worse than an
-   honest "no source". Trust is the product.
+1. **Provenance over generative** — a confident-sounding claim without source provenance
+   is worse than an honest "no verified source". Trust is the product.
 2. **Teach, don't just answer** — pedagogy is the differentiator; answer-first defeats it.
 3. **Safety is a feature** — destructive operations always have a human checkpoint.
 4. **Resilience by design** — no single provider/store/path is a single point of failure.

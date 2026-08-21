@@ -13,7 +13,7 @@
 | Chat/stream | POST `/api/v1/chat/stream` → SSE | `/v1` in path | frontend |
 | Voice signaling | WS `/api/v1/voice/signal` (WebRTC) | `/v1` in path | frontend |
 | Auth | Bearer token (`PROFESSOR_API_KEY`) | header | all clients |
-| LHS knowledge | file contract: `exports/knowledge.json` schema | schema `user_version` | `app/knowledge/` |
+| LHS knowledge | file contract: `exports/knowledge.json` schema | `export_version` / `schema_version` (currently `3`) | `app/knowledge/` |
 | Provider pool | provider API contracts (per provider) | pinned catalogs | `app/models/` |
 
 ## Contract format & versioning discipline
@@ -21,6 +21,10 @@
 - REST/SSE/WS paths are versioned (`/api/v1/...`); breaking changes = new major segment.
 - LHS export schema is validated at import; drift fails loudly (zero-drift tests).
 - Provider catalogs are live/derived, never hardcoded fallbacks.
+- **Prerequisite mapping (SEAM):** The export has no literal `prerequisite` edge type.
+  Prerequisite traversal derives from `mathematically_requires` and `logically_requires`
+  relationship types. This mapping is a Phase 1 adapter decision and will be recorded in
+  an ADR.
 
 ## Failure modes & caller handling
 

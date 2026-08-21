@@ -3,7 +3,8 @@
 Operating instructions for humans and AI agents working inside this repository.
 
 **PROFESSOR-J is an independent peer repository in the STEM ecosystem workspace.** It is
-the **successor to JARVIS** — renamed and upgraded, general-purpose by default. Workspace
+a **general-purpose autonomous AI platform (AI OS)** that inherits the proven JARVIS
+capability surface under a new name and extends it beyond any single domain. Workspace
 Level-1 invariants apply here and are never overridden; this repository's own governance is
 authoritative for work inside PROFESSOR-J.
 
@@ -48,15 +49,18 @@ propose or act, but never override repository governance or workspace invariants
 
 ## 3. Working Rules & Invariants
 
-### 3.1. Successor relationship to JARVIS
+### 3.1. JARVIS Relationship
 - PROFESSOR-J inherits JARVIS's capabilities under a new name. Ports are **pattern-level
   only** and recorded in `docs/adr/`.
 - ❌ No package-level coupling to JARVIS, LearningHubSTEM, or any other repository.
+- PROFESSOR-J is **not a JARVIS fork**; it is a general-purpose AI OS that reuses JARVIS's
+  proven patterns.
 
-### 3.2. Pedagogical Purity & Grounding
-- **Grounded over generative:** factual STEM definitions reference canonical LearningHubSTEM
-  IDs (e.g. `lhs:phys.force`); non-grounded topics are answered via the general path and
-  labeled ungrounded.
+### 3.2. Pedagogical Purity & Provenance
+- **Provenance over generative:** factual STEM definitions reference LearningHubSTEM
+  entity IDs (e.g. `lhs:phys.force`) **and surface the entity's review status**
+  (`status: draft`, `provenance.ai_drafted: true`); non-grounded topics are answered via
+  the general path and labeled ungrounded.
 - **Socratic first:** do not dump raw answers to homework; provide progressive scaffolding.
 
 ### 3.3. General-purpose floor

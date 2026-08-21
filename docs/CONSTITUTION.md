@@ -47,9 +47,9 @@ available, and capable of operating generally when not.
 These constraints may not be traded away without a recorded ADR that the human owner
 accepts:
 
-1. **Grounding over generation.** Factual claims that map to a canonical source (e.g.
-   LearningHubSTEM) must cite that source. Ungrounded content is clearly labeled as
-   ungrounded.
+1. **Provenance over generation.** Factual claims that map to a canonical source (e.g.
+   LearningHubSTEM) must cite that source **and surface its review status** (`status`,
+   `provenance`). Ungrounded content is clearly labeled as ungrounded.
 2. **Domain purity.** `app/domain/` contains pure Python dataclasses only — zero imports
    from adapters, brain, db, or external frameworks.
 3. **Layered dependency direction.** Presentation → adapters → bootstrap → brain → domain.

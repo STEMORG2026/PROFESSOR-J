@@ -1,33 +1,35 @@
 # PROFESSOR-J — Product Requirements Document (PRD)
 
 > **Status:** Draft (Approved for Development)
-> **Version:** 1.0.0
+> **Version:** 0.1.0
 > **Owner:** Sajan (Principal Architect)
-> **Successor to:** JARVIS (independent, maintained peer)
+> **Inherits from:** JARVIS (independent, maintained peer)
 > **Date:** August 2026
 
 ---
 
 ## 1. Executive Summary & Vision
 
-**PROFESSOR-J is the next-generation successor to JARVIS** — an **Autonomous AI Professor,
-Research Companion, and general-purpose Personal AI Platform**.
+**PROFESSOR-J is a general-purpose autonomous AI platform** — an AI OS that inherits the
+proven JARVIS capability surface (cognitive brain, multi-provider model pool with circuit
+breakers, hybrid memory, tiered safety gates, tool sandbox, session/workspace management,
+FastAPI + Next.js UI) under a new name, and extends it beyond any single domain.
 
-It inherits the full capability surface of JARVIS (cognitive brain, multi-provider model
-pool with circuit breakers, hybrid memory, tiered safety gates, tool sandbox, session and
-workspace management, FastAPI + Next.js UI) under a new name, and extends it beyond the
-education domain.
+It is **not bound to LearningHubSTEM**. It consumes LearningHubSTEM as one specialized
+knowledge source among others via a consumer adapter, and falls back to general knowledge
+where no canonical entity exists.
 
-PROFESSOR-J grounds its knowledge in **[LearningHubSTEM]** where canonical entities exist,
+PROFESSOR-J provides source provenance from LearningHubSTEM where canonical entities exist,
 interacts through a multimodal tutoring canvas, supports real-time voice discussions,
 tracks learner mastery — **and** serves as a general personal AI assistant capable of
 handling everyday questions, file/workspace tasks, research, and coding outside that domain.
 
 ```mermaid
 graph LR
-    subgraph Foundation ["Verified Knowledge"]
-        LHS[LearningHubSTEM<br/>Canonical Concepts & Graphs]
+    subgraph KnowledgeSources ["Knowledge Sources"]
+        LHS[LearningHubSTEM<br/>Consumer Adapter]
         GEN[General Knowledge<br/>& User Workspace]
+        PDF[Ingested Papers<br/>& Documents]
     end
 
     subgraph Core ["PROFESSOR-J Brain"]
@@ -43,8 +45,9 @@ graph LR
         Everyday[General Personal Use]
     end
 
-    LHS -->|Grounded Knowledge| Core
+    LHS -->|Source Provenance| Core
     GEN -->|General Context| Core
+    PDF -->|Cited Content| Core
     Core <--> Users
 ```
 
@@ -73,10 +76,14 @@ graph LR
 - **Adaptive Difficulty:** adjusts problem complexity from learner mastery metrics.
 - **Formative Assessment:** generates targeted diagnostic quizzes.
 
-### Pillar 3: Grounded STEM Foundation (LearningHubSTEM Consumer)
-- Queries canonical [`LearningHubSTEM/exports/knowledge.json`] for definitions,
-  prerequisites, equations, concept hierarchies.
-- 100% citation provenance for factual STEM claims (e.g. `lhs:phys.newtons-second-law`).
+### Pillar 3: Source Provenance (LearningHubSTEM Consumer)
+- Queries [`LearningHubSTEM/exports/knowledge.json`] for definitions,
+  prerequisites, equations, concept hierarchies via a consumer adapter.
+- Every factual STEM claim that maps to a canonical entity carries source provenance
+  including the entity ID (e.g. `lhs:phys.newtons-second-law`) **and the entity's review
+  status** (e.g. `status: draft`, `provenance.ai_drafted: true`).
+- When no canonical entity exists, the system routes to general knowledge and clearly
+  labels the response as ungrounded.
 
 ### Pillar 4: Multimodal Interactive Canvas & Voice Classroom
 - **Interactive Whiteboard UI:** Next.js 15, KaTeX, Plotly/D3, interactive components.
@@ -112,12 +119,16 @@ graph LR
 - `FR-TUTOR-02`: Track misconception state and formulate targeted scaffolding prompts.
 - `FR-TUTOR-03`: Render math in LaTeX and verify step-by-step derivations.
 
-### 4.3. Knowledge Base & Grounding (`FR-KNOW`)
-- `FR-KNOW-01`: Import and index LearningHubSTEM entity exports with zero schema drift.
-- `FR-KNOW-02`: Provide prerequisite-graph traversal (e.g. recommend mastering
-  `lhs:phys.mass` and `lhs:phys.acceleration` before `lhs:phys.force`).
+### 4.3. Knowledge Base & Provenance (`FR-KNOW`)
+- `FR-KNOW-01`: Import and index LearningHubSTEM entity exports with zero schema drift
+  via the consumer adapter; validate `export_version` and `schema_version`.
+- `FR-KNOW-02`: Provide prerequisite-graph traversal derived from relationship types
+  (`mathematically_requires`, `logically_requires`, `appears_in_law`) — e.g. recommend
+  mastering `lhs:phys.mass` and `lhs:phys.acceleration` before `lhs:phys.force`.
 - `FR-KNOW-03`: Fall back to general (ungrounded) handling when no canonical entity exists,
   clearly labeled as ungrounded.
+- `FR-KNOW-04`: Surface the source entity's review status (`status`, `provenance`) alongside
+  every grounded claim so users can assess trust level.
 
 ### 4.4. Research & Document Intelligence (`FR-RES`)
 - `FR-RES-01`: Ingest scientific PDFs, extract text/formulas/figures, index into ChromaDB.
@@ -158,9 +169,10 @@ graph LR
 
 1. **Pedagogical Resolution Rate:** ≥ 85% of tutoring sessions conclude with the learner
    independently solving the target problem.
-2. **Hallucination Rate:** 0% ungrounded formula citations in STEM foundational queries.
+2. **Provenance Coverage:** 100% of foundational STEM claims carry source provenance
+   (entity ID + review status); ungrounded responses are explicitly labeled.
 3. **System Uptime & Failover:** 99.9% uptime across multi-provider LLM pools.
-4. **Successor completeness:** ≥ 90% of JARVIS capabilities operational in PROFESSOR-J by
+4. **Platform parity:** ≥ 90% of JARVIS capabilities operational in PROFESSOR-J by
    the end of Phase 4 (platform parity), with the balance documented as migrated.
 
 ---
@@ -170,8 +182,9 @@ graph LR
 - Multi-tenancy / user accounts-as-a-service (single-tenant personal platform first).
 - Payments, billing, or commercial SaaS infrastructure.
 - Mobile native apps (web-first, responsive).
-- Guaranteed factual accuracy for arbitrary non-STEM, non-grounded topics (labeled
-  ungrounded instead).
+- Guaranteed factual accuracy for arbitrary non-grounded topics (labeled
+  ungrounded instead); LearningHubSTEM content is consumed as-is with its review status
+  surfaced, not independently validated.
 - Full offline model serving (local models are one provider option, not the default).
 
 [LearningHubSTEM]: /home/sajan/Projects/LearningHubSTEM

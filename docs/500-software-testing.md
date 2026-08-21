@@ -43,4 +43,4 @@ cd frontend && pnpm typecheck && pnpm lint    # frontend
 - A failing boundary/import check = layering violation → fix structure (or record ADR).
 - A failing contract test against LHS export = schema drift → adapter fix, do not touch
   the canonical source.
-- A test that is flaky/timing-dependent in PlayMode = design bug in test isolation.
+- A test that is flaky/timing-dependent in E2E mode = design bug in test isolation.

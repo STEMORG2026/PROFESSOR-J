@@ -16,11 +16,10 @@ attributed to a decider (default: Sajan).
 
 **Planned initial records** (write with the work that implements them):
 
-- `ADR-001` — Adopt PROFESSOR-J as successor to JARVIS (rename, generalization, platform
-  positioning).
+- `ADR-001` — Adopt PROFESSOR-J as general-purpose AI OS inheriting JARVIS patterns (rename, platform positioning).
 - `ADR-002` — Pattern-level inheritance from JARVIS; no package coupling.
 - `ADR-003` — Clean layered architecture + multi-agent cognitive engine.
-- `ADR-004` — LearningHubSTEM consumer adapter contract (zero-drift, versioned export).
+- `ADR-004` — LearningHubSTEM consumer adapter contract (zero-drift, versioned export, prerequisite mapping from `mathematically_requires`/`logically_requires`).
 - `ADR-005` — `@safety_gate` tiered policy with HITL.
 - `ADR-006` — Multi-provider router with 3-state circuit breakers.
 - `ADR-007` — Hybrid memory (ChromaDB + BM25) behind `MemoryService`.

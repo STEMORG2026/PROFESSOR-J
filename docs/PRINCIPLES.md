@@ -9,11 +9,12 @@ not contradict them.
 
 ---
 
-## 1. Grounded truth over generative certainty
+## 1. Source provenance over generative certainty
 
-Factual STEM claims cite canonical entities (e.g. `lhs:phys.force`); when no canonical
+Factual STEM claims cite canonical entities (e.g. `lhs:phys.force`) **and surface their
+review status** (`status: draft`, `provenance.ai_drafted: true`); when no canonical
 source exists, the answer is clearly labeled as ungrounded/general. A confident-sounding
-hallucination is worse than an honest "I don't have a source for that."
+claim without provenance is worse than an honest "I don't have a verified source for that."
 
 ## 2. Teach, don't just answer
 

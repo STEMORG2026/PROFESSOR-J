@@ -14,8 +14,8 @@
   `docs/STANDARDS.md`, `docs/PRINCIPLES.md`, `docs/WORKING-PROCEDURE.md`.
 - Core documents: `AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`, `ARCHITECTURE-ESSENTIALS.md`,
   `IMPLEMENTATION-PLAN.md`, `README.md`.
-- Project Operating System foundation modules `docs/100-601` answered for the JARVIS-2.0
-  (general-purpose platform) positioning.
+- Project Operating System foundation modules `docs/` answered for the general-purpose
+  AI OS positioning.
 - Product positioning: successor to JARVIS — renamed, upgraded, generalized.
 - Backend scaffolding: `.venv/`, pinned `requirements.txt`, strict mypy config,
   pre-commit hooks, pytest smoke test (`1 passed`).

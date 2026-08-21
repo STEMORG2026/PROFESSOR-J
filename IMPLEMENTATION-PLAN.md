@@ -32,7 +32,7 @@ PHASE 9 ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pip
       `docs/STANDARDS.md`, `docs/PRINCIPLES.md`, `docs/WORKING-PROCEDURE.md`.
 - [x] Core documents: `AGENTS.md`, `PRD.md`, `ARCHITECTURE.md`,
       `ARCHITECTURE-ESSENTIALS.md`, `IMPLEMENTATION-PLAN.md`.
-- [x] Project Operating System foundation answers in `docs/100-601` modules.
+- [x] Project Operating System foundation answers in `docs/` foundation modules.
 - [x] Initialize Python 3.11+ virtual environment (`.venv/`) and `requirements.txt`.
 - [x] Set up pre-commit hooks, strict mypy config, pytest scaffolding.
 - **Acceptance Criteria:** `pytest` runs and passes; directory structure verified.

@@ -1,6 +1,6 @@
-# 🤖 PROFESSOR-J — Autonomous AI Platform (JARVIS 2.0)
+# 🤖 PROFESSOR-J — Autonomous AI Platform
 
-> **The Next-Generation Successor to JARVIS**
+> **General-Purpose AI OS with Specialized Knowledge Consumption**
 > **Status:** Active Inception & Development
 > **Ecosystem Role:** Independent Peer Repository · General-Purpose AI Platform
 
@@ -8,13 +8,19 @@
 
 ## 🌟 What is PROFESSOR-J?
 
-**PROFESSOR-J is the successor to JARVIS** — renamed, upgraded, and generalized. It keeps
-everything JARVIS did well and extends it far beyond any single domain:
+**PROFESSOR-J is a general-purpose autonomous AI platform** — an AI OS that inherits the
+proven JARVIS capability surface (cognitive brain, multi-provider model pool with circuit
+breakers, hybrid memory, tiered safety gates, tool sandbox, session/workspace management,
+FastAPI + Next.js UI) under a new name, and extends it beyond any single domain.
+
+It is **not bound to LearningHubSTEM**. It consumes LearningHubSTEM as one specialized
+knowledge source among others via a consumer adapter, and falls back to general knowledge
+where no canonical entity exists.
 
 - 🧠 **JARVIS-class Cognitive Brain** — Intent Analyzer → Task Planner → Execution Runner →
   Response Synthesizer, inherited and hardened from JARVIS.
 - 🎓 **Autonomous AI Professor** — Socratic & adaptive tutoring, misconception diagnosis,
-  grounded in canonical [LearningHubSTEM] knowledge.
+  with source provenance from LearningHubSTEM where available.
 - 🔬 **Research Companion** — scientific paper ingestion (PDF/OCR), page-exact citation
   provenance, LaTeX proof validation.
 - 🧮 **Executable Code & Math Sandbox** — isolated Python execution, SymPy derivations,
@@ -48,7 +54,7 @@ PROFESSOR-J/
 │   ├── STANDARDS.md           ← Coding, docs & working standards
 │   ├── PRINCIPLES.md          ← Project values
 │   ├── WORKING-PROCEDURE.md   ← How work gets done
-│   └── 100-601 modules        ← Project Operating System foundation answers
+│   └── foundation modules      ← Project Operating System foundation answers
 │
 ├── app/                       ← Python Backend Core
 │   ├── brain/                 ← Cognitive Engine (Professor, Research, Evaluator, Tool)
@@ -92,7 +98,7 @@ cd frontend && pnpm typecheck && pnpm lint
 
 ## 🧭 Related Ecosystem Projects
 
-- **[LearningHubSTEM]** — canonical STEM knowledge foundation (consumer).
+- **[LearningHubSTEM]** — canonical STEM knowledge foundation (consumed via adapter).
 - **JARVIS** — the predecessor platform; PROFESSOR-J inherits its capabilities under a new
   name and extends them. JARVIS remains an independent, maintained peer.
 

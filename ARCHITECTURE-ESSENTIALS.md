@@ -7,10 +7,12 @@
 
 ## 1. What PROFESSOR-J is
 
-**The next-generation successor to JARVIS** — an autonomous, general-purpose AI platform:
-cognitive brain, tool sandbox, hybrid memory, multi-provider routing with circuit breakers,
-session/workspace management — **plus** primary domains of tutoring, research, and
-pedagogy grounded in LearningHubSTEM. General by default, specialized on demand.
+**A general-purpose autonomous AI platform (AI OS)** — inheriting JARVIS's cognitive brain,
+tool sandbox, hybrid memory, multi-provider routing with circuit breakers,
+session/workspace management — plus primary domains of tutoring, research, and pedagogy.
+It **consumes LearningHubSTEM as one specialized knowledge source** via a consumer adapter
+and falls back to general knowledge where no canonical entity exists. General by default,
+specialized on demand.
 
 ---
 
@@ -93,11 +95,12 @@ class LHSKnowledgeAdapter:
 
 ---
 
-## 6. Successor Note (JARVIS)
+## 6. JARVIS Relationship Note
 
 PROFESSOR-J inherits JARVIS's patterns and capabilities under a new name. JARVIS remains an
 independent, maintained peer. Ports are adapted under this governance and recorded in
-`docs/adr/` — never imported at the package level.
+`docs/adr/` — never imported at the package level. PROFESSOR-J is **not a JARVIS fork**;
+it is a general-purpose AI OS that reuses JARVIS's proven patterns.
 
 ---
 

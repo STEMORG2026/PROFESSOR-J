@@ -3,14 +3,17 @@
 > **Architecture Style:** Clean Layered Architecture + Multi-Agent Cognitive Orchestrator +
 > Pragmatic Hybrid Async Engine (inherited from JARVIS, upgraded)
 > **Status:** Living Architecture at Inception
-> **Version:** 1.0.0
+> **Version:** 0.1.0
 
 ---
 
-## 1. Successor relationship
+## 1. Platform positioning
 
-PROFESSOR-J inherits the proven architectural foundations of **JARVIS** under a new name
-and generalizes them:
+PROFESSOR-J is a **general-purpose autonomous AI platform** (an AI OS) that inherits the
+proven architectural foundations of **JARVIS** under a new name and generalizes them.
+It is **not bound to LearningHubSTEM**. It consumes LearningHubSTEM as one specialized
+knowledge source among others via a consumer adapter, and falls back to general knowledge
+where no canonical entity exists.
 
 | JARVIS capability | PROFESSOR-J status |
 |---|---|

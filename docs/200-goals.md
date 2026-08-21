@@ -11,8 +11,8 @@
 1. **JARVIS parity + generalization:** ≥ 90% of JARVIS capabilities operational in
    PROFESSOR-J by end of Phase 4, with the platform capable of general assistance
    (chat, files, workspace, code) beyond education.
-2. **Grounded tutoring:** 0% ungrounded formula citations in foundational STEM queries;
-   every factual claim cites a canonical entity ID.
+2. **Provenance-first tutoring:** 100% of foundational STEM claims carry source provenance
+   (entity ID + review status); ungrounded responses are explicitly labeled.
 3. **Effective pedagogy:** ≥ 85% of tutoring sessions end with the learner independently
    solving the target problem.
 4. **Research capability:** ingested PDFs are queryable with page-exact citations.
@@ -23,7 +23,7 @@
 ## Success criteria (how each is verified)
 
 - Parity: capability checklist against JARVIS in `docs/adr/`.
-- Grounding: citation-audit tests over foundational query set.
+- Provenance: citation-audit tests verifying source + review-status on every foundational claim.
 - Pedagogy: simulated-student and user trials measuring independent resolution.
 - Research: citation precision/recall on a test corpus.
 - Resilience: fault-injection tests (429/503) with uptime telemetry.
