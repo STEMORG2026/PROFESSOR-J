@@ -1,0 +1,82 @@
+# MCP Agent Configuration for PROFESSOR-J
+# See https://github.com/lastmile-ai/mcp-agent
+
+mcp:
+  servers:
+    # ── Essential: Filesystem Access ─────────────────────────────────
+    filesystem:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+      transport: "stdio"
+      description: "Local filesystem access (read/write/list) for workspace operations"
+
+    # ── Essential: Git Operations ────────────────────────────────────
+    git:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-git"]
+      transport: "stdio"
+      description: "Git operations (status, diff, log, commit, branch)"
+
+    # ── Essential: Web Fetch / HTTP ──────────────────────────────────
+    fetch:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-fetch"]
+      transport: "stdio"
+      description: "HTTP fetching and web content retrieval"
+
+    # ── Essential: Code Execution (via sandbox) ──────────────────────
+    # Note: Code execution uses our internal sandbox (app/tools/sandbox.py)
+    # This server provides additional language-specific tooling
+    python:
+      command: "uvx"
+      args: ["mcp-server-python"]
+      transport: "stdio"
+      description: "Python code execution and REPL (supplementary to internal sandbox)"
+
+    # ── Good to Have: GitHub Integration ─────────────────────────────
+    github:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-github"]
+      transport: "stdio"
+      env:
+        GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
+      description: "GitHub API (repos, issues, PRs, actions) - requires GITHUB_TOKEN"
+
+    # ── Good to Have: SQLite Database ────────────────────────────────
+    sqlite:
+      command: "uvx"
+      args: ["mcp-server-sqlite", "--db-path", "./data/professor.db"]
+      transport: "stdio"
+      description: "SQLite database access for direct queries"
+
+    # ── Good to Have: PostgreSQL ─────────────────────────────────────
+    postgres:
+      command: "uvx"
+      args: ["mcp-server-postgres", "${DATABASE_URL}"]
+      transport: "stdio"
+      description: "PostgreSQL access (production) - requires DATABASE_URL"
+
+    # ── Future: Web Search ───────────────────────────────────────────
+    brave-search:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-brave-search"]
+      transport: "stdio"
+      env:
+        BRAVE_API_KEY: "${BRAVE_API_KEY}"
+      description: "Web search via Brave API - requires BRAVE_API_KEY"
+
+    # ── Future: Slack ────────────────────────────────────────────────
+    slack:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-slack"]
+      transport: "stdio"
+      env:
+        SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+        SLACK_TEAM_ID: "${SLACK_TEAM_ID}"
+      description: "Slack integration - requires bot token"
+
+# MCP Agent settings
+agent:
+  default_model: "openai:gpt-4o"
+  max_iterations: 10
+  auto_approve: false
