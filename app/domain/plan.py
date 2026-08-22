@@ -142,12 +142,13 @@ class ExecutionPlan:
     def with_step_update(self, step_id: str, **updates: Any) -> ExecutionPlan:
         """Return new plan with updated step (immutable update)."""
         import dataclasses
+
         new_steps = []
         for step in self.steps:
             if step.step_id == step_id:
-                new_steps.append(step.__class__(
-                    **{**dataclasses.asdict(step), **updates}
-                ))
+                new_steps.append(
+                    step.__class__(**{**dataclasses.asdict(step), **updates})
+                )
             else:
                 new_steps.append(step)
         return ExecutionPlan(

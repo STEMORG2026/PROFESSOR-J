@@ -34,9 +34,9 @@ class SafetyTier(str, Enum):
 class ApprovalState(str, Enum):
     """Approval state for a tool call request."""
 
-    PENDING = "pending"           # Awaiting evaluation
+    PENDING = "pending"  # Awaiting evaluation
     AUTO_APPROVED = "auto_approved"  # Approved by policy (SAFE/SENSITIVE)
     HITL_REQUIRED = "hitl_required"  # DESTRUCTIVE - needs human
     HITL_APPROVED = "hitl_approved"  # Human approved
     HITL_REJECTED = "hitl_rejected"  # Human rejected
-    EXPIRED = "expired"           # Approval request timed out
+    EXPIRED = "expired"  # Approval request timed out

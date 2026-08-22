@@ -32,11 +32,13 @@ def init_tracer_provider(
     endpoint = otel_endpoint or settings.otel_endpoint
 
     # Create resource with service metadata
-    resource = Resource.create({
-        SERVICE_NAME: service_name,
-        SERVICE_VERSION: service_version,
-        "deployment.environment": settings.environment,
-    })
+    resource = Resource.create(
+        {
+            SERVICE_NAME: service_name,
+            SERVICE_VERSION: service_version,
+            "deployment.environment": settings.environment,
+        }
+    )
 
     provider = TracerProvider(resource=resource)
 
@@ -45,7 +47,9 @@ def init_tracer_provider(
         endpoint=endpoint,
         headers={
             "Authorization": f"Basic {_langfuse_auth_header()}",
-        } if _langfuse_auth_header() else {},
+        }
+        if _langfuse_auth_header()
+        else {},
         timeout=10,
     )
     provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
@@ -57,17 +61,21 @@ def init_tracer_provider(
     set_tracer_provider(provider)
     _tracer_provider = provider
 
-    logger.info("OpenTelemetry tracer provider initialized", extra={
-        "service_name": service_name,
-        "endpoint": endpoint,
-        "console_export": console_export,
-    })
+    logger.info(
+        "OpenTelemetry tracer provider initialized",
+        extra={
+            "service_name": service_name,
+            "endpoint": endpoint,
+            "console_export": console_export,
+        },
+    )
     return provider
 
 
 def _langfuse_auth_header() -> str | None:
     """Generate Langfuse Basic auth header from public/secret keys."""
     import base64
+
     settings = get_settings()
     if settings.langfuse_public_key and settings.langfuse_secret_key:
         credentials = f"{settings.langfuse_public_key}:{settings.langfuse_secret_key}"
@@ -78,6 +86,7 @@ def _langfuse_auth_header() -> str | None:
 def get_tracer(name: str | None = None) -> Any:
     """Get a tracer instance."""
     from opentelemetry import trace
+
     return trace.get_tracer(name or "professor-j")
 
 
@@ -91,6 +100,7 @@ def shutdown_tracer_provider() -> None:
 
 
 # ── Semantic Convention Helpers ─────────────────────────────────────
+
 
 def set_span_attributes(span: Any, attributes: dict[str, Any]) -> None:
     """Set multiple attributes on a span."""
@@ -200,8 +210,15 @@ def _sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
     """Remove sensitive data from args before logging."""
     """Remove sensitive data from args before logging."""
     sensitive_keys = {
-        "api_key", "password", "secret", "token", "authorization",
-        "access_token", "refresh_token", "private_key", "credential",
+        "api_key",
+        "password",
+        "secret",
+        "token",
+        "authorization",
+        "access_token",
+        "refresh_token",
+        "private_key",
+        "credential",
     }
     sanitized = {}
     for k, v in args.items():
