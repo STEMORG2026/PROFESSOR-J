@@ -13,7 +13,7 @@
 | Chat/stream | POST `/api/v1/chat/stream` → SSE | `/v1` in path | frontend |
 | Voice signaling | WS `/api/v1/voice/signal` (WebRTC) | `/v1` in path | frontend |
 | Auth | Bearer token (`PROFESSOR_API_KEY`) | header | all clients |
-| LHS knowledge | file contract: `exports/knowledge.json` schema | `export_version` / `schema_version` (currently `3`) | `app/knowledge/` |
+| LHS knowledge | file contract: `exports/knowledge.json` schema | `export_version` / `schema_version` (currently `0.1`) | `app/knowledge/` |
 | Provider pool | provider API contracts (per provider) | pinned catalogs | `app/models/` |
 
 ## Contract format & versioning discipline
