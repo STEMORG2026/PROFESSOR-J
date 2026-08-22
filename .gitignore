@@ -42,3 +42,6 @@ data/test_*.txt
 .coverage.*
 htmlcov/
 coverage.xml
+
+# Virtual Board generated ledger (derived, regenerable)
+board/ledger.md
