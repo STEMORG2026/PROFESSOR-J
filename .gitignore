@@ -36,3 +36,9 @@ data/runtime/
 data/test_*.txt
 *.sqlite3
 *.db
+
+# Coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
