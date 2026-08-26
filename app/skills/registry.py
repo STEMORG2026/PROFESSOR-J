@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
-from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +90,7 @@ class SkillRegistry:
         try:
             data = {
                 "metadata": skill.metadata.to_dict(),
-                "registered_at": datetime.utcnow().isoformat() + "Z",
+                "registered_at": datetime.now(timezone.utc).isoformat(),
             }
             skill_file.write_text(json.dumps(data, indent=2))
             return True
@@ -143,6 +142,3 @@ def reset_skill_registry() -> None:
     """Reset the global registry (for testing)."""
     global _registry
     _registry = None
-
-
-from datetime import datetime
