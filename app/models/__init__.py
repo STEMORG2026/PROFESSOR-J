@@ -16,6 +16,7 @@ from app.models.providers import (  # noqa: F401
 )
 from app.models.catalog import ProviderCatalog, default_catalog  # noqa: F401
 from app.models.router import ModelRouter  # noqa: F401
+from app.models.retry import bounded_retry  # noqa: F401
 
 __all__ = [
     "LLMMessage",
@@ -26,4 +27,5 @@ __all__ = [
     "ProviderCatalog",
     "default_catalog",
     "ModelRouter",
+    "bounded_retry",
 ]
