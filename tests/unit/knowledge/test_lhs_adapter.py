@@ -42,12 +42,12 @@ FIXTURE_COUNTS = {
 
 def _find_real_export() -> Path | None:
     """Locate the real LearningHubSTEM export if present on this machine."""
+    # Relative to the workspace layout (repo root's parent is the ecosystem root).
     candidates = [
         Path(__file__).resolve().parents[2]
         / "LearningHubSTEM"
         / "exports"
         / "knowledge.json",
-        Path("/home/sajan/Projects/LearningHubSTEM/exports/knowledge.json"),
     ]
     for path in candidates:
         if path.is_file():

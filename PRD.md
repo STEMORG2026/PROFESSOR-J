@@ -187,5 +187,5 @@ graph LR
   surfaced, not independently validated.
 - Full offline model serving (local models are one provider option, not the default).
 
-[LearningHubSTEM]: /home/sajan/Projects/LearningHubSTEM
-[`LearningHubSTEM/exports/knowledge.json`]: /home/sajan/Projects/LearningHubSTEM/exports/knowledge.json
+[LearningHubSTEM]: ../LearningHubSTEM
+[`LearningHubSTEM/exports/knowledge.json`]: ../LearningHubSTEM/exports/knowledge.json

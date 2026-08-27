@@ -32,7 +32,7 @@ authoritative for work inside PROFESSOR-J.
 ## 2. Authority Hierarchy
 
 ```text
-Workspace Level 1 Invariants      (/home/sajan/Projects/docs/WORKSPACE-GOVERNANCE.md)
+Workspace Level 1 Invariants      (../docs/WORKSPACE-GOVERNANCE.md)
         ↓
 PROFESSOR-J Level 2 Governance    (docs/GOVERNANCE.md, this file)
         ↓

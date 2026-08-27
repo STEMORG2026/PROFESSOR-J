@@ -14,7 +14,7 @@ successor to JARVIS — renamed, upgraded, and general.
 **Kind.** software · education · research · open-source (pick all that apply)
 
 **Repository location and primary entry point.**
-`/home/sajan/Projects/PROFESSOR-J` · entry: `AGENTS.md` (routing), `app/bootstrap.py`
+`PROFESSOR-J` · entry: `AGENTS.md` (routing), `app/bootstrap.py`
 (backend composition root, once implemented), `frontend/` (UI).
 
 **Status.** seed (inception, Phase 0) → active (planned)

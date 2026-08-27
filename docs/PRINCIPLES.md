@@ -1,10 +1,10 @@
 # PRINCIPLES — PROFESSOR-J
 
 **Status:** The values PROFESSOR-J commits to; decisions must be defensible against them.
-**Related:** `/home/sajan/Projects/docs/PRINCIPLES.md` (workspace values),
+**Related:** `../docs/PRINCIPLES.md` (workspace values),
 `docs/CONSTITUTION.md`, `docs/RULES.md`.
 
-These extend the workspace principles (`/home/sajan/Projects/docs/PRINCIPLES.md`) and do
+These extend the workspace principles (`../docs/PRINCIPLES.md`) and do
 not contradict them.
 
 ---

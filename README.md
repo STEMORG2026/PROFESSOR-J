@@ -109,7 +109,7 @@ The `frontend/` app is not built yet — this is planned work, not present.
 - **JARVIS** — the predecessor platform; PROFESSOR-J inherits its capabilities under a new
   name and extends them. JARVIS remains an independent, maintained peer.
 
-[LearningHubSTEM]: /home/sajan/Projects/LearningHubSTEM
+[LearningHubSTEM]: ../LearningHubSTEM
 
 ---
 

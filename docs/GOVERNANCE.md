@@ -7,7 +7,7 @@
 `docs/STANDARDS.md` (coding/docs/working standards), `docs/PRINCIPLES.md` (values),
 `docs/WORKING-PROCEDURE.md` (how work gets done).
 
-Generic workspace rules live in `/home/sajan/Projects/docs/WORKSPACE-GOVERNANCE.md` and
+Generic workspace rules live in `../docs/WORKSPACE-GOVERNANCE.md` and
 apply to every repository, including this one.
 
 ---
@@ -15,7 +15,7 @@ apply to every repository, including this one.
 ## 1. Governance precedence
 
 ```
-LEVEL 1 — WORKSPACE INVARIANTS (non-overridable, /home/sajan/Projects/docs/WORKSPACE-GOVERNANCE.md)
+LEVEL 1 — WORKSPACE INVARIANTS (non-overridable, ../docs/WORKSPACE-GOVERNANCE.md)
           ↓
 LEVEL 2 — PROFESSOR-J GOVERNANCE (authoritative inside this repo)
           ↓
@@ -52,7 +52,7 @@ refactors, non-breaking documentation, bug fixes.
 ## 2. Authority hierarchy
 
 ```text
-Workspace L1 invariants         (/home/sajan/Projects/docs/WORKSPACE-GOVERNANCE.md)
+Workspace L1 invariants         (../docs/WORKSPACE-GOVERNANCE.md)
         ↓
 PROFESSOR-J L2 governance       (docs/GOVERNANCE.md, AGENTS.md)
         ↓
