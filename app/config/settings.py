@@ -47,8 +47,6 @@ class Settings(BaseSettings):
 
     # ── LearningHubSTEM ──────────────────────────────────────────────
     lhs_export_path: Path = Path("LearningHubSTEM/exports/knowledge.json")
-    lhs_expected_export_version: int = 3
-    lhs_expected_schema_version: int = 3
 
     # ── LLM Providers ────────────────────────────────────────────────
     openai_api_key: str | None = None
