@@ -119,11 +119,13 @@ propose or act, but never override repository governance or workspace invariants
 **All work happens on branches.** Never commit directly to `main`.
 
 | Branch Type | Pattern | Purpose | Lifetime |
-|-------------|---------|---------|----------|
+|-------------|---------|----------|----------|
 | **Phase** | `phase/X.Y-description` | Major phase from IMPLEMENTATION-PLAN | Until phase complete + merged |
 | **Task** | `task/phase-X.Y-description` | Single task within a phase | Until task complete + PR merged |
 | **Fix** | `fix/description` | Bug fixes, hotfixes | Until merged |
 | **Docs** | `docs/description` | Documentation-only changes | Until merged |
+| **Chore** | `chore/description` | Maintenance, tooling, non-feature | Until merged |
+| **CI** | `ci/description` | CI/CD pipeline changes | Until merged |
 | **Experiment** | `exp/description` | Throwaway spikes, prototypes | Discarded or converted |
 
 **Workflow:**

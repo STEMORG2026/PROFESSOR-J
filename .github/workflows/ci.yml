@@ -175,12 +175,14 @@ jobs:
       - name: Check branch naming
         run: |
           branch="${{ github.head_ref }}"
-          if [[ ! $branch =~ ^(phase|task|fix|docs|exp)/ ]]; then
+          if [[ ! $branch =~ ^(phase|task|fix|docs|chore|ci|exp)/ ]]; then
             echo "Branch name '$branch' does not follow convention:"
             echo "  phase/X.Y-description"
             echo "  task/phase-X.Y-description"
             echo "  fix/description"
             echo "  docs/description"
+            echo "  chore/description"
+            echo "  ci/description"
             echo "  exp/description"
             exit 1
           fi
