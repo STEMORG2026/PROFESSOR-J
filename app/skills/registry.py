@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.domain.time import utc_now
 from app.skills.base import Skill, SkillMetadata, SkillResult
 
 logger = logging.getLogger(__name__)
@@ -17,12 +17,12 @@ class SkillRegistry:
     """Central registry for skill discovery and management."""
 
     def __init__(self, skills_dir: Path | None = None) -> None:
-        self._skills: dict[str, Skill] = {}
+        self._skills: dict[str, Skill[Any]] = {}
         self._metadata: dict[str, SkillMetadata] = {}
         self._skills_dir = skills_dir or Path("data/skills")
         self._skills_dir.mkdir(parents=True, exist_ok=True)
 
-    def register(self, skill: Skill) -> None:
+    def register(self, skill: Skill[Any]) -> None:
         """Register a skill instance."""
         name = skill.metadata.name
         if name in self._skills:
@@ -40,7 +40,7 @@ class SkillRegistry:
             return True
         return False
 
-    def get(self, name: str) -> Skill | None:
+    def get(self, name: str) -> Skill[Any] | None:
         """Get a skill by name."""
         return self._skills.get(name)
 
@@ -73,7 +73,7 @@ class SkillRegistry:
         self,
         name: str,
         **kwargs: Any,
-    ) -> SkillResult:
+    ) -> SkillResult[Any]:
         """Execute a skill by name."""
         skill = self._skills.get(name)
         if not skill:
@@ -90,7 +90,7 @@ class SkillRegistry:
         try:
             data = {
                 "metadata": skill.metadata.to_dict(),
-                "registered_at": datetime.utcnow().isoformat() + "Z",
+                "registered_at": utc_now().isoformat() + "Z",
             }
             skill_file.write_text(json.dumps(data, indent=2))
             return True
@@ -98,7 +98,9 @@ class SkillRegistry:
             logger.error("Failed to save skill %s: %s", skill_name, e)
             return False
 
-    def load_from_disk(self, skill_name: str, skill_class: type[Skill]) -> Skill | None:
+    def load_from_disk(
+        self, skill_name: str, skill_class: type[Skill[Any]]
+    ) -> Skill[Any] | None:
         """Load a skill from disk metadata and instantiate it."""
         skill_file = self._skills_dir / f"{skill_name}.json"
         if not skill_file.exists():
@@ -115,7 +117,7 @@ class SkillRegistry:
             logger.error("Failed to load skill %s: %s", skill_name, e)
             return None
 
-    def load_all_from_disk(self, skill_classes: dict[str, type[Skill]]) -> int:
+    def load_all_from_disk(self, skill_classes: dict[str, type[Skill[Any]]]) -> int:
         """Load all skills from disk using provided class mapping."""
         loaded = 0
         for skill_file in self._skills_dir.glob("*.json"):

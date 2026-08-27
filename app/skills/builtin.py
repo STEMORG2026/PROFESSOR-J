@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from app.skills.base import Skill, SkillMetadata, SkillResult
-from app.exceptions import SandboxError
+from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
+from app.skills.registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 # ── Filesystem Skill ────────────────────────────────────────────────
 
 
-class FilesystemSkill(Skill):
+class FilesystemSkill(Skill[dict[str, Any]]):
     """Filesystem operations via internal implementation (supplements MCP)."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -115,7 +116,7 @@ class FilesystemSkill(Skill):
 # ── Git Skill ──────────────────────────────────────────────────────
 
 
-class GitSkill(Skill):
+class GitSkill(Skill[dict[str, Any]]):
     """Git operations for version control."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -216,7 +217,7 @@ class GitSkill(Skill):
 # ── Web Search Skill ──────────────────────────────────────────────
 
 
-class WebSearchSkill(Skill):
+class WebSearchSkill(Skill[dict[str, Any]]):
     """Web search via MCP (requires brave-search server)."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -263,24 +264,18 @@ class WebSearchSkill(Skill):
         )
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
-        # This would use MCP to call the brave-search server
-        # For now, return a placeholder - actual implementation uses MCP client
-        query = kwargs.get("query", "")
-        max_results = kwargs.get("max_results", 10)
-
-        return SkillResult.success(
-            {
-                "success": True,
-                "results": [],
-                "note": f"Web search for '{query}' (max {max_results} results) - MCP implementation pending",
-            }
+        # Web search requires the MCP brave-search server, which is not yet wired.
+        return SkillResult.failure(
+            "web_search not implemented: requires MCP brave-search server",
+            component="web_search",
+            not_implemented=True,
         )
 
 
 # ── Code Execution Skill ──────────────────────────────────────────
 
 
-class CodeExecutionSkill(Skill):
+class CodeExecutionSkill(Skill[dict[str, Any]]):
     """Code execution via internal sandbox (supplements MCP python server)."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -325,37 +320,20 @@ class CodeExecutionSkill(Skill):
         )
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
-        code = kwargs["code"]
-        timeout = kwargs.get("timeout", 10)
-        memory_mb = kwargs.get("memory_mb", 512)
-
-        try:
-            # This would use the internal sandbox (app/tools/sandbox.py)
-            # For now, return a placeholder
-            return SkillResult.success(
-                {
-                    "success": True,
-                    "stdout": "",
-                    "stderr": "",
-                    "return_code": 0,
-                    "execution_time_ms": 0,
-                    "note": (
-                        f"Code execution ({len(code)} chars, timeout={timeout}s, "
-                        f"mem={memory_mb}MB) - sandbox implementation pending"
-                    ),
-                }
-            )
-        except SandboxError as e:
-            return SkillResult.failure(str(e))
-        except Exception as e:
-            logger.exception("Code execution failed: %s", e)
-            return SkillResult.failure(str(e))
+        # Sandboxed execution requires app/tools/sandbox.py (Phase 5, roadmap).
+        # Returning success here would be dangerously wrong for a DESTRUCTIVE tier.
+        del kwargs
+        return SkillResult.failure(
+            "code_execution not implemented: sandbox (app.tools.sandbox) is not built",
+            component="code_execution",
+            not_implemented=True,
+        )
 
 
 # ── LearningHubSTEM Skill ──────────────────────────────────────────
 
 
-class LHSTEMSkill(Skill):
+class LHSTEMSkill(Skill[dict[str, Any]]):
     """Access LearningHubSTEM canonical knowledge via consumer adapter."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -406,25 +384,79 @@ class LHSTEMSkill(Skill):
         op = kwargs.get("operation")
         return op in {"get_concept", "get_prerequisites", "search", "has_concept"}
 
+    def _get_adapter(self) -> LHSKnowledgeAdapter:
+        """Lazily construct the canonical knowledge adapter from settings."""
+        from app.config.settings import get_settings
+
+        return LHSKnowledgeAdapter(get_settings().lhs_export_path)
+
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
         operation = kwargs["operation"]
         entity_id = kwargs.get("entity_id", "")
         query = kwargs.get("query", "")
 
-        # This would use the LHSKnowledgeAdapter
-        # For now, return placeholder
-        return SkillResult.success(
-            {
-                "success": True,
-                "note": f"LHSTEM {operation} for {entity_id or query} - adapter implementation pending",
-            }
+        try:
+            adapter = self._get_adapter()
+        except Exception as e:
+            return SkillResult.failure(
+                f"LHS knowledge adapter unavailable: {e}",
+                component="lhstem",
+            )
+
+        if operation == "get_concept":
+            concept = adapter.get_concept(entity_id) if entity_id else None
+            if concept is None:
+                return SkillResult.failure(
+                    f"Canonical entity not found: {entity_id}",
+                    component="lhstem",
+                    grounded=False,
+                )
+            return SkillResult.success(
+                {
+                    "success": True,
+                    "concept": concept.to_citation_dict(),
+                    "review_status": concept.status.value,
+                    "grounded": concept.is_grounded(),
+                },
+                component="lhstem",
+            )
+
+        if operation == "get_prerequisites":
+            prereqs = adapter.get_prerequisites(entity_id) if entity_id else ()
+            return SkillResult.success(
+                {"success": True, "prerequisites": list(prereqs)},
+                component="lhstem",
+            )
+
+        if operation == "has_concept":
+            if not entity_id:
+                return SkillResult.failure("entity_id is required", component="lhstem")
+            return SkillResult.success(
+                {"success": True, "has_concept": adapter.has_concept(entity_id)},
+                component="lhstem",
+            )
+
+        if operation == "search":
+            if not query:
+                return SkillResult.failure("query is required", component="lhstem")
+            results = adapter.search_concepts(query, limit=10)
+            return SkillResult.success(
+                {
+                    "success": True,
+                    "results": [r.to_citation_dict() for r in results],
+                },
+                component="lhstem",
+            )
+
+        return SkillResult.failure(
+            f"Unknown operation: {operation}", component="lhstem"
         )
 
 
 # ── Memory Skill ───────────────────────────────────────────────────
 
 
-class MemorySkill(Skill):
+class MemorySkill(Skill[dict[str, Any]]):
     """Memory operations (store, retrieve, update, delete) via MemoryService."""
 
     def _default_metadata(self) -> SkillMetadata:
@@ -472,20 +504,18 @@ class MemorySkill(Skill):
         return op in {"store", "retrieve", "update", "delete", "search"}
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
-        operation = kwargs["operation"]
-
-        # This would use the MemoryService
-        return SkillResult.success(
-            {
-                "success": True,
-                "note": f"Memory {operation} - MemoryService implementation pending",
-            }
+        # Memory operations require MemoryService (ChromaDB + BM25), not yet built.
+        del kwargs
+        return SkillResult.failure(
+            "memory not implemented: MemoryService is not built",
+            component="memory",
+            not_implemented=True,
         )
 
 
 # ── Skill Factory ──────────────────────────────────────────────────
 
-BUILTIN_SKILLS: dict[str, type[Skill]] = {
+BUILTIN_SKILLS: dict[str, type[Skill[Any]]] = {
     "filesystem": FilesystemSkill,
     "git": GitSkill,
     "web_search": WebSearchSkill,
@@ -495,12 +525,12 @@ BUILTIN_SKILLS: dict[str, type[Skill]] = {
 }
 
 
-def create_builtin_skills() -> dict[str, Skill]:
+def create_builtin_skills() -> dict[str, Skill[Any]]:
     """Create instances of all built-in skills."""
     return {name: cls() for name, cls in BUILTIN_SKILLS.items()}
 
 
-def register_builtin_skills(registry) -> int:
+def register_builtin_skills(registry: SkillRegistry) -> int:
     """Register all built-in skills with the registry."""
     registered = 0
     for name, skill_class in BUILTIN_SKILLS.items():

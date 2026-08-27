@@ -79,7 +79,7 @@ class SkillResult(Generic[T]):
 
     @classmethod
     def success(
-        cls, data: T, execution_time_ms: float = 0.0, **metadata
+        cls, data: T, execution_time_ms: float = 0.0, **metadata: object
     ) -> SkillResult[T]:
         return cls(
             status=SkillStatus.SUCCESS,
@@ -90,7 +90,7 @@ class SkillResult(Generic[T]):
 
     @classmethod
     def failure(
-        cls, error: str, execution_time_ms: float = 0.0, **metadata
+        cls, error: str, execution_time_ms: float = 0.0, **metadata: object
     ) -> SkillResult[T]:
         return cls(
             status=SkillStatus.FAILED,
@@ -194,7 +194,7 @@ class MCPMixin:
 
             settings = get_settings()
             self._mcp_client = MCPApp(name="professor-j-skills", settings=settings)
-            await self._mcp_client.initialize()
+            await self._mcp_client.initialize()  # type: ignore[no-untyped-call]
         return self._mcp_client
 
     async def call_mcp_tool(self, server: str, tool: str, args: dict[str, Any]) -> Any:

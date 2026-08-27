@@ -16,13 +16,10 @@ check_untyped_defs = true
 module = "numpy.*"
 ignore_errors = true
 
-[[tool.mypy.overrides]]
-module = "app.skills.*"
-ignore_errors = true
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"
+asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["app"]
