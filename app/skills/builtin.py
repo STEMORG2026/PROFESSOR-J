@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import subprocess
+import subprocess  # nosec B404 - used only by the git skill with explicit list args (no shell)
 from pathlib import Path
 from typing import Any
 
@@ -198,7 +198,11 @@ class GitSkill(Skill[dict[str, Any]]):
             else:
                 cmd.extend(args)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=cwd)
+            # cmd is an explicit arg LIST (never shell=True), so it is not
+            # vulnerable to shell injection despite coming from user params.
+            result = subprocess.run(  # nosec B603 - list args, no shell
+                cmd, capture_output=True, text=True, timeout=30, cwd=cwd
+            )
 
             if result.returncode == 0:
                 return SkillResult.success({"success": True, "output": result.stdout})

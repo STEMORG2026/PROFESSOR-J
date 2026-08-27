@@ -54,7 +54,8 @@ async def bounded_retry(
                 break
             retry_after = _retry_after(e)
             await do_sleep(_delay(base_delay, max_delay, attempt, retry_after, jitter))
-    assert last_error is not None
+    if last_error is None:  # defensive; unreachable when max_attempts >= 1
+        raise RuntimeError("bounded_retry exited without raising a retryable error")
     raise last_error
 
 

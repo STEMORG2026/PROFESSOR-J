@@ -26,7 +26,9 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # ── API ──────────────────────────────────────────────────────────
-    api_host: str = "0.0.0.0"
+    # 0.0.0.0 is the default bind for local/dev/container access, overridable
+    # via PROFESSOR_API_HOST; the server binds inside the sandbox/container.
+    api_host: str = "0.0.0.0"  # nosec B104 - dev/container bind, overridable via env
     api_port: int = 8000
     api_workers: int = 1
     api_key: str = Field(default="changeme", description="Bearer token for API authentication")
