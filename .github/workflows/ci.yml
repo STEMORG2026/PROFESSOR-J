@@ -201,5 +201,6 @@ jobs:
       - name: Check commit messages with commitlint
         uses: wagoid/commitlint-github-action@v6
         with:
+          configFile: commitlint.config.cjs
           failOnErrors: true
           helpURL: "https://www.conventionalcommits.org/"
