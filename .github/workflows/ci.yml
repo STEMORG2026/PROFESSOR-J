@@ -187,7 +187,7 @@ jobs:
           echo "Branch name OK: $branch"
 
   check-conventional-commits:
-    name: Conventional Commits
+    name: Conventional Commits (commitlint)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
@@ -196,13 +196,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check commit messages
-        run: |
-          commits=$(git log --format="%s" origin/main..HEAD)
-          while IFS= read -r commit; do
-            if [[ ! $commit =~ ^(feat|fix|docs|refactor|test|chore)(\(.+\))?: .+ ]]; then
-              echo "Non-conventional commit: $commit"
-              exit 1
-            fi
-          done <<< "$commits"
-          echo "All commits conventional"
+      - name: Check commit messages with commitlint
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          failOnErrors: true
+          helpURL: "https://www.conventionalcommits.org/"
