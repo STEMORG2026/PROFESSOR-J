@@ -33,7 +33,8 @@
 ```bash
 .venv/bin/python -m pytest tests/             # all backend levels
 .venv/bin/mypy app/                           # strict typecheck
-cd frontend && pnpm typecheck && pnpm lint    # frontend
+.venv/bin/pre-commit run --all-files          # ruff, ruff-format, mypy, eof fixes
+# frontend (Phase 7+, once `frontend/` exists): cd frontend && pnpm typecheck && pnpm lint
 # Playwright E2E added in Phase 9
 ```
 

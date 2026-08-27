@@ -105,8 +105,11 @@ propose or act, but never override repository governance or workspace invariants
 # Typecheck backend (strict)
 .venv/bin/mypy app/
 
-# Frontend typecheck & lint
-cd frontend && pnpm typecheck && pnpm lint
+# Pre-commit (ruff, ruff-format, mypy, eof fixes)
+.venv/bin/pre-commit run --all-files
+
+# Frontend (Phase 7+, once `frontend/` exists)
+# cd frontend && pnpm typecheck && pnpm lint
 ```
 
 ---

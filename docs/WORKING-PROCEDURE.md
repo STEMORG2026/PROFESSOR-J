@@ -24,7 +24,8 @@
 
 ## 3. Finishing work
 
-1. Run the verification commands (`AGENTS.md` §5): pytest, mypy, frontend typecheck/lint.
+1. Run the verification commands (`AGENTS.md` §5): pytest, mypy, pre-commit (and frontend
+   typecheck/lint once `frontend/` exists in Phase 7).
 2. Update the relevant docs if behavior changed.
 3. Review your diff for secrets, scope creep, and layering violations.
 4. Commit with a Conventional Commit message.
@@ -35,7 +36,8 @@
 ```bash
 .venv/bin/python -m pytest tests/     # complete Python test suite
 .venv/bin/mypy app/                   # strict typecheck
-cd frontend && pnpm typecheck && pnpm lint
+.venv/bin/pre-commit run --all-files  # ruff, ruff-format, mypy, eof fixes
+# frontend (Phase 7+, once `frontend/` exists): cd frontend && pnpm typecheck && pnpm lint
 ```
 
 ## 5. Escalation

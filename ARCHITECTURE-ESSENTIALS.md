@@ -18,21 +18,26 @@ specialized on demand.
 
 ## 2. System Topology at a Glance
 
-| Layer | Directory | Role & Key Components |
-|---|---|---|
-| **Presentation** | `frontend/` | Next.js 15 UI, KaTeX math canvas, Plotly/D3 graphs, WebRTC Voice HUD. |
-| **Adapters** | `app/adapters/` | FastAPI REST, SSE streaming, WebSocket & WebRTC signaling, Bearer Auth. |
-| **Composition Root** | `app/bootstrap.py` | `ApplicationContainer` DI wiring singletons. |
-| **Orchestration** | *(LangGraph)* | `StateGraph`, `Pregel` runtime, checkpointing, interrupts, streaming. |
-| **Cognitive Brain** | `app/brain/` | `CognitiveBrain` (Intent→Plan→Execute→Synthesize), `ProfessorAgent`, `ResearchAgent`, `EvaluatorAgent`, `ToolExecutorAgent`. |
-| **Guardrails** | `app/guardrails/` | `@safety_gate` (`SAFE`/`SENSITIVE`/`DESTRUCTIVE`), `PromptInjectionDetector`, `PIIRedactor`. |
-| **Knowledge & Memory** | `app/knowledge/`, `app/memory/`, `app/db/` | `LHSKnowledgeAdapter` (LHSTEM seam), `GeneralKnowledgeAdapter`, `MemoryService` (ChromaDB+BM25), `DatabaseEngine`. |
-| **Platform Services** | `app/session/`, `app/workspace/`, `app/tools/` | `SessionManager`, `WorkspaceManager`, sandboxed `ToolExecutor`. |
-| **Models & Resources** | `app/models/`, `app/resources/` | `ModelRouter` (multi-provider), `ResourceManager` (3-state breakers), `ProviderCatalog` (live + curated). |
-| **MCP Client** | `app/mcp/` | `MCPServerManager`, `MCPToolSearch`, `CodeExecutionTools`, `MCPRegistry`. |
-| **Observability** | `app/telemetry/` | OTel SDK (OpenInference), `LangfuseExporter`, `Tracer`, `MetricsCollector`. |
-| **Domain Layer** | `app/domain/` | Pure Python 3.11+ dataclasses (`LearnerState`, `ExecutionPlan`, `ConceptEntity`). |
-| **Passive Telemetry** | `app/events/` | `InMemoryAsyncBus`, `EventLogger`, `MetricsCollector`. |
+Status: **✓ implemented** · **~ scaffold/foundation** · **◇ planned**.
+
+| Layer | Directory | Role & Key Components | Status |
+|-------|-----------|-----------------------|--------|
+| **Presentation** | `frontend/` | Next.js 15 UI, KaTeX math canvas, Plotly/D3 graphs, WebRTC Voice HUD. | ◇ planned |
+| **Adapters** | `app/adapters/` | FastAPI REST, SSE streaming, WebSocket & WebRTC signaling, Bearer Auth. | ◇ planned |
+| **Composition Root** | `app/bootstrap.py` | `ApplicationContainer` DI wiring singletons. | ◇ planned |
+| **Orchestration** | `app/brain/` (LangGraph) | `StateGraph`, `Pregel` runtime, checkpointing, interrupts, streaming. | ~ minimal intent→plan→synthesize pipeline ✓; checkpointing/streaming ◇ |
+| **Cognitive Brain** | `app/brain/` | `CognitiveBrain` (Intent→Plan→Synthesize); Professor/Research/Evaluator/ToolExecutor agents. | ~ brain pipeline ✓; agents ◇ |
+| **Guardrails** | `app/guardrails/` | `@safety_gate` (`SAFE`/`SENSITIVE`/`DESTRUCTIVE`), `PromptInjectionDetector`, `PIIRedactor`. | ✓ implemented |
+| **Knowledge** | `app/knowledge/` | `LHSKnowledgeAdapter` (LHSTEM seam), `GeneralKnowledgeAdapter`. | ✓ implemented |
+| **Memory** | `app/memory/` | `MemoryService` (ChromaDB+BM25). | ◇ planned |
+| **Database** | `app/db/` | `DatabaseEngine` (SQLite/Postgres mastery store). | ◇ planned |
+| **Platform Services** | `app/session/`, `app/workspace/`, `app/tools/` | `SessionManager`, `WorkspaceManager`, sandboxed `ToolExecutor`. | ◇ planned |
+| **Models & Resources** | `app/models/`, `app/resources/` | `ModelRouter` (multi-provider), `CircuitBreaker` (3-state), `TokenBudget`, `ProviderCatalog`. | ~ foundation ✓ (17+ real providers & task-type routing ◇) |
+| **Skills** | `app/skills/` | `SkillRegistry` + built-ins (filesystem, git, LHS knowledge, web_search, code_execution, memory). | ✓ implemented |
+| **MCP Client** | `app/mcp/` | `MCPServerManager`, `MCPToolSearch`, `CodeExecutionTools`, `MCPRegistry`. | ◇ planned |
+| **Observability** | `app/telemetry/` | OTel SDK (OpenInference), `LangfuseExporter`, `Tracer`, `MetricsCollector`. | ✓ exporter implemented |
+| **Domain Layer** | `app/domain/` | Pure Python 3.11+ dataclasses (`LearnerState`, `ExecutionPlan`, `ConceptEntity`). | ✓ implemented |
+| **Passive Telemetry** | `app/events/` | `InMemoryAsyncBus`, `EventLogger`, `MetricsCollector`. | ◇ planned |
 
 ---
 
@@ -60,6 +65,10 @@ frontend/ ──► app/adapters/ ──► app/bootstrap.py ──► app/brain
 ---
 
 ## 4. Safety Gate Protocol
+
+> **Implemented** in `app/guardrails/policy.py` (`SafetyPolicy` + `safety_gate`) with
+> `PromptInjectionDetector` and `PIIRedactor`. DESTRUCTIVE tier raises
+> `HITLRequiredError` unless an approval callback grants approval (fails closed).
 
 Every tool executed by `ToolExecutorAgent` must be decorated with `@safety_gate`:
 

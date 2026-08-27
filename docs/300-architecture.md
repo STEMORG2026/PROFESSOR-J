@@ -8,21 +8,26 @@
 
 ## Decomposition (main components and responsibilities)
 
-| Component | Responsibility |
-|-----------|----------------|
-| `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic |
-| `app/adapters/` | FastAPI REST, SSE, WebSocket/WebRTC signaling; Bearer auth |
-| `app/bootstrap.py` | Composition root — DI wiring of all singletons |
-| `app/brain/` | CognitiveBrain (intent→plan→execute→synthesize) + ProfessorAgent, ResearchAgent, EvaluatorAgent, ToolExecutorAgent |
-| `app/guardrails/` | `@safety_gate` tiers + prompt-injection detection |
-| `app/knowledge/` | LearningHubSTEM consumer adapter + general-knowledge fallback |
-| `app/memory/` | Hybrid ChromaDB + BM25 retrieval |
-| `app/db/` | Learner mastery, transcripts, diagnostic history (SQLite → Postgres) |
-| `app/session/` | Per-user session state |
-| `app/workspace/` | File/workspace operations under safety policy |
-| `app/tools/` | Sandboxed tool execution (Python, SymPy, Plotly, graph queries) |
-| `app/models/`, `app/resources/` | Multi-provider router + circuit breakers |
-| `app/events/`, `app/telemetry/` | Passive async bus, logging, metrics |
+Status convention: **IMPLEMENTED** (merged on `main`, unit-tested) · **scaffold** (partial/foundation
+present) · **planned** (roadmap, not built).
+
+| Component | Responsibility | Status (2026-08) |
+|-----------|----------------|------------------|
+| `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic | planned |
+| `app/adapters/` | FastAPI REST, SSE, WebSocket/WebRTC signaling; Bearer auth | planned |
+| `app/bootstrap.py` | Composition root — DI wiring of all singletons | planned |
+| `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; Professor/Research/Evaluator/ToolExecutor agents | scaffold (`app/brain/`: intent→plan→synthesize pipeline is implemented; agents not built) |
+| `app/guardrails/` | `@safety_gate` tiers (SAFE/SENSITIVE/DESTRUCTIVE→HITL) + prompt-injection + PII | **IMPLEMENTED** |
+| `app/knowledge/` | LearningHubSTEM consumer adapter + general-knowledge fallback | **IMPLEMENTED** |
+| `app/memory/` | Hybrid ChromaDB + BM25 retrieval | planned |
+| `app/db/` | Learner mastery, transcripts, diagnostic history (SQLite → Postgres) | planned |
+| `app/session/` | Per-user session state | planned |
+| `app/workspace/` | File/workspace operations under safety policy | planned |
+| `app/tools/` | Sandboxed tool execution (Python, SymPy, Plotly, graph queries) | planned |
+| `app/models/`, `app/resources/` | Multi-provider router + circuit breakers + token budgets + bounded retry | scaffold (`app/models/` + `app/resources/` foundation implemented; 17+ real providers & task-type routing pending) |
+| `app/skills/` | Skill registry + built-ins (filesystem, git, web_search, code_execution, LHS knowledge, memory) | **IMPLEMENTED** (web_search/code_execution/memory signal `not_implemented` until their backends exist) |
+| `app/config/`, `app/exceptions.py`, `app/logging_config.py`, `app/telemetry/` | Settings, typed exception taxonomy, JSON logging, OTel exporter | **IMPLEMENTED** |
+| `app/events/` | Passive async bus | planned |
 
 ## Boundaries and interfaces
 

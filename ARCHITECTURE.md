@@ -5,6 +5,14 @@
 > **Status:** Living Architecture at Inception
 > **Version:** 0.1.0
 
+> **⏱ IMPLEMENTATION STATUS (reconciled 2026-08):** this file is the *target* architecture.
+> What is actually implemented on `main` today is the **foundation** — the domain layer, LHS
+> knowledge adapter, skills system, guardrails/safety gate, model pool, and a minimal LangGraph
+> brain pipeline are built and unit-tested (see `docs/300-architecture.md` for the per-layer
+> status, and `IMPLEMENTATION-PLAN.md` for what remains). The layers drawn here as if live
+> (`frontend/`, adapters, bootstrap, memory, db, session, workspace, tools, MCP client, agents)
+> are **planned**, not yet built. Read `docs/300-architecture.md` for the accurate current state.
+
 ---
 
 ## 1. Platform positioning
