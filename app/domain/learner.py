@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -89,7 +90,7 @@ class MasteryScore:
     practice_count: int = 0
     correct_count: int = 0
     last_practiced: datetime | None = None
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=utc_now)
 
     def is_mastered(self, threshold: float = 0.85) -> bool:
         return self.score >= threshold
@@ -105,8 +106,8 @@ class MasteryScore:
             confidence=min(1.0, self.confidence + 0.05),
             practice_count=new_practice,
             correct_count=new_correct,
-            last_practiced=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            last_practiced=utc_now(),
+            updated_at=utc_now(),
         )
 
 
@@ -123,7 +124,7 @@ class PedagogicalTurn:
     evaluation: Evaluation | None = None
     mastery_before: dict[str, MasteryScore] = field(default_factory=dict)
     mastery_after: dict[str, MasteryScore] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -135,7 +136,7 @@ class MisconceptionState:
     concept_id: str
     misconception: MisconceptionType
     resolved: bool = False
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=utc_now)
     occurrences: int = 1
     resolved_at: datetime | None = None
     resolution_method: str | None = None
@@ -162,7 +163,7 @@ class MisconceptionState:
             resolved=True,
             detected_at=self.detected_at,
             occurrences=self.occurrences,
-            resolved_at=datetime.utcnow(),
+            resolved_at=utc_now(),
             resolution_method=method,
         )
 
@@ -185,8 +186,8 @@ class LearnerState:
     dialogue_history: tuple[str, ...] = field(default_factory=tuple)  # turn_ids
     current_mode: str = "socratic_mentor"
     active_concept: str | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_mastery(self, concept_id: str) -> MasteryScore | None:
@@ -218,7 +219,7 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
     def update_mastery(self, concept_id: str, correct: bool) -> "LearnerState":
@@ -241,7 +242,7 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
     def record_misconception(
@@ -270,7 +271,7 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
     def resolve_misconception(self, concept_id: str, method: str) -> "LearnerState":
@@ -289,7 +290,7 @@ class LearnerState:
                 current_mode=self.current_mode,
                 active_concept=self.active_concept,
                 created_at=self.created_at,
-                updated_at=datetime.utcnow(),
+                updated_at=utc_now(),
             )
         return self
 
@@ -303,7 +304,7 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=concept_id,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
     def set_mode(self, mode: str) -> "LearnerState":
@@ -316,5 +317,5 @@ class LearnerState:
             current_mode=mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )

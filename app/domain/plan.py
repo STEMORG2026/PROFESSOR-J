@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -96,8 +97,8 @@ class ExecutionPlan:
     goal: str = ""
     steps: tuple[ExecutionStep, ...] = field(default_factory=tuple)
     status: PlanStatus = PlanStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def current_step(self) -> ExecutionStep | None:
@@ -157,7 +158,7 @@ class ExecutionPlan:
             steps=tuple(new_steps),
             status=self.status,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -169,6 +170,6 @@ class ExecutionPlan:
             steps=self.steps,
             status=status,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )

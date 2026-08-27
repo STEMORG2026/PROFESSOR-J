@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
 
@@ -32,7 +33,7 @@ class Provenance:
 
     ai_drafted: bool = True
     source: str = "LearningHubSTEM"
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=utc_now)
     human_reviewed: bool = False
     reviewer: str | None = None
     reviewed_at: datetime | None = None
@@ -46,7 +47,7 @@ class Provenance:
             generated_at=self.generated_at,
             human_reviewed=True,
             reviewer=reviewer,
-            reviewed_at=datetime.utcnow(),
+            reviewed_at=utc_now(),
             metadata=self.metadata,
         )
 
