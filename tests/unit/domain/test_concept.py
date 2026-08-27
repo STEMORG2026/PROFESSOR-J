@@ -36,7 +36,9 @@ class TestProvenance:
 
 class TestRelationship:
     def test_relationship_creation(self):
-        rel = Relationship(type="mathematically_requires", target_id="lhs:phys.velocity")
+        rel = Relationship(
+            type="mathematically_requires", target_id="lhs:phys.velocity"
+        )
         assert rel.type == "mathematically_requires"
         assert rel.target_id == "lhs:phys.velocity"
         assert rel.weight == 1.0
@@ -58,6 +60,24 @@ class TestConceptEntity:
         assert concept.status == ReviewStatus.DRAFT
         assert concept.provenance.ai_drafted is True
 
+    def test_related_concepts(self):
+        concept = ConceptEntity(
+            id="lhs:phys.force",
+            type=ConceptType.CONCEPT,
+            name="Force",
+            domain="physics",
+            definition="Force definition",
+            relationships=(
+                Relationship(type="related_to", target_id="lhs:phys.energy"),
+                Relationship(type="applies_to", target_id="lhs:phys.pressure"),
+                Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
+            ),
+        )
+        related = concept.related_concepts()
+        assert "lhs:phys.energy" in related
+        assert "lhs:phys.pressure" in related
+        assert "lhs:phys.mass" not in related
+
     def test_prerequisite_ids(self):
         concept = ConceptEntity(
             id="lhs:phys.force",
@@ -67,8 +87,12 @@ class TestConceptEntity:
             definition="Force definition",
             relationships=(
                 Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
-                Relationship(type="logically_requires", target_id="lhs:phys.acceleration"),
-                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
+                Relationship(
+                    type="logically_requires", target_id="lhs:phys.acceleration"
+                ),
+                Relationship(
+                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
+                ),
                 Relationship(type="related_to", target_id="lhs:phys.energy"),
             ),
         )
@@ -85,8 +109,13 @@ class TestConceptEntity:
             domain="physics",
             definition="Mass definition",
             relationships=(
-                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
-                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-law-of-gravitation"),
+                Relationship(
+                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
+                ),
+                Relationship(
+                    type="appears_in_law",
+                    target_id="lhs:phys.newtons-law-of-gravitation",
+                ),
             ),
         )
         laws = concept.law_appearances()
@@ -102,8 +131,12 @@ class TestConceptEntity:
             definition="Force",
             relationships=(
                 Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
-                Relationship(type="logically_requires", target_id="lhs:phys.acceleration"),
-                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
+                Relationship(
+                    type="logically_requires", target_id="lhs:phys.acceleration"
+                ),
+                Relationship(
+                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
+                ),
             ),
         )
         deps = concept.all_dependencies()

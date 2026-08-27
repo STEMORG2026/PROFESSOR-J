@@ -55,11 +55,37 @@ jobs:
       - name: Run pytest
         run: .venv/bin/python -m pytest tests/ -v --tb=short --cov=app --cov-report=xml
 
+      - name: Enforce domain coverage gate (>=95%)
+        run: .venv/bin/python -m pytest tests/unit/domain/ -q --cov=app.domain --cov-report=term-missing --cov-fail-under=95
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
-          fail_ci_if_error: false
+          fail_ci_if_error: true
+
+  virtual-board:
+    name: Virtual Board Governance
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Virtual Board review
+        run: |
+          .venv/bin/python scripts/board/review.py
+          echo "Virtual Board status: $?"
 
   verify-docs:
     name: Verify Documentation

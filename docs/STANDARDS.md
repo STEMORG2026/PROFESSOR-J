@@ -17,7 +17,7 @@
 | Typing | `strict: true` in mypy; no untyped public functions |
 | Docstrings | Google-style docstrings on all public modules/classes/functions |
 | Domain purity | `app/domain/` = pure dataclasses; zero framework imports |
-| Async | async/await throughout `app/brain/`; no blocking calls on the event loop |
+| Async | LangGraph `StateGraph` nodes (ADR-003) in `app/brain/`; async/await throughout; no blocking calls on the event loop |
 | Naming | `snake_case` functions/vars, `CamelCase` classes, `_private` for internals |
 
 ### 1.2 TypeScript (frontend, `frontend/`)

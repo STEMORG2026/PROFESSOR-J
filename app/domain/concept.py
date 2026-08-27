@@ -105,9 +105,7 @@ class ConceptEntity:
     def law_appearances(self) -> tuple[str, ...]:
         """Get laws this concept appears in."""
         return tuple(
-            rel.target_id
-            for rel in self.relationships
-            if rel.type == "appears_in_law"
+            rel.target_id for rel in self.relationships if rel.type == "appears_in_law"
         )
 
     def related_concepts(self) -> tuple[str, ...]:
@@ -124,7 +122,10 @@ class ConceptEntity:
 
     def is_grounded(self) -> bool:
         """Whether this concept has human-reviewed provenance."""
-        return self.provenance.human_reviewed and self.status in (ReviewStatus.REVIEWED, ReviewStatus.APPROVED)
+        return self.provenance.human_reviewed and self.status in (
+            ReviewStatus.REVIEWED,
+            ReviewStatus.APPROVED,
+        )
 
     def citation_string(self) -> str:
         """Generate citation string for this concept."""

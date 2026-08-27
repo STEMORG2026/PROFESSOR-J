@@ -23,7 +23,9 @@ import pytest
 from app.domain.concept import ConceptType, ReviewStatus
 from app.knowledge.lhs_adapter import GeneralKnowledgeAdapter, LHSKnowledgeAdapter
 
-FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "lhs_knowledge_fixture.json"
+FIXTURE = (
+    Path(__file__).resolve().parents[2] / "fixtures" / "lhs_knowledge_fixture.json"
+)
 
 # Known, deterministic facts about the fixture (update only if the fixture changes).
 FIXTURE_COUNTS = {
@@ -41,7 +43,10 @@ FIXTURE_COUNTS = {
 def _find_real_export() -> Path | None:
     """Locate the real LearningHubSTEM export if present on this machine."""
     candidates = [
-        Path(__file__).resolve().parents[2] / "LearningHubSTEM" / "exports" / "knowledge.json",
+        Path(__file__).resolve().parents[2]
+        / "LearningHubSTEM"
+        / "exports"
+        / "knowledge.json",
         Path("/home/sajan/Projects/LearningHubSTEM/exports/knowledge.json"),
     ]
     for path in candidates:
@@ -62,7 +67,9 @@ class TestLHSKnowledgeAdapter:
         assert adapter.meta.entity_count == FIXTURE_COUNTS["total"]
         assert adapter.meta.source == "content/"
 
-    def test_load_export_parses_all_entities(self, adapter: LHSKnowledgeAdapter) -> None:
+    def test_load_export_parses_all_entities(
+        self, adapter: LHSKnowledgeAdapter
+    ) -> None:
         assert len(adapter.get_all_concepts()) == FIXTURE_COUNTS["total"]
 
     def test_get_concept_grounded(self, adapter: LHSKnowledgeAdapter) -> None:
@@ -118,7 +125,9 @@ class TestLHSKnowledgeAdapter:
         stats = adapter.get_stats()
         assert stats["entity_count"] == FIXTURE_COUNTS["total"]
         assert stats["export_version"] == "0.1"
-        assert stats["domains"] == 5  # physics, chemistry, biology, engineering, scientific-practice
+        assert (
+            stats["domains"] == 5
+        )  # physics, chemistry, biology, engineering, scientific-practice
 
     def test_reload_idempotent(self, adapter: LHSKnowledgeAdapter) -> None:
         before = len(adapter.get_all_concepts())
@@ -131,6 +140,8 @@ class TestGeneralKnowledgeAdapter:
         assert GeneralKnowledgeAdapter().has_concept("anything") is False
 
     def test_get_concept_none(self) -> None:
+        # Interface-consistent with LHSKnowledgeAdapter.get_concept: returns
+        # Optional concept, never a grounded entity from general knowledge.
         assert GeneralKnowledgeAdapter().get_concept("anything") is None
 
     def test_get_prerequisites_empty(self) -> None:
@@ -156,7 +167,9 @@ class TestLHSSchemaContract:
 
     def test_real_export_structure(self, real_export_path: Path | None) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip(
+                "Real LearningHubSTEM export not present; skipping contract test."
+            )
         adapter = LHSKnowledgeAdapter(real_export_path)
         assert adapter.meta is not None
         # Required top-level contract fields must be present (verified by adapter load).
@@ -164,7 +177,9 @@ class TestLHSSchemaContract:
 
     def test_real_export_ids_unique(self, real_export_path: Path | None) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip(
+                "Real LearningHubSTEM export not present; skipping contract test."
+            )
         adapter = LHSKnowledgeAdapter(real_export_path)
         ids = [c.id for c in adapter.get_all_concepts()]
         assert len(ids) == len(set(ids)), "Entity IDs must be unique in the export"
@@ -173,7 +188,9 @@ class TestLHSSchemaContract:
         self, real_export_path: Path | None
     ) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip(
+                "Real LearningHubSTEM export not present; skipping contract test."
+            )
         adapter = LHSKnowledgeAdapter(real_export_path)
         available = {c.id for c in adapter.get_all_concepts()}
         dangling: set[str] = set()
@@ -181,7 +198,9 @@ class TestLHSSchemaContract:
             for prereq in concept.prerequisite_ids():
                 if prereq not in available:
                     dangling.add(prereq)
-        assert not dangling, f"Prerequisites point at missing entities: {sorted(dangling)}"
+        assert (
+            not dangling
+        ), f"Prerequisites point at missing entities: {sorted(dangling)}"
 
 
 if __name__ == "__main__":

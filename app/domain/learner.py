@@ -12,10 +12,10 @@ from uuid import uuid4
 class TutoringMode(str, Enum):
     """Tutoring interaction modes."""
 
-    SOCRATIC_MENTOR = "socratic_mentor"      # Diagnose, scaffold, guide
+    SOCRATIC_MENTOR = "socratic_mentor"  # Diagnose, scaffold, guide
     EXPOSITORY_LECTURE = "expository_lecture"  # Direct explanation
-    EXAM_DRILL = "exam_drill"                # Practice problems, timed
-    RESEARCH_ADVISOR = "research_advisor"     # Literature synthesis, citations
+    EXAM_DRILL = "exam_drill"  # Practice problems, timed
+    RESEARCH_ADVISOR = "research_advisor"  # Literature synthesis, citations
 
 
 class MisconceptionType(str, Enum):
@@ -58,7 +58,9 @@ class Evaluation:
     result: EvaluationResult
     score: float  # 0.0 to 1.0
     feedback: str
-    detected_misconceptions: tuple[MisconceptionType, ...] = field(default_factory=tuple)
+    detected_misconceptions: tuple[MisconceptionType, ...] = field(
+        default_factory=tuple
+    )
     correct_steps: tuple[str, ...] = field(default_factory=tuple)
     incorrect_steps: tuple[str, ...] = field(default_factory=tuple)
     next_hint: str | None = None
@@ -174,8 +176,12 @@ class LearnerState:
     """
 
     learner_id: str
-    mastery: dict[str, MasteryScore] = field(default_factory=dict)  # concept_id -> MasteryScore
-    misconceptions: dict[str, MisconceptionState] = field(default_factory=dict)  # concept_id -> MisconceptionState
+    mastery: dict[str, MasteryScore] = field(
+        default_factory=dict
+    )  # concept_id -> MasteryScore
+    misconceptions: dict[str, MisconceptionState] = field(
+        default_factory=dict
+    )  # concept_id -> MisconceptionState
     dialogue_history: tuple[str, ...] = field(default_factory=tuple)  # turn_ids
     current_mode: str = "socratic_mentor"
     active_concept: str | None = None
@@ -192,7 +198,9 @@ class LearnerState:
         m = self.misconceptions.get(concept_id)
         return m if m and not m.resolved else None
 
-    def is_ready_for(self, concept_id: str, prerequisites: tuple[str, ...], threshold: float = 0.85) -> bool:
+    def is_ready_for(
+        self, concept_id: str, prerequisites: tuple[str, ...], threshold: float = 0.85
+    ) -> bool:
         """Check if learner has mastered all prerequisites for a concept."""
         for prereq_id in prerequisites:
             mastery = self.mastery.get(prereq_id)
@@ -216,10 +224,14 @@ class LearnerState:
     def update_mastery(self, concept_id: str, correct: bool) -> "LearnerState":
         """Return new state with updated mastery for a concept."""
         current = self.mastery.get(concept_id)
-        updated = current.with_attempt(correct) if current else MasteryScore(
-            concept_id=concept_id,
-            score=0.0,
-        ).with_attempt(correct)
+        updated = (
+            current.with_attempt(correct)
+            if current
+            else MasteryScore(
+                concept_id=concept_id,
+                score=0.0,
+            ).with_attempt(correct)
+        )
         new_mastery = {**self.mastery, concept_id: updated}
         return LearnerState(
             learner_id=self.learner_id,
@@ -232,10 +244,16 @@ class LearnerState:
             updated_at=datetime.utcnow(),
         )
 
-    def record_misconception(self, concept_id: str, misconception: MisconceptionType) -> "LearnerState":
+    def record_misconception(
+        self, concept_id: str, misconception: MisconceptionType
+    ) -> "LearnerState":
         """Record a detected misconception."""
         existing = self.misconceptions.get(concept_id)
-        if existing and existing.misconception == misconception and not existing.resolved:
+        if (
+            existing
+            and existing.misconception == misconception
+            and not existing.resolved
+        ):
             updated = existing.with_occurrence()
         else:
             updated = MisconceptionState(
@@ -259,7 +277,10 @@ class LearnerState:
         """Mark a misconception as resolved."""
         existing = self.misconceptions.get(concept_id)
         if existing and not existing.resolved:
-            new_misconceptions = {**self.misconceptions, concept_id: existing.mark_resolved("socratic_resolution")}
+            new_misconceptions = {
+                **self.misconceptions,
+                concept_id: existing.mark_resolved("socratic_resolution"),
+            }
             return LearnerState(
                 learner_id=self.learner_id,
                 mastery=self.mastery,

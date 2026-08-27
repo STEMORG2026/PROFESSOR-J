@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime
 
 from app.domain.plan import (
     ExecutionPlan,
@@ -133,6 +132,12 @@ class TestExecutionPlan:
         assert current is not None
         assert current.step_id == "s2"
 
+    def test_current_step_none_when_all_terminal(self):
+        step1 = ExecutionStep(step_id="s1", title="Step 1", status=StepStatus.COMPLETED)
+        step2 = ExecutionStep(step_id="s2", title="Step 2", status=StepStatus.SKIPPED)
+        plan = ExecutionPlan(goal="Test", steps=(step1, step2))
+        assert plan.current_step() is None
+
     def test_pending_steps(self):
         step1 = ExecutionStep(step_id="s1", title="Step 1", status=StepStatus.COMPLETED)
         step2 = ExecutionStep(step_id="s2", title="Step 2", status=StepStatus.PENDING)
@@ -175,15 +180,19 @@ class TestExecutionPlan:
         step1 = ExecutionStep(
             step_id="s1",
             title="Safe",
-            tool_call=ToolCallRequest(tool="lookup", args={}, safety_tier=SafetyTier.SAFE),
+            tool_call=ToolCallRequest(
+                tool="lookup", args={}, safety_tier=SafetyTier.SAFE
+            ),
             status=StepStatus.PENDING,
         )
         step2 = ExecutionStep(
             step_id="s2",
             title="Destructive",
             tool_call=ToolCallRequest(
-                tool="execute", args={}, safety_tier=SafetyTier.DESTRUCTIVE,
-                approval_state=ApprovalState.HITL_REQUIRED
+                tool="execute",
+                args={},
+                safety_tier=SafetyTier.DESTRUCTIVE,
+                approval_state=ApprovalState.HITL_REQUIRED,
             ),
             status=StepStatus.PENDING,
         )
@@ -198,6 +207,27 @@ class TestExecutionPlan:
         next_step = plan.next_executable_step()
         assert next_step is not None
         assert next_step.step_id == "s2"
+
+    def test_next_executable_step_none_when_all_terminal(self):
+        step1 = ExecutionStep(step_id="s1", title="Step 1", status=StepStatus.COMPLETED)
+        step2 = ExecutionStep(step_id="s2", title="Step 2", status=StepStatus.FAILED)
+        plan = ExecutionPlan(goal="Test", steps=(step1, step2))
+        assert plan.next_executable_step() is None
+
+    def test_next_executable_step_none_when_blocked_by_hitl(self):
+        step = ExecutionStep(
+            step_id="s1",
+            title="Destructive",
+            tool_call=ToolCallRequest(
+                tool="execute",
+                args={},
+                safety_tier=SafetyTier.DESTRUCTIVE,
+                approval_state=ApprovalState.HITL_REQUIRED,
+            ),
+            status=StepStatus.PENDING,
+        )
+        plan = ExecutionPlan(goal="Test", steps=(step,))
+        assert plan.next_executable_step() is None
 
     def test_with_step_update(self):
         step1 = ExecutionStep(step_id="s1", title="Step 1", status=StepStatus.PENDING)

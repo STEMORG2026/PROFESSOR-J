@@ -44,13 +44,17 @@ class LHSKnowledgeAdapter:
     EXPECTED_SCHEMA_VERSION = "0.1"
 
     # Relationship types that indicate prerequisites
-    PREREQUISITE_REL_TYPES = frozenset({
-        "mathematically_requires",
-        "logically_requires",
-        "appears_in_law",
-    })
+    PREREQUISITE_REL_TYPES = frozenset(
+        {
+            "mathematically_requires",
+            "logically_requires",
+            "appears_in_law",
+        }
+    )
 
-    def __init__(self, export_path: str | Path = "LearningHubSTEM/exports/knowledge.json"):
+    def __init__(
+        self, export_path: str | Path = "LearningHubSTEM/exports/knowledge.json"
+    ):
         self.export_path = Path(export_path)
         self._cache: dict[str, ConceptEntity] = {}
         self._prerequisite_cache: dict[str, tuple[str, ...]] = {}
@@ -75,7 +79,14 @@ class LHSKnowledgeAdapter:
             )
 
         # Validate required top-level fields
-        required_fields = {"export_version", "schema_version", "generated_at", "source", "entity_count", "entities"}
+        required_fields = {
+            "export_version",
+            "schema_version",
+            "generated_at",
+            "source",
+            "entity_count",
+            "entities",
+        }
         missing = required_fields - set(data.keys())
         if missing:
             raise LHSAdapterError(
@@ -121,7 +132,9 @@ class LHSKnowledgeAdapter:
 
         logger.info(
             "LHS Knowledge Adapter loaded: %d entities, export v%s, schema v%s",
-            len(self._cache), self._meta.export_version, self._meta.schema_version,
+            len(self._cache),
+            self._meta.export_version,
+            self._meta.schema_version,
         )
 
     def _parse_entity(self, data: dict[str, Any]) -> ConceptEntity:
@@ -135,15 +148,6 @@ class LHSKnowledgeAdapter:
         }
         entity_type = type_map.get(data.get("type", "concept"), ConceptType.CONCEPT)
 
-        # Parse status
-        status_map = {
-            "draft": ReviewStatus.DRAFT,
-            "reviewed": ReviewStatus.REVIEWED,
-            "approved": ReviewStatus.APPROVED,
-            "deprecated": ReviewStatus.DEPRECATED,
-        }
-        status = status_map.get(data.get("status", "draft"), ReviewStatus.DRAFT)
-
         # Parse provenance
         prov_data = data.get("provenance", {})
         provenance = Provenance(
@@ -156,12 +160,14 @@ class LHSKnowledgeAdapter:
         # Parse relationships
         relationships = []
         for rel_data in data.get("relationships", []):
-            relationships.append(Relationship(
-                type=rel_data["type"],
-                target_id=rel_data["target"],
-                weight=rel_data.get("weight", 1.0),
-                metadata=rel_data.get("metadata", {}),
-            ))
+            relationships.append(
+                Relationship(
+                    type=rel_data["type"],
+                    target_id=rel_data["target"],
+                    weight=rel_data.get("weight", 1.0),
+                    metadata=rel_data.get("metadata", {}),
+                )
+            )
 
         return ConceptEntity(
             id=data["id"],
@@ -221,7 +227,10 @@ class LHSKnowledgeAdapter:
         query_lower = query.lower()
         results = []
         for entity in self._cache.values():
-            if query_lower in entity.name.lower() or query_lower in entity.definition.lower():
+            if (
+                query_lower in entity.name.lower()
+                or query_lower in entity.definition.lower()
+            ):
                 results.append(entity)
                 if len(results) >= limit:
                     break
@@ -235,7 +244,9 @@ class LHSKnowledgeAdapter:
         """Get all concepts in a specific domain."""
         return tuple(e for e in self._cache.values() if e.domain == domain)
 
-    def get_concepts_by_type(self, concept_type: ConceptType) -> tuple[ConceptEntity, ...]:
+    def get_concepts_by_type(
+        self, concept_type: ConceptType
+    ) -> tuple[ConceptEntity, ...]:
         """Get all concepts of a specific type."""
         return tuple(e for e in self._cache.values() if e.type == concept_type)
 
@@ -254,8 +265,10 @@ class LHSKnowledgeAdapter:
             "generated_at": self._meta.generated_at if self._meta else None,
             "source": self._meta.source if self._meta else None,
             "domains": len(set(e.domain for e in self._cache.values())),
-            "concept_types": {t.value: len([e for e in self._cache.values() if e.type == t])
-                              for t in ConceptType},
+            "concept_types": {
+                t.value: len([e for e in self._cache.values() if e.type == t])
+                for t in ConceptType
+            },
         }
 
     def reload(self) -> None:
@@ -279,8 +292,8 @@ class GeneralKnowledgeAdapter:
         """Always returns False — no canonical entities here."""
         return False
 
-    def get_concept(self, entity_id: str) -> None:
-        """Always returns None — no canonical entities."""
+    def get_concept(self, entity_id: str) -> ConceptEntity | None:
+        """Always returns None — no canonical entities are ever grounded here."""
         return None
 
     def get_prerequisites(self, entity_id: str) -> tuple[str, ...]:
@@ -309,6 +322,7 @@ class GeneralKnowledgeAdapter:
 
 
 # ── Factory Function ──
+
 
 def create_knowledge_adapters(
     lhs_export_path: str | Path = "LearningHubSTEM/exports/knowledge.json",

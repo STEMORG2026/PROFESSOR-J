@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from app.skills.base import Skill, SkillMetadata, SkillResult
-from app.exceptions import SandboxError, ToolNotFoundError
+from app.exceptions import SandboxError
 
 logger = logging.getLogger(__name__)
 
 
 # ── Filesystem Skill ────────────────────────────────────────────────
+
 
 class FilesystemSkill(Skill):
     """Filesystem operations via internal implementation (supplements MCP)."""
@@ -37,8 +37,15 @@ class FilesystemSkill(Skill):
                         "description": "Filesystem operation to perform",
                     },
                     "path": {"type": "string", "description": "File or directory path"},
-                    "content": {"type": "string", "description": "Content to write (for write operation)"},
-                    "recursive": {"type": "boolean", "default": False, "description": "Recursive operation"},
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write (for write operation)",
+                    },
+                    "recursive": {
+                        "type": "boolean",
+                        "default": False,
+                        "description": "Recursive operation",
+                    },
                 },
                 "required": ["operation", "path"],
             },
@@ -88,6 +95,7 @@ class FilesystemSkill(Skill):
                     return SkillResult.failure(f"Path not found: {path}")
                 if path.is_dir():
                     import shutil
+
                     shutil.rmtree(path)
                 else:
                     path.unlink()
@@ -106,6 +114,7 @@ class FilesystemSkill(Skill):
 
 # ── Git Skill ──────────────────────────────────────────────────────
 
+
 class GitSkill(Skill):
     """Git operations for version control."""
 
@@ -123,12 +132,28 @@ class GitSkill(Skill):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "enum": ["status", "diff", "log", "commit", "branch", "push", "pull", "add"],
+                        "enum": [
+                            "status",
+                            "diff",
+                            "log",
+                            "commit",
+                            "branch",
+                            "push",
+                            "pull",
+                            "add",
+                        ],
                         "description": "Git operation to perform",
                     },
-                    "args": {"type": "array", "items": {"type": "string"}, "default": []},
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "default": [],
+                    },
                     "cwd": {"type": "string", "description": "Working directory"},
-                    "message": {"type": "string", "description": "Commit message (for commit)"},
+                    "message": {
+                        "type": "string",
+                        "description": "Commit message (for commit)",
+                    },
                 },
                 "required": ["operation"],
             },
@@ -144,7 +169,16 @@ class GitSkill(Skill):
 
     def validate_params(self, **kwargs: Any) -> bool:
         op = kwargs.get("operation")
-        return op in {"status", "diff", "log", "commit", "branch", "push", "pull", "add"}
+        return op in {
+            "status",
+            "diff",
+            "log",
+            "commit",
+            "branch",
+            "push",
+            "pull",
+            "add",
+        }
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
         operation = kwargs["operation"]
@@ -163,7 +197,9 @@ class GitSkill(Skill):
             else:
                 cmd.extend(args)
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=cwd)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=30, cwd=cwd
+            )
 
             if result.returncode == 0:
                 return SkillResult.success({"success": True, "output": result.stdout})
@@ -178,6 +214,7 @@ class GitSkill(Skill):
 
 
 # ── Web Search Skill ──────────────────────────────────────────────
+
 
 class WebSearchSkill(Skill):
     """Web search via MCP (requires brave-search server)."""
@@ -196,7 +233,12 @@ class WebSearchSkill(Skill):
                 "type": "object",
                 "properties": {
                     "query": {"type": "string", "description": "Search query"},
-                    "max_results": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50},
+                    "max_results": {
+                        "type": "integer",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 50,
+                    },
                 },
                 "required": ["query"],
             },
@@ -226,14 +268,17 @@ class WebSearchSkill(Skill):
         query = kwargs.get("query", "")
         max_results = kwargs.get("max_results", 10)
 
-        return SkillResult.success({
-            "success": True,
-            "results": [],
-            "note": f"Web search for '{query}' (max {max_results} results) - MCP implementation pending",
-        })
+        return SkillResult.success(
+            {
+                "success": True,
+                "results": [],
+                "note": f"Web search for '{query}' (max {max_results} results) - MCP implementation pending",
+            }
+        )
 
 
 # ── Code Execution Skill ──────────────────────────────────────────
+
 
 class CodeExecutionSkill(Skill):
     """Code execution via internal sandbox (supplements MCP python server)."""
@@ -251,8 +296,18 @@ class CodeExecutionSkill(Skill):
                 "type": "object",
                 "properties": {
                     "code": {"type": "string", "description": "Python code to execute"},
-                    "timeout": {"type": "integer", "default": 10, "minimum": 1, "maximum": 60},
-                    "memory_mb": {"type": "integer", "default": 512, "minimum": 64, "maximum": 2048},
+                    "timeout": {
+                        "type": "integer",
+                        "default": 10,
+                        "minimum": 1,
+                        "maximum": 60,
+                    },
+                    "memory_mb": {
+                        "type": "integer",
+                        "default": 512,
+                        "minimum": 64,
+                        "maximum": 2048,
+                    },
                 },
                 "required": ["code"],
             },
@@ -277,14 +332,19 @@ class CodeExecutionSkill(Skill):
         try:
             # This would use the internal sandbox (app/tools/sandbox.py)
             # For now, return a placeholder
-            return SkillResult.success({
-                "success": True,
-                "stdout": "",
-                "stderr": "",
-                "return_code": 0,
-                "execution_time_ms": 0,
-                "note": f"Code execution (timeout={timeout}s, mem={memory_mb}MB) - sandbox implementation pending",
-            })
+            return SkillResult.success(
+                {
+                    "success": True,
+                    "stdout": "",
+                    "stderr": "",
+                    "return_code": 0,
+                    "execution_time_ms": 0,
+                    "note": (
+                        f"Code execution ({len(code)} chars, timeout={timeout}s, "
+                        f"mem={memory_mb}MB) - sandbox implementation pending"
+                    ),
+                }
+            )
         except SandboxError as e:
             return SkillResult.failure(str(e))
         except Exception as e:
@@ -293,6 +353,7 @@ class CodeExecutionSkill(Skill):
 
 
 # ── LearningHubSTEM Skill ──────────────────────────────────────────
+
 
 class LHSTEMSkill(Skill):
     """Access LearningHubSTEM canonical knowledge via consumer adapter."""
@@ -311,10 +372,18 @@ class LHSTEMSkill(Skill):
                 "properties": {
                     "operation": {
                         "type": "string",
-                        "enum": ["get_concept", "get_prerequisites", "search", "has_concept"],
+                        "enum": [
+                            "get_concept",
+                            "get_prerequisites",
+                            "search",
+                            "has_concept",
+                        ],
                         "description": "Operation to perform",
                     },
-                    "entity_id": {"type": "string", "description": "LHSTEM entity ID (e.g. lhs:phys.force)"},
+                    "entity_id": {
+                        "type": "string",
+                        "description": "LHSTEM entity ID (e.g. lhs:phys.force)",
+                    },
                     "query": {"type": "string", "description": "Search query"},
                 },
                 "required": ["operation"],
@@ -344,13 +413,16 @@ class LHSTEMSkill(Skill):
 
         # This would use the LHSKnowledgeAdapter
         # For now, return placeholder
-        return SkillResult.success({
-            "success": True,
-            "note": f"LHSTEM {operation} for {entity_id or query} - adapter implementation pending",
-        })
+        return SkillResult.success(
+            {
+                "success": True,
+                "note": f"LHSTEM {operation} for {entity_id or query} - adapter implementation pending",
+            }
+        )
 
 
 # ── Memory Skill ───────────────────────────────────────────────────
+
 
 class MemorySkill(Skill):
     """Memory operations (store, retrieve, update, delete) via MemoryService."""
@@ -377,7 +449,10 @@ class MemorySkill(Skill):
                     "memory_type": {"type": "string", "description": "Memory type"},
                     "query": {"type": "string", "description": "Search query"},
                     "limit": {"type": "integer", "default": 10},
-                    "memory_id": {"type": "string", "description": "Memory ID for update/delete"},
+                    "memory_id": {
+                        "type": "string",
+                        "description": "Memory ID for update/delete",
+                    },
                 },
                 "required": ["operation"],
             },
@@ -400,10 +475,12 @@ class MemorySkill(Skill):
         operation = kwargs["operation"]
 
         # This would use the MemoryService
-        return SkillResult.success({
-            "success": True,
-            "note": f"Memory {operation} - MemoryService implementation pending",
-        })
+        return SkillResult.success(
+            {
+                "success": True,
+                "note": f"Memory {operation} - MemoryService implementation pending",
+            }
+        )
 
 
 # ── Skill Factory ──────────────────────────────────────────────────

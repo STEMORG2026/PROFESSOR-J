@@ -44,6 +44,11 @@ test:
 
 test-cov:
 	.venv/bin/python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=html
+	@echo ""
+	@echo "Layer coverage gates (per docs/500-software-testing.md):"
+	.venv/bin/python -m pytest tests/unit/domain/ -q --cov=app.domain --cov-report=term-missing --cov-fail-under=95
+	@echo "✅ domain >=95%"
+	@echo "adapters (>=85%) and brain (>=95%) gates activate when those layers are implemented."
 
 typecheck:
 	.venv/bin/mypy app/

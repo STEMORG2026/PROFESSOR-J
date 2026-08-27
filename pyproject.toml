@@ -23,3 +23,21 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+# Lines that are not meaningful to test (guards, typing-only, placeholders).
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == ['\\\"]__main__['\\\"]:",
+]
+# Aggregate floor for the whole app so gross regressions fail loudly.
+# Per-layer targets (95% domain/brain, 85% adapters) are enforced per-module in CI.
+fail_under = 80
