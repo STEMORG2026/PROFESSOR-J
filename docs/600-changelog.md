@@ -8,6 +8,43 @@
 
 ## Unreleased
 
+### Changed (2026-08)
+- **Branch consolidation:** merged the phase 0.6 governance hardening and phase 1 LHS
+  consumer work onto `main` in one controlled integration (resolved `exceptions.py`,
+  `scripts/board/review.py`, ledger conflicts).
+- **LHS adapter tests made CI-portable:** replaced brittle live-export assertions
+  (75 entities, machine-specific path) with a checked-in fixture (`tests/fixtures/`)
+  plus a structural contract test against the real export (unique IDs, resolvable
+  prerequisites, count agreement).
+- **Correctness/hygiene:**
+  - Dropped dead, conflicting LHS version constants from settings; the adapter owns
+    the authoritative `0.1` contract.
+  - Replaced all deprecated `datetime.utcnow()` uses with a tz-aware `utc_now()`
+    helper (adds `app/domain/time.py`).
+  - Removed the `app.skills.*` mypy exemption; skills now pass `--strict`.
+- **Skills:**
+  - `LHSTEMSkill` now queries the real `LHSKnowledgeAdapter` (get_concept, search,
+    prerequisites, has_concept).
+  - `web_search`/`code_execution`/`memory` return an honest `failure` with
+    `not_implemented` instead of fake success (code_execution is DESTRUCTIVE tier).
+- **Safety & guardrails (new `app/guardrails/`):** `@safety_gate` (SAFE/SENSITIVE/
+  DESTRUCTIVE→HITL), `PromptInjectionDetector`, `PIIRedactor`; hypothesis-pinned
+  tier×approval matrix.
+- **Model pool (new `app/models/` + `app/resources/`):** `LLMProvider` interface with
+  `MockProvider` + `OpenAICompatProvider`, `ProviderCatalog`, `ModelRouter` failover,
+  `CircuitBreaker` (3-state), `TokenBudget`, `bounded_retry` (jittered backoff honoring
+  `retry_after`).
+- **Cognitive brain (new `app/brain/`):** minimal LangGraph pipeline (rule-based intent
+  classification → deterministic plan from domain `ExecutionPlan` → synthesis via the
+  router). langgraph added to the venv (already in `requirements.txt`).
+- **Tests + robustness:** exhaustive grounded-over-generative matrix (ReviewStatus ×
+  human-reviewed); route/breaker/retry fault-injection tests. Test count on `main`: 203.
+- Docs reconciled against implemented state (`docs/300-architecture.md`,
+  `IMPLEMENTATION-PLAN.md`, `docs/601-agents.md`, this changelog).
+
+(-- follow the **Release discipline** notes below for commit links; the above is a
+deliberate consolidation of the reconciling changes landed this cycle.)
+
 ### Added (2026-08)
 - Repository initialized as an independent peer repo (Phase 0).
 - Governance suite: `docs/GOVERNANCE.md`, `docs/CONSTITUTION.md`, `docs/RULES.md`,

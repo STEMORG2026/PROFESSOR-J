@@ -43,7 +43,7 @@
 **Role**: Zero-drift LHS adapter, provenance on every claim, ungrounded labeling
 
 **Responsibilities**:
-- Verify `LHSKnowledgeAdapter` validates `export_version=3` and `schema_version=3`
+- Verify `LHSKnowledgeAdapter` validates `export_version=0.1` and `schema_version=0.1`
 - Ensure prerequisite traversal uses `mathematically_requires` + `logically_requires` + `appears_in_law`
 - Confirm every grounded claim cites `lhs:*` entity ID + review status (`draft`/`reviewed`/`approved`)
 - Verify ungrounded responses explicitly labeled "ungrounded" with source provenance

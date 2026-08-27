@@ -22,7 +22,9 @@
 ```bash
 .venv/bin/python -m pytest tests/   # Python test suite
 .venv/bin/mypy app/                 # strict typecheck
-cd frontend && pnpm typecheck && pnpm lint
+.venv/bin/pre-commit run --all-files  # ruff, ruff-format, mypy, eof fixes
+# Frontend (Phase 7+, once `frontend/` exists):
+#   cd frontend && pnpm typecheck && pnpm lint
 ```
 
 **Conventions that must not be violated, and where each is defined.**

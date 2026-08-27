@@ -8,14 +8,16 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
+from app.domain.time import utc_now
+
 
 class TutoringMode(str, Enum):
     """Tutoring interaction modes."""
 
-    SOCRATIC_MENTOR = "socratic_mentor"      # Diagnose, scaffold, guide
+    SOCRATIC_MENTOR = "socratic_mentor"  # Diagnose, scaffold, guide
     EXPOSITORY_LECTURE = "expository_lecture"  # Direct explanation
-    EXAM_DRILL = "exam_drill"                # Practice problems, timed
-    RESEARCH_ADVISOR = "research_advisor"     # Literature synthesis, citations
+    EXAM_DRILL = "exam_drill"  # Practice problems, timed
+    RESEARCH_ADVISOR = "research_advisor"  # Literature synthesis, citations
 
 
 class MisconceptionType(str, Enum):
@@ -87,7 +89,7 @@ class MasteryScore:
     practice_count: int = 0
     correct_count: int = 0
     last_practiced: datetime | None = None
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=utc_now)
 
     def is_mastered(self, threshold: float = 0.85) -> bool:
         return self.score >= threshold
@@ -103,8 +105,8 @@ class MasteryScore:
             confidence=min(1.0, self.confidence + 0.05),
             practice_count=new_practice,
             correct_count=new_correct,
-            last_practiced=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            last_practiced=utc_now(),
+            updated_at=utc_now(),
         )
 
 
@@ -121,7 +123,7 @@ class PedagogicalTurn:
     evaluation: Evaluation | None = None
     mastery_before: dict[str, MasteryScore] = field(default_factory=dict)
     mastery_after: dict[str, MasteryScore] = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -133,7 +135,7 @@ class MisconceptionState:
     concept_id: str
     misconception: MisconceptionType
     resolved: bool = False
-    detected_at: datetime = field(default_factory=datetime.utcnow)
+    detected_at: datetime = field(default_factory=utc_now)
     occurrences: int = 1
     resolved_at: datetime | None = None
     resolution_method: str | None = None
@@ -160,7 +162,7 @@ class MisconceptionState:
             resolved=True,
             detected_at=self.detected_at,
             occurrences=self.occurrences,
-            resolved_at=datetime.utcnow(),
+            resolved_at=utc_now(),
             resolution_method=method,
         )
 
@@ -175,12 +177,14 @@ class LearnerState:
 
     learner_id: str
     mastery: dict[str, MasteryScore] = field(default_factory=dict)  # concept_id -> MasteryScore
-    misconceptions: dict[str, MisconceptionState] = field(default_factory=dict)  # concept_id -> MisconceptionState
+    misconceptions: dict[str, MisconceptionState] = field(
+        default_factory=dict
+    )  # concept_id -> MisconceptionState
     dialogue_history: tuple[str, ...] = field(default_factory=tuple)  # turn_ids
     current_mode: str = "socratic_mentor"
     active_concept: str | None = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_mastery(self, concept_id: str) -> MasteryScore | None:
@@ -192,7 +196,9 @@ class LearnerState:
         m = self.misconceptions.get(concept_id)
         return m if m and not m.resolved else None
 
-    def is_ready_for(self, concept_id: str, prerequisites: tuple[str, ...], threshold: float = 0.85) -> bool:
+    def is_ready_for(
+        self, concept_id: str, prerequisites: tuple[str, ...], threshold: float = 0.85
+    ) -> bool:
         """Check if learner has mastered all prerequisites for a concept."""
         for prereq_id in prerequisites:
             mastery = self.mastery.get(prereq_id)
@@ -200,7 +206,7 @@ class LearnerState:
                 return False
         return True
 
-    def add_turn(self, turn_id: str) -> "LearnerState":
+    def add_turn(self, turn_id: str) -> LearnerState:
         """Return new state with added turn to history."""
         return LearnerState(
             learner_id=self.learner_id,
@@ -210,16 +216,20 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
-    def update_mastery(self, concept_id: str, correct: bool) -> "LearnerState":
+    def update_mastery(self, concept_id: str, correct: bool) -> LearnerState:
         """Return new state with updated mastery for a concept."""
         current = self.mastery.get(concept_id)
-        updated = current.with_attempt(correct) if current else MasteryScore(
-            concept_id=concept_id,
-            score=0.0,
-        ).with_attempt(correct)
+        updated = (
+            current.with_attempt(correct)
+            if current
+            else MasteryScore(
+                concept_id=concept_id,
+                score=0.0,
+            ).with_attempt(correct)
+        )
         new_mastery = {**self.mastery, concept_id: updated}
         return LearnerState(
             learner_id=self.learner_id,
@@ -229,10 +239,12 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
-    def record_misconception(self, concept_id: str, misconception: MisconceptionType) -> "LearnerState":
+    def record_misconception(
+        self, concept_id: str, misconception: MisconceptionType
+    ) -> LearnerState:
         """Record a detected misconception."""
         existing = self.misconceptions.get(concept_id)
         if existing and existing.misconception == misconception and not existing.resolved:
@@ -252,14 +264,17 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
-    def resolve_misconception(self, concept_id: str, method: str) -> "LearnerState":
+    def resolve_misconception(self, concept_id: str, method: str) -> LearnerState:
         """Mark a misconception as resolved."""
         existing = self.misconceptions.get(concept_id)
         if existing and not existing.resolved:
-            new_misconceptions = {**self.misconceptions, concept_id: existing.mark_resolved("socratic_resolution")}
+            new_misconceptions = {
+                **self.misconceptions,
+                concept_id: existing.mark_resolved("socratic_resolution"),
+            }
             return LearnerState(
                 learner_id=self.learner_id,
                 mastery=self.mastery,
@@ -268,11 +283,11 @@ class LearnerState:
                 current_mode=self.current_mode,
                 active_concept=self.active_concept,
                 created_at=self.created_at,
-                updated_at=datetime.utcnow(),
+                updated_at=utc_now(),
             )
         return self
 
-    def set_active_concept(self, concept_id: str | None) -> "LearnerState":
+    def set_active_concept(self, concept_id: str | None) -> LearnerState:
         """Set the currently active concept."""
         return LearnerState(
             learner_id=self.learner_id,
@@ -282,10 +297,10 @@ class LearnerState:
             current_mode=self.current_mode,
             active_concept=concept_id,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )
 
-    def set_mode(self, mode: str) -> "LearnerState":
+    def set_mode(self, mode: str) -> LearnerState:
         """Set the tutoring mode."""
         return LearnerState(
             learner_id=self.learner_id,
@@ -295,5 +310,5 @@ class LearnerState:
             current_mode=mode,
             active_concept=self.active_concept,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
         )

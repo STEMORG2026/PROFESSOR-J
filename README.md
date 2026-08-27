@@ -66,8 +66,14 @@ PROFESSOR-J/
 │   ├── session/ & workspace/  ← Session & workspace management (from JARVIS)
 │   └── adapters/              ← FastAPI REST, SSE Streaming & WebRTC Signaling
 │
-└── frontend/                  ← Next.js 15 Interactive Canvas & Voice UI
+└── frontend/                  ← Next.js 15 Interactive Canvas & Voice UI (planned, Phase 7)
 ```
+
+> Status (reconciled 2026-08): the layers above drawn in `app/` today that are implemented and
+> unit-tested are the **domain**, **knowledge**, **skills**, **guardrails**, **models/resources**,
+> **telemetry**, **config/exceptions**, and a minimal **brain** pipeline. Layers still planned are
+> **adapters**, **bootstrap**, **memory**, **db**, **session/workspace**, **tools**, **mcp**, and the
+> **frontend**. See `docs/300-architecture.md` for the per-layer status.
 
 ---
 
@@ -78,20 +84,21 @@ PROFESSOR-J/
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+# Install pre-commit hooks once:
+.venv/bin/pre-commit install
 ```
 
-### 2. Frontend Setup
+### 2. Frontend Setup (Phase 7+)
+The `frontend/` app is not built yet — this is planned work, not present.
 ```bash
-cd frontend
-pnpm install
-pnpm dev
+# cd frontend && pnpm install && pnpm dev   # once `frontend/` exists
 ```
 
 ### 3. Verification
 ```bash
 .venv/bin/python -m pytest tests/    # Python test suite
 .venv/bin/mypy app/                  # strict typecheck
-cd frontend && pnpm typecheck && pnpm lint
+.venv/bin/pre-commit run --all-files # ruff, ruff-format, mypy, eof fixes
 ```
 
 ---
@@ -102,7 +109,7 @@ cd frontend && pnpm typecheck && pnpm lint
 - **JARVIS** — the predecessor platform; PROFESSOR-J inherits its capabilities under a new
   name and extends them. JARVIS remains an independent, maintained peer.
 
-[LearningHubSTEM]: /home/sajan/Projects/LearningHubSTEM
+[LearningHubSTEM]: ../LearningHubSTEM
 
 ---
 

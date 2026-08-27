@@ -51,8 +51,10 @@ Branding: "PROFESSOR-J" leads; JARVIS relationship is internal history noted in 
 
 ### Neutral
 
-- JARVIS remains an independent, maintained peer
-- Pattern ports require ADR documentation (ADR-002)
+- JARVIS remains an independent peer — **see ADR-004: JARVIS is now frozen
+  (read-only) and no longer actively maintained; PROFESSOR-J is the sole
+  successor.**
+- Pattern ports require ADR documentation (ADR-002).
 
 ## Alternatives
 

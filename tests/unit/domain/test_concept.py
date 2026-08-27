@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import pytest
+
 from app.domain.concept import (
     ConceptEntity,
     ConceptType,
-    ReviewStatus,
     Provenance,
     Relationship,
+    ReviewStatus,
 )
 
 
@@ -58,6 +59,24 @@ class TestConceptEntity:
         assert concept.status == ReviewStatus.DRAFT
         assert concept.provenance.ai_drafted is True
 
+    def test_related_concepts(self):
+        concept = ConceptEntity(
+            id="lhs:phys.force",
+            type=ConceptType.CONCEPT,
+            name="Force",
+            domain="physics",
+            definition="Force definition",
+            relationships=(
+                Relationship(type="related_to", target_id="lhs:phys.energy"),
+                Relationship(type="applies_to", target_id="lhs:phys.pressure"),
+                Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
+            ),
+        )
+        related = concept.related_concepts()
+        assert "lhs:phys.energy" in related
+        assert "lhs:phys.pressure" in related
+        assert "lhs:phys.mass" not in related
+
     def test_prerequisite_ids(self):
         concept = ConceptEntity(
             id="lhs:phys.force",
@@ -86,7 +105,10 @@ class TestConceptEntity:
             definition="Mass definition",
             relationships=(
                 Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
-                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-law-of-gravitation"),
+                Relationship(
+                    type="appears_in_law",
+                    target_id="lhs:phys.newtons-law-of-gravitation",
+                ),
             ),
         )
         laws = concept.law_appearances()
@@ -162,6 +184,62 @@ class TestConceptEntity:
         assert "lhs:phys.force" in citation
         assert "Force" in citation
         assert "⚠" in citation  # AI-drafted marker
+
+
+class TestGroundedOverGenerative:
+    """Exhaustive invariant matrix: a concept is grounded ONLY when it is
+    human-reviewed AND its status is reviewed/approved. This is the #1
+    non-negotiable invariant — pin every combination."""
+
+    # (review_status, human_reviewed, expected_grounded)
+    GROUNDING_MATRIX = [
+        (ReviewStatus.DRAFT, False, False),
+        (ReviewStatus.DRAFT, True, False),
+        (ReviewStatus.REVIEWED, False, False),
+        (ReviewStatus.REVIEWED, True, True),
+        (ReviewStatus.APPROVED, False, False),
+        (ReviewStatus.APPROVED, True, True),
+        (ReviewStatus.DEPRECATED, False, False),
+        (ReviewStatus.DEPRECATED, True, False),
+    ]
+
+    def _make(self, status: ReviewStatus, human_reviewed: bool) -> ConceptEntity:
+        prov = (
+            Provenance(ai_drafted=not human_reviewed).with_human_review("Dr. Smith")
+            if human_reviewed
+            else Provenance(ai_drafted=True)
+        )
+        return ConceptEntity(
+            id="lhs:phys.force",
+            type=ConceptType.LAW,
+            name="Force",
+            domain="physics",
+            definition="Force",
+            provenance=prov,
+            status=status,
+        )
+
+    @pytest.mark.parametrize("status,human_reviewed,expected", GROUNDING_MATRIX)
+    def test_is_grounded_matrix(self, status, human_reviewed, expected):
+        concept = self._make(status, human_reviewed)
+        assert concept.is_grounded() is expected, (
+            f"status={status.value} human_reviewed={human_reviewed} " f"must be grounded={expected}"
+        )
+
+    @pytest.mark.parametrize("status,human_reviewed,expected", GROUNDING_MATRIX)
+    def test_citation_marker_matches_grounding(self, status, human_reviewed, expected):
+        concept = self._make(status, human_reviewed)
+        marker = "✓" if expected else "⚠"
+        assert marker in concept.citation_string(), (
+            f"status={status.value} human_reviewed={human_reviewed} "
+            f"citation must carry marker {marker!r}"
+        )
+
+    def test_citation_dict_reviewed_flag(self):
+        # citation dict reports the human-review boolean, not just groundedness.
+        unconcept = self._make(ReviewStatus.REVIEWED, False)
+        assert unconcept.to_citation_dict()["reviewed"] is False
+        assert unconcept.to_citation_dict()["status"] == "reviewed"
 
 
 if __name__ == "__main__":

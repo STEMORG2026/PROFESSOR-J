@@ -8,3 +8,23 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-merge-conflict
+      - id: check-ast
+      - id: check-toml
+      - id: debug-statements
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.3
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (strict, repo venv)
+        entry: .venv/bin/mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [app, tests]

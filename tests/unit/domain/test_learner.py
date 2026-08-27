@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import pytest
-from datetime import datetime
 
 from app.domain.learner import (
-    LearnerState,
-    MasteryScore,
-    PedagogicalTurn,
-    MisconceptionState,
-    MisconceptionType,
-    TutoringMode,
     Evaluation,
     EvaluationResult,
+    LearnerState,
+    MasteryScore,
+    MisconceptionState,
+    MisconceptionType,
+    PedagogicalTurn,
+    TutoringMode,
 )
 
 
@@ -37,14 +36,14 @@ class TestMasteryScore:
         updated = ms.with_attempt(True)
         assert updated.practice_count == 3
         assert updated.correct_count == 2
-        assert updated.score == 2/3
+        assert updated.score == 2 / 3
 
     def test_with_attempt_incorrect(self):
         ms = MasteryScore(concept_id="test", score=0.5, practice_count=2, correct_count=1)
         updated = ms.with_attempt(False)
         assert updated.practice_count == 3
         assert updated.correct_count == 1
-        assert updated.score == 1/3
+        assert updated.score == 1 / 3
 
 
 class TestMisconceptionState:
@@ -62,7 +61,9 @@ class TestMisconceptionState:
 
     def test_with_occurrence(self):
         ms = MisconceptionState(
-            learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
         )
         updated = ms.with_occurrence()
         assert updated.occurrences == 2
@@ -70,7 +71,9 @@ class TestMisconceptionState:
 
     def test_mark_resolved(self):
         ms = MisconceptionState(
-            learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
         )
         resolved = ms.mark_resolved("socratic_resolution")
         assert resolved.resolved is True
@@ -126,13 +129,19 @@ class TestLearnerState:
 
     def test_get_misconception(self):
         misc = MisconceptionState(
-            learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
         )
         state = LearnerState(learner_id="l1", misconceptions={"c1": misc})
         assert state.get_misconception("c1") == misc
         assert state.get_misconception("c2") is None
         # Resolved misconception not returned
-        resolved_misc = MisconceptionState(learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER).mark_resolved("test")
+        resolved_misc = MisconceptionState(
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
+        ).mark_resolved("test")
         state2 = LearnerState(learner_id="l1", misconceptions={"c1": resolved_misc})
         assert state2.get_misconception("c1") is None
 
@@ -165,17 +174,43 @@ class TestLearnerState:
         assert updated.misconceptions["c1"].occurrences == 1
 
     def test_record_misconception_increments(self):
-        misc = MisconceptionState(learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER)
+        misc = MisconceptionState(
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
+        )
         state = LearnerState(learner_id="l1", misconceptions={"c1": misc})
         updated = state.record_misconception("c1", MisconceptionType.HEAVIER_FALLS_FASTER)
         assert updated.misconceptions["c1"].occurrences == 2
 
     def test_resolve_misconception(self):
-        misc = MisconceptionState(learner_id="l1", concept_id="c1", misconception=MisconceptionType.HEAVIER_FALLS_FASTER)
+        misc = MisconceptionState(
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
+        )
         state = LearnerState(learner_id="l1", misconceptions={"c1": misc})
         updated = state.resolve_misconception("c1", "socratic")
         assert updated.misconceptions["c1"].resolved is True
         assert updated.misconceptions["c1"].resolution_method == "socratic_resolution"
+
+    def test_resolve_misconception_already_resolved_noop(self):
+        misc = MisconceptionState(
+            learner_id="l1",
+            concept_id="c1",
+            misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
+            resolved=True,
+        )
+        state = LearnerState(learner_id="l1", misconceptions={"c1": misc})
+        updated = state.resolve_misconception("c1", "socratic")
+        # No-op: returns the same state object (immutability shortcut)
+        assert updated is state
+        assert updated.misconceptions["c1"].resolved is True
+
+    def test_resolve_unknown_misconception_noop(self):
+        state = LearnerState(learner_id="l1")
+        updated = state.resolve_misconception("missing", "socratic")
+        assert updated is state
 
     def test_add_turn(self):
         state = LearnerState(learner_id="l1")

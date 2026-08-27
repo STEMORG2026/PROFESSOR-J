@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from pathlib import Path
 from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -79,12 +76,24 @@ class SkillResult(Generic[T]):
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def success(cls, data: T, execution_time_ms: float = 0.0, **metadata) -> SkillResult[T]:
-        return cls(status=SkillStatus.SUCCESS, data=data, execution_time_ms=execution_time_ms, metadata=metadata)
+    def success(cls, data: T, execution_time_ms: float = 0.0, **metadata: object) -> SkillResult[T]:
+        return cls(
+            status=SkillStatus.SUCCESS,
+            data=data,
+            execution_time_ms=execution_time_ms,
+            metadata=metadata,
+        )
 
     @classmethod
-    def failure(cls, error: str, execution_time_ms: float = 0.0, **metadata) -> SkillResult[T]:
-        return cls(status=SkillStatus.FAILED, error=error, execution_time_ms=execution_time_ms, metadata=metadata)
+    def failure(
+        cls, error: str, execution_time_ms: float = 0.0, **metadata: object
+    ) -> SkillResult[T]:
+        return cls(
+            status=SkillStatus.FAILED,
+            error=error,
+            execution_time_ms=execution_time_ms,
+            metadata=metadata,
+        )
 
 
 class Skill(ABC, Generic[T]):
@@ -173,7 +182,7 @@ class MCPMixin:
 
             settings = get_settings()
             self._mcp_client = MCPApp(name="professor-j-skills", settings=settings)
-            await self._mcp_client.initialize()
+            await self._mcp_client.initialize()  # type: ignore[no-untyped-call]
         return self._mcp_client
 
     async def call_mcp_tool(self, server: str, tool: str, args: dict[str, Any]) -> Any:

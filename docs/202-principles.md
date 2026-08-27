@@ -30,7 +30,7 @@
 
 **Principles inherited from the ecosystem.**
 
-The workspace principles (`/home/sajan/Projects/docs/PRINCIPLES.md`) all apply and are
+The workspace principles (`../docs/PRINCIPLES.md`) all apply and are
 never contradicted. The full project-level stance is in `docs/PRINCIPLES.md`.
 
 **How a principle violation should be reported and handled.**

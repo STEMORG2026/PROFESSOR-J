@@ -8,7 +8,8 @@
 
 **What is going on around this project that it must fit into?**
 
-This project lives in the STEM ecosystem workspace (`/home/sajan/Projects`), where
+This project lives in the STEM ecosystem workspace (repo root is the parent of `LearningHubSTEM`),
+where
 repositories are independent peers: `LearningHubSTEM` (canonical STEM knowledge
 foundation), `STEM-TUITION` (flagship learning product), `JARVIS` (personal AI platform),
 and others. PROFESSOR-J is a consumer of LearningHubSTEM's canonical knowledge exports and

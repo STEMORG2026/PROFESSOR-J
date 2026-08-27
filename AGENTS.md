@@ -32,7 +32,7 @@ authoritative for work inside PROFESSOR-J.
 ## 2. Authority Hierarchy
 
 ```text
-Workspace Level 1 Invariants      (/home/sajan/Projects/docs/WORKSPACE-GOVERNANCE.md)
+Workspace Level 1 Invariants      (../docs/WORKSPACE-GOVERNANCE.md)
         ↓
 PROFESSOR-J Level 2 Governance    (docs/GOVERNANCE.md, this file)
         ↓
@@ -105,8 +105,11 @@ propose or act, but never override repository governance or workspace invariants
 # Typecheck backend (strict)
 .venv/bin/mypy app/
 
-# Frontend typecheck & lint
-cd frontend && pnpm typecheck && pnpm lint
+# Pre-commit (ruff, ruff-format, mypy, eof fixes)
+.venv/bin/pre-commit run --all-files
+
+# Frontend (Phase 7+, once `frontend/` exists)
+# cd frontend && pnpm typecheck && pnpm lint
 ```
 
 ---
@@ -116,11 +119,13 @@ cd frontend && pnpm typecheck && pnpm lint
 **All work happens on branches.** Never commit directly to `main`.
 
 | Branch Type | Pattern | Purpose | Lifetime |
-|-------------|---------|---------|----------|
+|-------------|---------|----------|----------|
 | **Phase** | `phase/X.Y-description` | Major phase from IMPLEMENTATION-PLAN | Until phase complete + merged |
 | **Task** | `task/phase-X.Y-description` | Single task within a phase | Until task complete + PR merged |
 | **Fix** | `fix/description` | Bug fixes, hotfixes | Until merged |
 | **Docs** | `docs/description` | Documentation-only changes | Until merged |
+| **Chore** | `chore/description` | Maintenance, tooling, non-feature | Until merged |
+| **CI** | `ci/description` | CI/CD pipeline changes | Until merged |
 | **Experiment** | `exp/description` | Throwaway spikes, prototypes | Discarded or converted |
 
 **Workflow:**

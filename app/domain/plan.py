@@ -8,7 +8,8 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from app.domain.tool import SafetyTier, ApprovalState
+from app.domain.time import utc_now
+from app.domain.tool import ApprovalState, SafetyTier
 
 
 class PlanStatus(str, Enum):
@@ -96,8 +97,8 @@ class ExecutionPlan:
     goal: str = ""
     steps: tuple[ExecutionStep, ...] = field(default_factory=tuple)
     status: PlanStatus = PlanStatus.PENDING
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def current_step(self) -> ExecutionStep | None:
@@ -142,12 +143,11 @@ class ExecutionPlan:
     def with_step_update(self, step_id: str, **updates: Any) -> ExecutionPlan:
         """Return new plan with updated step (immutable update)."""
         import dataclasses
+
         new_steps = []
         for step in self.steps:
             if step.step_id == step_id:
-                new_steps.append(step.__class__(
-                    **{**dataclasses.asdict(step), **updates}
-                ))
+                new_steps.append(step.__class__(**{**dataclasses.asdict(step), **updates}))
             else:
                 new_steps.append(step)
         return ExecutionPlan(
@@ -156,7 +156,7 @@ class ExecutionPlan:
             steps=tuple(new_steps),
             status=self.status,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -168,6 +168,6 @@ class ExecutionPlan:
             steps=self.steps,
             status=status,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )

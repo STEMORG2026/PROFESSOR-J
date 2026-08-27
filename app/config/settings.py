@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic_core import PydanticCustomError
 
 
 class Settings(BaseSettings):
@@ -27,7 +26,9 @@ class Settings(BaseSettings):
     debug: bool = True
 
     # ── API ──────────────────────────────────────────────────────────
-    api_host: str = "0.0.0.0"
+    # 0.0.0.0 is the default bind for local/dev/container access, overridable
+    # via PROFESSOR_API_HOST; the server binds inside the sandbox/container.
+    api_host: str = "0.0.0.0"  # nosec B104 - dev/container bind, overridable via env
     api_port: int = 8000
     api_workers: int = 1
     api_key: str = Field(default="changeme", description="Bearer token for API authentication")
@@ -46,8 +47,6 @@ class Settings(BaseSettings):
 
     # ── LearningHubSTEM ──────────────────────────────────────────────
     lhs_export_path: Path = Path("LearningHubSTEM/exports/knowledge.json")
-    lhs_expected_export_version: int = 3
-    lhs_expected_schema_version: int = 3
 
     # ── LLM Providers ────────────────────────────────────────────────
     openai_api_key: str | None = None
@@ -107,6 +106,7 @@ def get_settings() -> Settings:
 
 # ── Startup Validation ───────────────────────────────────────────────
 
+
 def validate_required_secrets(settings: Settings) -> None:
     """Validate that all required secrets are present at startup."""
     missing: list[str] = []
@@ -119,6 +119,11 @@ def validate_required_secrets(settings: Settings) -> None:
     else:
         required = []
 
+    # In production, the named provider keys are mandatory.
+    for name, value in required:
+        if not value:
+            missing.append(name)
+
     # At least one LLM provider must be configured
     provider_keys = [
         settings.openai_api_key,
@@ -129,7 +134,9 @@ def validate_required_secrets(settings: Settings) -> None:
         settings.openrouter_api_key,
     ]
     if not any(provider_keys):
-        missing.append("At least one LLM provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)")
+        missing.append(
+            "At least one LLM provider API key (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)"
+        )
 
     if missing:
         raise RuntimeError(f"Missing required configuration: {', '.join(missing)}")

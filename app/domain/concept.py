@@ -7,6 +7,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from app.domain.time import utc_now
+
 
 class ReviewStatus(str, Enum):
     """Review status of a canonical entity (mirrors LearningHubSTEM)."""
@@ -32,7 +34,7 @@ class Provenance:
 
     ai_drafted: bool = True
     source: str = "LearningHubSTEM"
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=utc_now)
     human_reviewed: bool = False
     reviewer: str | None = None
     reviewed_at: datetime | None = None
@@ -46,7 +48,7 @@ class Provenance:
             generated_at=self.generated_at,
             human_reviewed=True,
             reviewer=reviewer,
-            reviewed_at=datetime.utcnow(),
+            reviewed_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -104,18 +106,12 @@ class ConceptEntity:
 
     def law_appearances(self) -> tuple[str, ...]:
         """Get laws this concept appears in."""
-        return tuple(
-            rel.target_id
-            for rel in self.relationships
-            if rel.type == "appears_in_law"
-        )
+        return tuple(rel.target_id for rel in self.relationships if rel.type == "appears_in_law")
 
     def related_concepts(self) -> tuple[str, ...]:
         """Get all related concept IDs."""
         return tuple(
-            rel.target_id
-            for rel in self.relationships
-            if rel.type in ("related_to", "applies_to")
+            rel.target_id for rel in self.relationships if rel.type in ("related_to", "applies_to")
         )
 
     def all_dependencies(self) -> tuple[str, ...]:
@@ -124,7 +120,10 @@ class ConceptEntity:
 
     def is_grounded(self) -> bool:
         """Whether this concept has human-reviewed provenance."""
-        return self.provenance.human_reviewed and self.status in (ReviewStatus.REVIEWED, ReviewStatus.APPROVED)
+        return self.provenance.human_reviewed and self.status in (
+            ReviewStatus.REVIEWED,
+            ReviewStatus.APPROVED,
+        )
 
     def citation_string(self) -> str:
         """Generate citation string for this concept."""

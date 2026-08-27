@@ -8,6 +8,8 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
+from app.domain.time import utc_now
+
 
 class MessageRole(str, Enum):
     """Role of a message in a conversation."""
@@ -39,7 +41,7 @@ class Message:
     provenance: Provenance | None = None
     tool_calls: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     tool_results: tuple[dict[str, Any], ...] = field(default_factory=tuple)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_grounded(self) -> bool:
@@ -56,8 +58,8 @@ class Conversation:
     messages: tuple[Message, ...] = field(default_factory=tuple)
     active_concept: str | None = None  # Current concept being discussed
     tutoring_mode: str = "socratic_mentor"
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def add_message(self, message: Message) -> Conversation:
@@ -69,7 +71,7 @@ class Conversation:
             active_concept=self.active_concept,
             tutoring_mode=self.tutoring_mode,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -82,7 +84,7 @@ class Conversation:
             active_concept=concept_id,
             tutoring_mode=self.tutoring_mode,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -95,7 +97,7 @@ class Conversation:
             active_concept=self.active_concept,
             tutoring_mode=mode,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
+            updated_at=utc_now(),
             metadata=self.metadata,
         )
 
@@ -139,9 +141,9 @@ class Session:
     conversations: tuple[Conversation, ...] = field(default_factory=tuple)
     active_conversation_id: str | None = None
     context_window: int = 20  # Number of messages to keep in context
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    last_activity_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
+    last_activity_at: datetime = field(default_factory=utc_now)
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def active_conversation(self) -> Conversation | None:
@@ -153,7 +155,7 @@ class Session:
         # Return most recent if no active set
         return self.conversations[-1] if self.conversations else None
 
-    def add_conversation(self, conversation: Conversation) -> "Session":
+    def add_conversation(self, conversation: Conversation) -> Session:
         """Return new session with added conversation."""
         return Session(
             session_id=self.session_id,
@@ -163,12 +165,12 @@ class Session:
             active_conversation_id=conversation.conversation_id,
             context_window=self.context_window,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
-            last_activity_at=datetime.utcnow(),
+            updated_at=utc_now(),
+            last_activity_at=utc_now(),
             metadata=self.metadata,
         )
 
-    def set_active_conversation(self, conversation_id: str) -> "Session":
+    def set_active_conversation(self, conversation_id: str) -> Session:
         """Set the active conversation."""
         return Session(
             session_id=self.session_id,
@@ -178,12 +180,12 @@ class Session:
             active_conversation_id=conversation_id,
             context_window=self.context_window,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
-            last_activity_at=datetime.utcnow(),
+            updated_at=utc_now(),
+            last_activity_at=utc_now(),
             metadata=self.metadata,
         )
 
-    def with_status(self, status: SessionStatus) -> "Session":
+    def with_status(self, status: SessionStatus) -> Session:
         """Return new session with updated status."""
         return Session(
             session_id=self.session_id,
@@ -193,12 +195,12 @@ class Session:
             active_conversation_id=self.active_conversation_id,
             context_window=self.context_window,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
-            last_activity_at=datetime.utcnow(),
+            updated_at=utc_now(),
+            last_activity_at=utc_now(),
             metadata=self.metadata,
         )
 
-    def with_metadata(self, **metadata: Any) -> "Session":
+    def with_metadata(self, **metadata: Any) -> Session:
         """Return new session with merged metadata."""
         return Session(
             session_id=self.session_id,
@@ -208,12 +210,12 @@ class Session:
             active_conversation_id=self.active_conversation_id,
             context_window=self.context_window,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
-            last_activity_at=datetime.utcnow(),
+            updated_at=utc_now(),
+            last_activity_at=utc_now(),
             metadata={**self.metadata, **metadata},
         )
 
-    def add_message(self, message: Message) -> "Session":
+    def add_message(self, message: Message) -> Session:
         """Add a message to the active conversation."""
         active = self.active_conversation()
         if not active:
@@ -237,7 +239,7 @@ class Session:
             active_conversation_id=active.conversation_id,
             context_window=self.context_window,
             created_at=self.created_at,
-            updated_at=datetime.utcnow(),
-            last_activity_at=datetime.utcnow(),
+            updated_at=utc_now(),
+            last_activity_at=utc_now(),
             metadata=self.metadata,
         )
