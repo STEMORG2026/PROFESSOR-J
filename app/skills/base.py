@@ -17,9 +17,7 @@ T = TypeVar("T")
 class SkillError(Exception):
     """Base exception for skill errors."""
 
-    def __init__(
-        self, message: str, skill_name: str | None = None, code: str | None = None
-    ):
+    def __init__(self, message: str, skill_name: str | None = None, code: str | None = None):
         super().__init__(message)
         self.skill_name = skill_name
         self.code = code or "SKILL_ERROR"
@@ -78,9 +76,7 @@ class SkillResult(Generic[T]):
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def success(
-        cls, data: T, execution_time_ms: float = 0.0, **metadata: object
-    ) -> SkillResult[T]:
+    def success(cls, data: T, execution_time_ms: float = 0.0, **metadata: object) -> SkillResult[T]:
         return cls(
             status=SkillStatus.SUCCESS,
             data=data,
@@ -138,9 +134,7 @@ class Skill(ABC, Generic[T]):
         self._execution_id = str(uuid.uuid4())[:8]
         self._start_time = time.perf_counter()
 
-        logger.info(
-            "Executing skill: %s (id=%s)", self.metadata.name, self._execution_id
-        )
+        logger.info("Executing skill: %s (id=%s)", self.metadata.name, self._execution_id)
 
         try:
             if not self.validate_params(**kwargs):
@@ -163,11 +157,7 @@ class Skill(ABC, Generic[T]):
             return result
 
         except Exception as e:
-            elapsed = (
-                (time.perf_counter() - self._start_time) * 1000
-                if self._start_time
-                else 0.0
-            )
+            elapsed = (time.perf_counter() - self._start_time) * 1000 if self._start_time else 0.0
             logger.exception("Skill %s failed: %s", self.metadata.name, e)
             return SkillResult.failure(str(e), execution_time_ms=elapsed)
 
@@ -175,9 +165,7 @@ class Skill(ABC, Generic[T]):
 class MCPMixin:
     """Mixin for skills that use MCP servers."""
 
-    def __init__(
-        self, *args: Any, mcp_servers: list[str] | None = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, *args: Any, mcp_servers: list[str] | None = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._mcp_servers = mcp_servers or []
         self._mcp_client: Any = None
@@ -202,7 +190,5 @@ class MCPMixin:
         client = await self.get_mcp_client()
         server_obj = client.server_registry.get(server)
         if not server_obj:
-            raise SkillError(
-                f"MCP server '{server}' not found", code="MCP_SERVER_NOT_FOUND"
-            )
+            raise SkillError(f"MCP server '{server}' not found", code="MCP_SERVER_NOT_FOUND")
         return await server_obj.call_tool(tool, args)

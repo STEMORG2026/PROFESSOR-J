@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+from app.domain.time import utc_now
 
 
 class TutoringMode(str, Enum):
@@ -59,9 +60,7 @@ class Evaluation:
     result: EvaluationResult
     score: float  # 0.0 to 1.0
     feedback: str
-    detected_misconceptions: tuple[MisconceptionType, ...] = field(
-        default_factory=tuple
-    )
+    detected_misconceptions: tuple[MisconceptionType, ...] = field(default_factory=tuple)
     correct_steps: tuple[str, ...] = field(default_factory=tuple)
     incorrect_steps: tuple[str, ...] = field(default_factory=tuple)
     next_hint: str | None = None
@@ -177,9 +176,7 @@ class LearnerState:
     """
 
     learner_id: str
-    mastery: dict[str, MasteryScore] = field(
-        default_factory=dict
-    )  # concept_id -> MasteryScore
+    mastery: dict[str, MasteryScore] = field(default_factory=dict)  # concept_id -> MasteryScore
     misconceptions: dict[str, MisconceptionState] = field(
         default_factory=dict
     )  # concept_id -> MisconceptionState
@@ -209,7 +206,7 @@ class LearnerState:
                 return False
         return True
 
-    def add_turn(self, turn_id: str) -> "LearnerState":
+    def add_turn(self, turn_id: str) -> LearnerState:
         """Return new state with added turn to history."""
         return LearnerState(
             learner_id=self.learner_id,
@@ -222,7 +219,7 @@ class LearnerState:
             updated_at=utc_now(),
         )
 
-    def update_mastery(self, concept_id: str, correct: bool) -> "LearnerState":
+    def update_mastery(self, concept_id: str, correct: bool) -> LearnerState:
         """Return new state with updated mastery for a concept."""
         current = self.mastery.get(concept_id)
         updated = (
@@ -247,14 +244,10 @@ class LearnerState:
 
     def record_misconception(
         self, concept_id: str, misconception: MisconceptionType
-    ) -> "LearnerState":
+    ) -> LearnerState:
         """Record a detected misconception."""
         existing = self.misconceptions.get(concept_id)
-        if (
-            existing
-            and existing.misconception == misconception
-            and not existing.resolved
-        ):
+        if existing and existing.misconception == misconception and not existing.resolved:
             updated = existing.with_occurrence()
         else:
             updated = MisconceptionState(
@@ -274,7 +267,7 @@ class LearnerState:
             updated_at=utc_now(),
         )
 
-    def resolve_misconception(self, concept_id: str, method: str) -> "LearnerState":
+    def resolve_misconception(self, concept_id: str, method: str) -> LearnerState:
         """Mark a misconception as resolved."""
         existing = self.misconceptions.get(concept_id)
         if existing and not existing.resolved:
@@ -294,7 +287,7 @@ class LearnerState:
             )
         return self
 
-    def set_active_concept(self, concept_id: str | None) -> "LearnerState":
+    def set_active_concept(self, concept_id: str | None) -> LearnerState:
         """Set the currently active concept."""
         return LearnerState(
             learner_id=self.learner_id,
@@ -307,7 +300,7 @@ class LearnerState:
             updated_at=utc_now(),
         )
 
-    def set_mode(self, mode: str) -> "LearnerState":
+    def set_mode(self, mode: str) -> LearnerState:
         """Set the tutoring mode."""
         return LearnerState(
             learner_id=self.learner_id,

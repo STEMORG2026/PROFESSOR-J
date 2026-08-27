@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 
 from app.domain.learner import (
-    LearnerState,
-    MasteryScore,
-    PedagogicalTurn,
-    MisconceptionState,
-    MisconceptionType,
-    TutoringMode,
     Evaluation,
     EvaluationResult,
+    LearnerState,
+    MasteryScore,
+    MisconceptionState,
+    MisconceptionType,
+    PedagogicalTurn,
+    TutoringMode,
 )
 
 
@@ -32,18 +32,14 @@ class TestMasteryScore:
         assert ms2.is_mastered() is False
 
     def test_with_attempt_correct(self):
-        ms = MasteryScore(
-            concept_id="test", score=0.5, practice_count=2, correct_count=1
-        )
+        ms = MasteryScore(concept_id="test", score=0.5, practice_count=2, correct_count=1)
         updated = ms.with_attempt(True)
         assert updated.practice_count == 3
         assert updated.correct_count == 2
         assert updated.score == 2 / 3
 
     def test_with_attempt_incorrect(self):
-        ms = MasteryScore(
-            concept_id="test", score=0.5, practice_count=2, correct_count=1
-        )
+        ms = MasteryScore(concept_id="test", score=0.5, practice_count=2, correct_count=1)
         updated = ms.with_attempt(False)
         assert updated.practice_count == 3
         assert updated.correct_count == 1
@@ -87,14 +83,10 @@ class TestMisconceptionState:
 
 class TestEvaluation:
     def test_is_correct(self):
-        eval_correct = Evaluation(
-            result=EvaluationResult.CORRECT, score=1.0, feedback="Good!"
-        )
+        eval_correct = Evaluation(result=EvaluationResult.CORRECT, score=1.0, feedback="Good!")
         assert eval_correct.is_correct is True
 
-        eval_incorrect = Evaluation(
-            result=EvaluationResult.INCORRECT, score=0.0, feedback="Wrong"
-        )
+        eval_incorrect = Evaluation(result=EvaluationResult.INCORRECT, score=0.0, feedback="Wrong")
         assert eval_incorrect.is_correct is False
 
     def test_needs_scaffolding(self):
@@ -106,9 +98,7 @@ class TestEvaluation:
             eval_obj = Evaluation(result=result, score=0.5, feedback="")
             assert eval_obj.needs_scaffolding is True
 
-        eval_correct = Evaluation(
-            result=EvaluationResult.CORRECT, score=1.0, feedback=""
-        )
+        eval_correct = Evaluation(result=EvaluationResult.CORRECT, score=1.0, feedback="")
         assert eval_correct.needs_scaffolding is False
 
 
@@ -179,9 +169,7 @@ class TestLearnerState:
 
     def test_record_misconception_new(self):
         state = LearnerState(learner_id="l1")
-        updated = state.record_misconception(
-            "c1", MisconceptionType.HEAVIER_FALLS_FASTER
-        )
+        updated = state.record_misconception("c1", MisconceptionType.HEAVIER_FALLS_FASTER)
         assert "c1" in updated.misconceptions
         assert updated.misconceptions["c1"].occurrences == 1
 
@@ -192,9 +180,7 @@ class TestLearnerState:
             misconception=MisconceptionType.HEAVIER_FALLS_FASTER,
         )
         state = LearnerState(learner_id="l1", misconceptions={"c1": misc})
-        updated = state.record_misconception(
-            "c1", MisconceptionType.HEAVIER_FALLS_FASTER
-        )
+        updated = state.record_misconception("c1", MisconceptionType.HEAVIER_FALLS_FASTER)
         assert updated.misconceptions["c1"].occurrences == 2
 
     def test_resolve_misconception(self):

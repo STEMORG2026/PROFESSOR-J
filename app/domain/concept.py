@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
+
+from app.domain.time import utc_now
 
 
 class ReviewStatus(str, Enum):
@@ -105,16 +106,12 @@ class ConceptEntity:
 
     def law_appearances(self) -> tuple[str, ...]:
         """Get laws this concept appears in."""
-        return tuple(
-            rel.target_id for rel in self.relationships if rel.type == "appears_in_law"
-        )
+        return tuple(rel.target_id for rel in self.relationships if rel.type == "appears_in_law")
 
     def related_concepts(self) -> tuple[str, ...]:
         """Get all related concept IDs."""
         return tuple(
-            rel.target_id
-            for rel in self.relationships
-            if rel.type in ("related_to", "applies_to")
+            rel.target_id for rel in self.relationships if rel.type in ("related_to", "applies_to")
         )
 
     def all_dependencies(self) -> tuple[str, ...]:

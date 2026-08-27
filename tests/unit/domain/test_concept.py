@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import pytest
+
 from app.domain.concept import (
     ConceptEntity,
     ConceptType,
-    ReviewStatus,
     Provenance,
     Relationship,
+    ReviewStatus,
 )
 
 
@@ -36,9 +37,7 @@ class TestProvenance:
 
 class TestRelationship:
     def test_relationship_creation(self):
-        rel = Relationship(
-            type="mathematically_requires", target_id="lhs:phys.velocity"
-        )
+        rel = Relationship(type="mathematically_requires", target_id="lhs:phys.velocity")
         assert rel.type == "mathematically_requires"
         assert rel.target_id == "lhs:phys.velocity"
         assert rel.weight == 1.0
@@ -87,12 +86,8 @@ class TestConceptEntity:
             definition="Force definition",
             relationships=(
                 Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
-                Relationship(
-                    type="logically_requires", target_id="lhs:phys.acceleration"
-                ),
-                Relationship(
-                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
-                ),
+                Relationship(type="logically_requires", target_id="lhs:phys.acceleration"),
+                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
                 Relationship(type="related_to", target_id="lhs:phys.energy"),
             ),
         )
@@ -109,9 +104,7 @@ class TestConceptEntity:
             domain="physics",
             definition="Mass definition",
             relationships=(
-                Relationship(
-                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
-                ),
+                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
                 Relationship(
                     type="appears_in_law",
                     target_id="lhs:phys.newtons-law-of-gravitation",
@@ -131,12 +124,8 @@ class TestConceptEntity:
             definition="Force",
             relationships=(
                 Relationship(type="mathematically_requires", target_id="lhs:phys.mass"),
-                Relationship(
-                    type="logically_requires", target_id="lhs:phys.acceleration"
-                ),
-                Relationship(
-                    type="appears_in_law", target_id="lhs:phys.newtons-second-law"
-                ),
+                Relationship(type="logically_requires", target_id="lhs:phys.acceleration"),
+                Relationship(type="appears_in_law", target_id="lhs:phys.newtons-second-law"),
             ),
         )
         deps = concept.all_dependencies()
@@ -234,8 +223,7 @@ class TestGroundedOverGenerative:
     def test_is_grounded_matrix(self, status, human_reviewed, expected):
         concept = self._make(status, human_reviewed)
         assert concept.is_grounded() is expected, (
-            f"status={status.value} human_reviewed={human_reviewed} "
-            f"must be grounded={expected}"
+            f"status={status.value} human_reviewed={human_reviewed} " f"must be grounded={expected}"
         )
 
     @pytest.mark.parametrize("status,human_reviewed,expected", GROUNDING_MATRIX)

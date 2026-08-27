@@ -15,9 +15,9 @@ from app.guardrails.injection import (  # noqa: F401
 from app.guardrails.pii import PIIRedactor  # noqa: F401
 from app.guardrails.policy import (  # noqa: F401
     SafetyPolicy,
+    reset_default_policy,
     safety_gate,
     set_default_policy,
-    reset_default_policy,
 )
 
 __all__ = [

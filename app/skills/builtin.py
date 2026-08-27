@@ -7,8 +7,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from app.skills.base import Skill, SkillMetadata, SkillResult
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
+from app.skills.base import Skill, SkillMetadata, SkillResult
 from app.skills.registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
@@ -198,9 +198,7 @@ class GitSkill(Skill[dict[str, Any]]):
             else:
                 cmd.extend(args)
 
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=30, cwd=cwd
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=cwd)
 
             if result.returncode == 0:
                 return SkillResult.success({"success": True, "output": result.stdout})
@@ -448,9 +446,7 @@ class LHSTEMSkill(Skill[dict[str, Any]]):
                 component="lhstem",
             )
 
-        return SkillResult.failure(
-            f"Unknown operation: {operation}", component="lhstem"
-        )
+        return SkillResult.failure(f"Unknown operation: {operation}", component="lhstem")
 
 
 # ── Memory Skill ───────────────────────────────────────────────────

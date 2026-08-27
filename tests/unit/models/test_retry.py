@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from app.exceptions import ProviderRateLimitError, ProviderTimeoutError
-from app.models.retry import bounded_retry, _delay
+from app.models.retry import _delay, bounded_retry
 
 
 class TestBoundedRetry:
@@ -79,9 +78,7 @@ class TestBoundedRetry:
                 raise ProviderRateLimitError(provider="x", retry_after=1)
             return "ok"
 
-        await bounded_retry(
-            op, max_attempts=3, base_delay=0.01, jitter=False, sleep=fake_sleep
-        )
+        await bounded_retry(op, max_attempts=3, base_delay=0.01, jitter=False, sleep=fake_sleep)
         # First retry must sleep at least retry_after=1 (bounded by max_delay=2).
         assert sleeps[0] == 1.0
         assert calls == 2

@@ -124,9 +124,7 @@ class ModelRouter:
             raise
         except Exception as e:
             # Map transport/HTTP failures onto a typed, retryable error.
-            raise ProviderUnavailableError(
-                provider=provider.name, message=str(e)
-            ) from e
+            raise ProviderUnavailableError(provider=provider.name, message=str(e)) from e
 
     def _ordered_names(self, preferred: str | None) -> list[str]:
         names = self.catalog.names()

@@ -29,9 +29,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_workers: int = 1
-    api_key: str = Field(
-        default="changeme", description="Bearer token for API authentication"
-    )
+    api_key: str = Field(default="changeme", description="Bearer token for API authentication")
 
     # ── Data Directories ─────────────────────────────────────────────
     data_dir: Path = Path("data")

@@ -38,7 +38,7 @@ class TokenBudget:
     def release(self, tokens: int = 0) -> None:
         """Return accounting for a request that was counted but not sent."""
         self._prune(time.monotonic())
-        pass  # tokens are accounted at acquisition; release is a no-op for the window model
+        # tokens are accounted at acquisition; release is a no-op for the window model
 
     def remaining_requests(self) -> int:
         now = time.monotonic()

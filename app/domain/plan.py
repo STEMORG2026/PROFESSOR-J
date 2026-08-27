@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from app.domain.time import utc_now
 from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from app.domain.tool import SafetyTier, ApprovalState
+from app.domain.time import utc_now
+from app.domain.tool import ApprovalState, SafetyTier
 
 
 class PlanStatus(str, Enum):
@@ -147,9 +147,7 @@ class ExecutionPlan:
         new_steps = []
         for step in self.steps:
             if step.step_id == step_id:
-                new_steps.append(
-                    step.__class__(**{**dataclasses.asdict(step), **updates})
-                )
+                new_steps.append(step.__class__(**{**dataclasses.asdict(step), **updates}))
             else:
                 new_steps.append(step)
         return ExecutionPlan(

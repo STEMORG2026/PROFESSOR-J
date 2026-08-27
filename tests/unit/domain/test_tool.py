@@ -19,23 +19,15 @@ class TestSafetyTier:
 
     def test_safe_auto_approvable_always(self):
         assert SafetyTier.SAFE.auto_approvable() is True
-        assert (
-            SafetyTier.SAFE.auto_approvable(policy_auto_approve_sensitive=False) is True
-        )
+        assert SafetyTier.SAFE.auto_approvable(policy_auto_approve_sensitive=False) is True
 
     def test_sensitive_auto_approvable_respects_policy(self):
         assert SafetyTier.SENSITIVE.auto_approvable() is True
-        assert (
-            SafetyTier.SENSITIVE.auto_approvable(policy_auto_approve_sensitive=False)
-            is False
-        )
+        assert SafetyTier.SENSITIVE.auto_approvable(policy_auto_approve_sensitive=False) is False
 
     def test_destructive_never_auto_approvable(self):
         assert SafetyTier.DESTRUCTIVE.auto_approvable() is False
-        assert (
-            SafetyTier.DESTRUCTIVE.auto_approvable(policy_auto_approve_sensitive=True)
-            is False
-        )
+        assert SafetyTier.DESTRUCTIVE.auto_approvable(policy_auto_approve_sensitive=True) is False
 
     def test_enum_values(self):
         assert SafetyTier.SAFE.value == "safe"

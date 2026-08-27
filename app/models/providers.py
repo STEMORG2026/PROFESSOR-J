@@ -68,9 +68,7 @@ class MockProvider(LLMProvider):
         self.model = model
 
     async def complete(self, messages: list[LLMMessage], **kwargs: Any) -> LLMResult:
-        user_text = next(
-            (m.content for m in reversed(messages) if m.role == "user"), ""
-        )
+        user_text = next((m.content for m in reversed(messages) if m.role == "user"), "")
         return LLMResult(
             text=f"[mock:{self.name}] processed {len(messages)} message(s); last={user_text[:64]}",
             provider=self.name,

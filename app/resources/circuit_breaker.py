@@ -41,13 +41,9 @@ class CircuitBreaker:
         """Called before a request. Raises if the circuit is not accepting."""
         state = self.state
         if state == CircuitState.OPEN:
-            raise CircuitOpenError(
-                provider=self.name, opened_at=self._opened_at or time.time()
-            )
+            raise CircuitOpenError(provider=self.name, opened_at=self._opened_at or time.time())
         if state == CircuitState.HALF_OPEN:
-            raise CircuitHalfOpenError(
-                f"Circuit HALF_OPEN for '{self.name}' (probing recovery)"
-            )
+            raise CircuitHalfOpenError(f"Circuit HALF_OPEN for '{self.name}' (probing recovery)")
 
     def record_success(self) -> None:
         if self._state == CircuitState.HALF_OPEN:
@@ -75,9 +71,12 @@ class CircuitBreaker:
 
     def _cooldown_elapsed(self) -> bool:
         return bool(
-            self._opened_at is not None
-            and (time.time() - self._opened_at) >= self.cooldown_seconds
+            self._opened_at is not None and (time.time() - self._opened_at) >= self.cooldown_seconds
         )
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
-        return f"CircuitBreaker(name={self.name!r}, state={self.state.value!r}, failures={self._failure_count})"
+        return (
+            f"CircuitBreaker(name={self.name!r}, "
+            f"state={self.state.value!r}, "
+            f"failures={self._failure_count})"
+        )

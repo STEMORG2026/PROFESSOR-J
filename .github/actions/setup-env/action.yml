@@ -1,0 +1,30 @@
+name: "Set up Python env (venv + deps)"
+description: "Create a .venv in the standard location, install requirements, and install hooks deps so .venv/bin/* works on a clean runner (matches local dev)."
+
+inputs:
+  python-version:
+    description: "Python version to install"
+    required: false
+    default: "3.11"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Create venv and install dependencies
+      shell: bash
+      run: |
+        python -m venv .venv
+        .venv/bin/python -m pip install --upgrade pip
+        .venv/bin/pip install -r requirements.txt
+
+    - name: Install pre-commit hooks (so the local mypy hook resolves)
+      shell: bash
+      run: |
+        .venv/bin/python -m pip install pre-commit==4.0.1 ruff==0.6.9 mypy==1.14.1
+        .venv/bin/pre-commit install --install-hooks

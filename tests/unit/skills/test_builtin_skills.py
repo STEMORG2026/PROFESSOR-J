@@ -19,9 +19,7 @@ from app.skills.builtin import (
 )
 from app.skills.registry import SkillRegistry
 
-FIXTURE = (
-    Path(__file__).resolve().parents[2] / "fixtures" / "lhs_knowledge_fixture.json"
-)
+FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "lhs_knowledge_fixture.json"
 
 
 @pytest.fixture

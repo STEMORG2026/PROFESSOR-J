@@ -15,7 +15,7 @@ from app.domain.concept import (
     Relationship,
     ReviewStatus,
 )
-from app.exceptions import LHSAdapterError, LHSSchemaDriftError, EntityNotFoundError
+from app.exceptions import EntityNotFoundError, LHSAdapterError, LHSSchemaDriftError
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,7 @@ class LHSKnowledgeAdapter:
         }
     )
 
-    def __init__(
-        self, export_path: str | Path = "LearningHubSTEM/exports/knowledge.json"
-    ):
+    def __init__(self, export_path: str | Path = "LearningHubSTEM/exports/knowledge.json"):
         self.export_path = Path(export_path)
         self._cache: dict[str, ConceptEntity] = {}
         self._prerequisite_cache: dict[str, tuple[str, ...]] = {}
@@ -76,7 +74,7 @@ class LHSKnowledgeAdapter:
             raise LHSAdapterError(
                 f"Invalid JSON in LHS export: {e}",
                 code="LHS_INVALID_JSON",
-            )
+            ) from e
 
         # Validate required top-level fields
         required_fields = {
@@ -227,10 +225,7 @@ class LHSKnowledgeAdapter:
         query_lower = query.lower()
         results = []
         for entity in self._cache.values():
-            if (
-                query_lower in entity.name.lower()
-                or query_lower in entity.definition.lower()
-            ):
+            if query_lower in entity.name.lower() or query_lower in entity.definition.lower():
                 results.append(entity)
                 if len(results) >= limit:
                     break
@@ -244,9 +239,7 @@ class LHSKnowledgeAdapter:
         """Get all concepts in a specific domain."""
         return tuple(e for e in self._cache.values() if e.domain == domain)
 
-    def get_concepts_by_type(
-        self, concept_type: ConceptType
-    ) -> tuple[ConceptEntity, ...]:
+    def get_concepts_by_type(self, concept_type: ConceptType) -> tuple[ConceptEntity, ...]:
         """Get all concepts of a specific type."""
         return tuple(e for e in self._cache.values() if e.type == concept_type)
 
@@ -264,10 +257,9 @@ class LHSKnowledgeAdapter:
             "schema_version": self._meta.schema_version if self._meta else None,
             "generated_at": self._meta.generated_at if self._meta else None,
             "source": self._meta.source if self._meta else None,
-            "domains": len(set(e.domain for e in self._cache.values())),
+            "domains": len({e.domain for e in self._cache.values()}),
             "concept_types": {
-                t.value: len([e for e in self._cache.values() if e.type == t])
-                for t in ConceptType
+                t.value: len([e for e in self._cache.values() if e.type == t]) for t in ConceptType
             },
         }
 
@@ -314,10 +306,16 @@ class GeneralKnowledgeAdapter:
         return {
             "id": f"ungrounded:{query[:50]}",
             "name": query,
-            "definition": f"[UNGROUNDED] No canonical source found for '{query}'. This response is generated from general knowledge and may not be verified.",
+            "definition": (
+                f"[UNGROUNDED] No canonical source found for '{query}'. "
+                "This response is generated from general knowledge and may not be verified."
+            ),
             "grounded": False,
             "source": "general_knowledge",
-            "warning": "This information is not grounded in LearningHubSTEM canonical sources. Verify independently.",
+            "warning": (
+                "This information is not grounded in LearningHubSTEM canonical "
+                "sources. Verify independently."
+            ),
         }
 
 

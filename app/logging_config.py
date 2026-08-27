@@ -47,7 +47,6 @@ class JSONFormatter(logging.Formatter):
                 "module",
                 "msecs",
                 "message",
-                "name",
                 "pathname",
                 "process",
                 "processName",

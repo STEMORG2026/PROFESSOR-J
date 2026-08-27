@@ -39,15 +39,11 @@ _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     (
         "role_change",
-        re.compile(
-            r"act\s+as|pretend\s+to\s+be|you\s+are\s+no\s+longer", re.IGNORECASE
-        ),
+        re.compile(r"act\s+as|pretend\s+to\s+be|you\s+are\s+no\s+longer", re.IGNORECASE),
     ),
     (
         "jailbreak",
-        re.compile(
-            r"\b(dan|developer\s+mode|unrestricted\s+mode|jailbreak)\b", re.IGNORECASE
-        ),
+        re.compile(r"\b(dan|developer\s+mode|unrestricted\s+mode|jailbreak)\b", re.IGNORECASE),
     ),
     (
         "instruction_leak",
@@ -98,9 +94,7 @@ class PromptInjectionDetector:
             if pattern.search(argument):
                 matched.append(name)
         if matched:
-            return InjectionScanResult(
-                flagged=True, argument=argument, matched=tuple(matched)
-            )
+            return InjectionScanResult(flagged=True, argument=argument, matched=tuple(matched))
         return InjectionScanResult(flagged=False, argument=argument)
 
     def scan_all(self, args: dict[str, object]) -> list[InjectionScanResult]:

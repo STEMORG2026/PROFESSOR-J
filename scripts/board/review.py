@@ -71,13 +71,10 @@ class VirtualBoard:
             content = py_file.read_text()
             for line in content.splitlines():
                 stripped = line.strip()
-                if stripped.startswith("from app.") or stripped.startswith(
-                    "import app."
+                if (stripped.startswith(("from app.", "import app."))) and not stripped.startswith(
+                    "from app.domain."
                 ):
-                    if not stripped.startswith("from app.domain."):
-                        violations.append(
-                            f"{py_file.relative_to(self.repo_root)}: {stripped}"
-                        )
+                    violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
 
         # Check app/brain/ doesn't import from app/adapters/ or web frameworks
         brain_path = REPO_ROOT / "app" / "brain"
@@ -85,31 +82,25 @@ class VirtualBoard:
             content = py_file.read_text()
             for line in content.splitlines():
                 stripped = line.strip()
-                if stripped.startswith("from app.adapters") or stripped.startswith(
-                    "import app.adapters"
-                ):
-                    violations.append(
-                        f"{py_file.relative_to(self.repo_root)}: {stripped}"
-                    )
+                if stripped.startswith(("from app.adapters", "import app.adapters")):
+                    violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
                 if (
-                    "fastapi" in stripped.lower()
-                    or "request" in stripped.lower()
-                    or "response" in stripped.lower()
+                    (
+                        "fastapi" in stripped.lower()
+                        or "request" in stripped.lower()
+                        or "response" in stripped.lower()
+                    )
+                    and ("import" in stripped or "from" in stripped)
+                    and "TYPE_CHECKING" not in content
                 ):
-                    if "import" in stripped or "from" in stripped:
-                        # Allow in type hints only
-                        if "TYPE_CHECKING" not in content:
-                            violations.append(
-                                f"{py_file.relative_to(self.repo_root)}: {stripped}"
-                            )
+                    # Explicit imports of web frameworks are disallowed (type hints allowed).
+                    violations.append(f"{py_file.relative_to(self.repo_root)}: {stripped}")
 
         passed = len(violations) == 0
         return CheckResult(
             name="import_layering",
             passed=passed,
-            message=f"{len(violations)} layering violations"
-            if violations
-            else "Layering OK",
+            message=f"{len(violations)} layering violations" if violations else "Layering OK",
             details={"violations": violations},
         )
 
@@ -130,8 +121,7 @@ class VirtualBoard:
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
                     is_enum = any(
-                        isinstance(base, ast.Name) and base.id == "Enum"
-                        for base in node.bases
+                        isinstance(base, ast.Name) and base.id == "Enum" for base in node.bases
                     )
                     # Dataclass decorator may be bare @dataclass or @dataclass(...)
                     has_dataclass = any(
@@ -161,13 +151,16 @@ class VirtualBoard:
 
                     # Plain classes (not @dataclass) may not define public methods.
                     for item in node.body:
-                        if isinstance(
-                            item, ast.FunctionDef
-                        ) and not item.name.startswith("_"):
-                            if not has_dataclass and not is_enum:
-                                violations.append(
-                                    f"{py_file}: class {node.name} has method {item.name} but not dataclass"
-                                )
+                        if (
+                            isinstance(item, ast.FunctionDef)
+                            and not item.name.startswith("_")
+                            and not has_dataclass
+                            and not is_enum
+                        ):
+                            violations.append(
+                                f"{py_file}: class {node.name} has method "
+                                f"{item.name} but not dataclass"
+                            )
 
                 # Check for non-dataclass imports (stdlib + typing + app.domain only)
                 if isinstance(node, ast.Import):
@@ -184,11 +177,11 @@ class VirtualBoard:
                             "functools",
                             "__future__",
                         }:
-                            violations.append(
-                                f"{py_file}: import {alias.name} in domain"
-                            )
-                elif isinstance(node, ast.ImportFrom):
-                    if node.module and not node.module.startswith(
+                            violations.append(f"{py_file}: import {alias.name} in domain")
+                elif (
+                    isinstance(node, ast.ImportFrom)
+                    and node.module
+                    and not node.module.startswith(
                         (
                             "typing",
                             "dataclasses",
@@ -200,18 +193,15 @@ class VirtualBoard:
                             "app.domain",
                             "__future__",
                         )
-                    ):
-                        violations.append(
-                            f"{py_file}: import from {node.module} in domain"
-                        )
+                    )
+                ):
+                    violations.append(f"{py_file}: import from {node.module} in domain")
 
         passed = len(violations) == 0
         return CheckResult(
             name="domain_purity",
             passed=passed,
-            message=f"{len(violations)} purity violations"
-            if violations
-            else "Domain purity OK",
+            message=f"{len(violations)} purity violations" if violations else "Domain purity OK",
             details={"violations": violations},
         )
 
@@ -247,9 +237,7 @@ class VirtualBoard:
         return CheckResult(
             name="schema_drift",
             passed=passed,
-            message=f"Missing: {', '.join(failed)}"
-            if failed
-            else "LHS adapter validates v0.1",
+            message=f"Missing: {', '.join(failed)}" if failed else "LHS adapter validates v0.1",
             details={"checks": dict(checks)},
         )
 
@@ -302,9 +290,7 @@ class VirtualBoard:
         # Skill infrastructure files are framework, not tools — not subject to @safety_gate.
         excluded_skill_files = {"__init__.py", "base.py", "registry.py", "builtin.py"}
 
-        all_files = tool_files + [
-            f for f in skill_files if f.name not in excluded_skill_files
-        ]
+        all_files = tool_files + [f for f in skill_files if f.name not in excluded_skill_files]
         if not all_files:
             return CheckResult(
                 name="safety_gate_coverage",
@@ -315,13 +301,14 @@ class VirtualBoard:
         violations = []
         for py_file in all_files:
             content = py_file.read_text()
-            # Look for @safety_gate decorator
-            if "@safety_gate" not in content and "safety_tier" not in content:
-                # Skip __init__.py and base classes
-                if py_file.name != "__init__.py" and "base" not in py_file.name:
-                    violations.append(
-                        f"{py_file.relative_to(self.repo_root)}: missing @safety_gate"
-                    )
+            # Look for @safety_gate decorator; skip __init__.py and base classes.
+            if (
+                "@safety_gate" not in content
+                and "safety_tier" not in content
+                and py_file.name != "__init__.py"
+                and "base" not in py_file.name
+            ):
+                violations.append(f"{py_file.relative_to(self.repo_root)}: missing @safety_gate")
 
         passed = len(violations) == 0
         return CheckResult(
@@ -409,9 +396,7 @@ class VirtualBoard:
         return CheckResult(
             name="otel_spans",
             passed=passed,
-            message=f"Missing: {', '.join(failed)}"
-            if failed
-            else "OTel spans configured",
+            message=f"Missing: {', '.join(failed)}" if failed else "OTel spans configured",
             details={"checks": dict(checks)},
         )
 

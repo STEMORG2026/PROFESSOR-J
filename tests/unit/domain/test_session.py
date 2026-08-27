@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 from datetime import datetime
+
+import pytest
 
 from app.domain.session import (
     Conversation,
@@ -150,9 +151,12 @@ class TestSession:
 
     def test_active_conversation_fallback_when_id_not_found(self):
         c1 = Conversation(session_id="s1")
-        # active_conversation_id points to a conversation NOT in the tuple → falls back to most recent
+        # active_conversation_id points to a conversation NOT in the tuple
+        # → falls back to most recent
         s = Session(
-            learner_id="l1", conversations=(c1,), active_conversation_id="conv-missing"
+            learner_id="l1",
+            conversations=(c1,),
+            active_conversation_id="conv-missing",
         )
         assert s.active_conversation() is c1
 
@@ -195,9 +199,7 @@ class TestSession:
         assert s.active_conversation_id == s.conversations[0].conversation_id
 
     def test_add_message_appends_to_active(self):
-        conv = Conversation(
-            session_id="s1", messages=(_msg(MessageRole.USER, "first"),)
-        )
+        conv = Conversation(session_id="s1", messages=(_msg(MessageRole.USER, "first"),))
         s = Session(
             learner_id="l1",
             conversations=(conv,),

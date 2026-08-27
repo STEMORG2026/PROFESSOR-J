@@ -7,6 +7,7 @@ Entry points:
 - ``ModelRouter``: multi-provider failover over circuit breakers.
 """
 
+from app.models.catalog import ProviderCatalog, default_catalog  # noqa: F401
 from app.models.providers import (  # noqa: F401
     LLMMessage,
     LLMProvider,
@@ -14,9 +15,8 @@ from app.models.providers import (  # noqa: F401
     MockProvider,
     OpenAICompatProvider,
 )
-from app.models.catalog import ProviderCatalog, default_catalog  # noqa: F401
-from app.models.router import ModelRouter  # noqa: F401
 from app.models.retry import bounded_retry  # noqa: F401
+from app.models.router import ModelRouter  # noqa: F401
 
 __all__ = [
     "LLMMessage",

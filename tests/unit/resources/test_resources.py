@@ -36,9 +36,7 @@ class TestCircuitBreaker:
         assert breaker._failure_count == 0
         assert breaker.state == CircuitState.CLOSED
 
-    def test_half_open_probe_failure_reopens(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_half_open_probe_failure_reopens(self, monkeypatch: pytest.MonkeyPatch) -> None:
         breaker = CircuitBreaker(name="p1", failure_threshold=1, cooldown_seconds=0.001)
         breaker.record_failure()  # opens
         assert breaker.state == CircuitState.OPEN
@@ -49,9 +47,7 @@ class TestCircuitBreaker:
         breaker.record_failure()  # probe fails -> reopen
         assert breaker.state == CircuitState.OPEN
 
-    def test_half_open_probe_success_closes(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_half_open_probe_success_closes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         breaker = CircuitBreaker(name="p1", failure_threshold=1, cooldown_seconds=0.001)
         breaker.record_failure()
         time.sleep(0.005)

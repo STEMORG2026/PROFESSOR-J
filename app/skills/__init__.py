@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from app.skills.registry import SkillRegistry, get_skill_registry
-from app.skills.base import Skill, SkillMetadata, SkillResult, SkillError
+from app.skills.base import Skill, SkillError, SkillMetadata, SkillResult
 from app.skills.builtin import (
+    CodeExecutionSkill,
     FilesystemSkill,
     GitSkill,
-    WebSearchSkill,
-    CodeExecutionSkill,
     LHSTEMSkill,
     MemorySkill,
+    WebSearchSkill,
     create_builtin_skills,
     register_builtin_skills,
 )
+from app.skills.registry import SkillRegistry, get_skill_registry
 
 __all__ = [
     "SkillRegistry",

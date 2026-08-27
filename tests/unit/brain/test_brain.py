@@ -25,10 +25,7 @@ class TestIntentClassifier:
         assert classify_intent("run code to sum 1..10") == Intent.TOOL_SEARCH
 
     def test_multi_step(self) -> None:
-        assert (
-            classify_intent("first parse input, then filter, then sort")
-            == Intent.MULTI_STEP
-        )
+        assert classify_intent("first parse input, then filter, then sort") == Intent.MULTI_STEP
 
     def test_empty_prompt_direct_chat(self) -> None:
         assert classify_intent("") == Intent.DIRECT_CHAT

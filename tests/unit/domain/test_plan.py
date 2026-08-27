@@ -11,7 +11,7 @@ from app.domain.plan import (
     StepStatus,
     ToolCallRequest,
 )
-from app.domain.tool import SafetyTier, ApprovalState
+from app.domain.tool import ApprovalState, SafetyTier
 
 
 class TestToolCallRequest:
@@ -180,9 +180,7 @@ class TestExecutionPlan:
         step1 = ExecutionStep(
             step_id="s1",
             title="Safe",
-            tool_call=ToolCallRequest(
-                tool="lookup", args={}, safety_tier=SafetyTier.SAFE
-            ),
+            tool_call=ToolCallRequest(tool="lookup", args={}, safety_tier=SafetyTier.SAFE),
             status=StepStatus.PENDING,
         )
         step2 = ExecutionStep(

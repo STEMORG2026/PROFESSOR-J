@@ -98,9 +98,7 @@ class SkillRegistry:
             logger.error("Failed to save skill %s: %s", skill_name, e)
             return False
 
-    def load_from_disk(
-        self, skill_name: str, skill_class: type[Skill[Any]]
-    ) -> Skill[Any] | None:
+    def load_from_disk(self, skill_name: str, skill_class: type[Skill[Any]]) -> Skill[Any] | None:
         """Load a skill from disk metadata and instantiate it."""
         skill_file = self._skills_dir / f"{skill_name}.json"
         if not skill_file.exists():
@@ -122,9 +120,10 @@ class SkillRegistry:
         loaded = 0
         for skill_file in self._skills_dir.glob("*.json"):
             skill_name = skill_file.stem
-            if skill_name in skill_classes:
-                if self.load_from_disk(skill_name, skill_classes[skill_name]):
-                    loaded += 1
+            if skill_name in skill_classes and self.load_from_disk(
+                skill_name, skill_classes[skill_name]
+            ):
+                loaded += 1
         return loaded
 
 

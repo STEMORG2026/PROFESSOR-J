@@ -53,9 +53,7 @@ def _steps_for(intent: Intent, prompt: str) -> list[ExecutionStep]:
             ),
         ]
     if intent == Intent.FILE_QUERY:
-        return [
-            ExecutionStep(step_id="access-workspace", title="Access workspace file")
-        ]
+        return [ExecutionStep(step_id="access-workspace", title="Access workspace file")]
     if intent == Intent.TOOL_SEARCH:
         return [ExecutionStep(step_id="run-tool", title="Run requested tool")]
     if intent == Intent.MULTI_STEP:

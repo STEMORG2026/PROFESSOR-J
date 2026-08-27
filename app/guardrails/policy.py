@@ -46,9 +46,7 @@ class SafetyPolicy:
     # Set at runtime by the application root to enable DESTRUCTIVE approval.
     approval_callback: ApprovalCallback | None = None
 
-    def _require_approval(
-        self, tool: str, args: dict[str, Any], description: str
-    ) -> None:
+    def _require_approval(self, tool: str, args: dict[str, Any], description: str) -> None:
         if self.approval_callback is None:
             raise HITLRequiredError(tool=tool, description=description)
         approved = self.approval_callback(tool, args, description)
@@ -129,9 +127,7 @@ def safety_gate(
         def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> Any:
             resolved = _bind_args(func, *args, **kwargs)
             active = policy or _default_policy()
-            sanitized = active.check(
-                tool_name, resolved, tier, description or func.__doc__ or ""
-            )
+            sanitized = active.check(tool_name, resolved, tier, description or func.__doc__ or "")
             _log_approved(tool_name, tier, sanitized)
             return func(*args, **kwargs)
 

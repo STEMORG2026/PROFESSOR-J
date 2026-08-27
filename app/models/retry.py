@@ -63,7 +63,7 @@ def _retry_after(error: BaseException) -> float | None:
     ctx = getattr(error, "context", None)
     if isinstance(ctx, dict):
         ra = ctx.get("retry_after")
-        if isinstance(ra, (int, float)) and ra > 0:
+        if isinstance(ra, int | float) and ra > 0:
             return float(ra)
     return None
 

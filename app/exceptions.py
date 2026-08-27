@@ -28,13 +28,9 @@ class ProfessorError(Exception):
 class ConfigurationError(ProfessorError):
     """Raised when configuration is invalid or missing."""
 
-    pass
-
 
 class SecretValidationError(ConfigurationError):
     """Raised when required secrets are missing or invalid."""
-
-    pass
 
 
 # ── LLM Provider Errors ────────────────────────────────────────────
@@ -42,8 +38,6 @@ class SecretValidationError(ConfigurationError):
 
 class ProviderError(ProfessorError):
     """Base class for LLM provider errors."""
-
-    pass
 
 
 class ProviderUnavailableError(ProviderError):
@@ -61,9 +55,7 @@ class ProviderUnavailableError(ProviderError):
 class ProviderRateLimitError(ProviderError):
     """Raised when provider returns 429 (rate limit)."""
 
-    def __init__(
-        self, provider: str, retry_after: int | None = None, **kwargs: Any
-    ) -> None:
+    def __init__(self, provider: str, retry_after: int | None = None, **kwargs: Any) -> None:
         super().__init__(
             f"Provider '{provider}' rate limited",
             code="PROVIDER_RATE_LIMIT",
@@ -114,8 +106,6 @@ class NoHealthyProvidersError(ProviderError):
 class CircuitBreakerError(ProfessorError):
     """Base class for circuit breaker errors."""
 
-    pass
-
 
 class CircuitOpenError(CircuitBreakerError):
     """Raised when circuit breaker is OPEN and rejecting requests."""
@@ -132,8 +122,6 @@ class CircuitOpenError(CircuitBreakerError):
 class CircuitHalfOpenError(CircuitBreakerError):
     """Raised when circuit breaker is HALF_OPEN (testing recovery)."""
 
-    pass
-
 
 # ── Model Router ───────────────────────────────────────────────────
 
@@ -141,13 +129,9 @@ class CircuitHalfOpenError(CircuitBreakerError):
 class RoutingError(ProfessorError):
     """Raised when model routing fails."""
 
-    pass
-
 
 class TaskClassificationError(RoutingError):
     """Raised when intent/task classification fails."""
-
-    pass
 
 
 # ── Knowledge & Grounding ──────────────────────────────────────────
@@ -156,13 +140,9 @@ class TaskClassificationError(RoutingError):
 class KnowledgeError(ProfessorError):
     """Base class for knowledge/grounding errors."""
 
-    pass
-
 
 class LHSAdapterError(KnowledgeError):
     """Raised when LearningHubSTEM adapter fails."""
-
-    pass
 
 
 class LHSSchemaDriftError(LHSAdapterError):
@@ -192,13 +172,9 @@ class EntityNotFoundError(LHSAdapterError):
 class PrerequisiteMappingError(LHSAdapterError):
     """Raised when prerequisite graph traversal fails."""
 
-    pass
-
 
 class UngroundedContentError(KnowledgeError):
     """Raised when content cannot be grounded and must be labeled ungrounded."""
-
-    pass
 
 
 # ── Memory & Storage ───────────────────────────────────────────────
@@ -207,25 +183,17 @@ class UngroundedContentError(KnowledgeError):
 class MemoryError(ProfessorError):
     """Base class for memory/storage errors."""
 
-    pass
-
 
 class VectorStoreError(MemoryError):
     """Raised when vector store operations fail."""
-
-    pass
 
 
 class MemoryBackendError(MemoryError):
     """Raised when memory backend operations fail."""
 
-    pass
-
 
 class MigrationError(MemoryError):
     """Raised when database migration fails."""
-
-    pass
 
 
 # ── Safety & Guardrails ────────────────────────────────────────────
@@ -233,8 +201,6 @@ class MigrationError(MemoryError):
 
 class GuardrailError(ProfessorError):
     """Base class for guardrail/safety errors."""
-
-    pass
 
 
 class SafetyGateError(GuardrailError):
@@ -276,16 +242,12 @@ class PromptInjectionError(GuardrailError):
 class PIIRedactionError(GuardrailError):
     """Raised when PII redaction fails."""
 
-    pass
-
 
 # ── Sandbox & Tool Execution ──────────────────────────────────────
 
 
 class SandboxError(ProfessorError):
     """Base class for sandbox/tool execution errors."""
-
-    pass
 
 
 class SandboxTimeoutError(SandboxError):
@@ -327,8 +289,6 @@ class SandboxSecurityError(SandboxError):
 class ToolExecutionError(SandboxError):
     """Raised when tool execution fails."""
 
-    pass
-
 
 class ToolNotFoundError(SandboxError):
     """Raised when requested tool is not registered."""
@@ -348,8 +308,6 @@ class ToolNotFoundError(SandboxError):
 class MCPError(ProfessorError):
     """Base class for MCP errors."""
 
-    pass
-
 
 class MCPConnectionError(MCPError):
     """Raised when MCP server connection fails."""
@@ -366,13 +324,9 @@ class MCPConnectionError(MCPError):
 class MCPToolError(MCPError):
     """Raised when MCP tool invocation fails."""
 
-    pass
-
 
 class MCPToolNotFoundError(MCPError):
     """Raised when MCP tool is not found."""
-
-    pass
 
 
 # ── Session & Workspace ────────────────────────────────────────────
@@ -381,25 +335,17 @@ class MCPToolNotFoundError(MCPError):
 class SessionError(ProfessorError):
     """Base class for session errors."""
 
-    pass
-
 
 class SessionNotFoundError(SessionError):
     """Raised when session is not found."""
-
-    pass
 
 
 class SessionExpiredError(SessionError):
     """Raised when session has expired."""
 
-    pass
-
 
 class WorkspaceError(ProfessorError):
     """Base class for workspace errors."""
-
-    pass
 
 
 # ── Evaluation & Testing ───────────────────────────────────────────
@@ -408,19 +354,13 @@ class WorkspaceError(ProfessorError):
 class EvaluationError(ProfessorError):
     """Base class for evaluation errors."""
 
-    pass
-
 
 class DatasetError(EvaluationError):
     """Raised when dataset operations fail."""
 
-    pass
-
 
 class EvaluatorError(EvaluationError):
     """Raised when evaluator fails."""
-
-    pass
 
 
 # ── Retry Policy Helpers ──────────────────────────────────────────
@@ -458,12 +398,10 @@ def is_retryable(error: Exception) -> bool:
             return False
         return error.retryable
     # Default: retry on connection/timeout errors
-    return isinstance(error, (ConnectionError, TimeoutError))
+    return isinstance(error, ConnectionError | TimeoutError)
 
 
-def get_retry_delay(
-    attempt: int, base_delay: float = 1.0, max_delay: float = 60.0
-) -> float:
+def get_retry_delay(attempt: int, base_delay: float = 1.0, max_delay: float = 60.0) -> float:
     """Calculate exponential backoff delay with jitter."""
     import random
 
