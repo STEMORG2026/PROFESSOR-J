@@ -9,7 +9,7 @@ module.exports = {
     "type-enum": [
       2,
       "always",
-      ["feat", "fix", "docs", "refactor", "test", "chore", "build", "ci", "perf", "style", "revert"],
+      ["feat", "fix", "docs", "refactor", "test", "chore", "build", "ci", "perf", "style", "revert", "merge"],
     ],
     "type-case": [2, "always", "lower-case"],
     "type-empty": [2, "never"],

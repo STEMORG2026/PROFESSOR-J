@@ -54,14 +54,20 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
-          fail_ci_if_error: true
+          # Non-fatal by default: coverage is already enforced locally by the
+          # domain gate (--cov-fail-under). Add a CODECOV_TOKEN repo secret for
+          # reliable tokenless uploads; until then a Codecov outage/infra issue
+          # must not block merges.
+          fail_ci_if_error: false
 
   security:
     name: Security scan
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (full history for gitleaks commit-range scan)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up env
         uses: ./.github/actions/setup-env
