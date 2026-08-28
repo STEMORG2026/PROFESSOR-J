@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     cerebras_api_key: str | None = None
     openrouter_api_key: str | None = None
+    # New provider keys
+    nvidia_nim_api_key: str | None = None
+    google_ai_api_key: str | None = None
     ollama_base_url: str = "http://localhost:11434"
     llamacpp_base_url: str = "http://localhost:8080"
 
