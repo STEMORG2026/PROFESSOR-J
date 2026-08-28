@@ -193,9 +193,13 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - **Acceptance Criteria:** Sub-700 ms roundtrip voice conversation.
 
 ### Phase 9: Mastery Tracking, Production & CI/CD Pipeline
-- [ ] Implement `DatabaseEngine` with SQLite (local) and PostgreSQL support; Alembic migrations.
-- [ ] Implement mastery calculation (Bayesian Knowledge Tracing / IRT); prerequisite gating.
-- [ ] Persist transcripts, diagnostic histories, mastery trees.
+- [x] Implement `DatabaseEngine` with SQLite (local) — `app/db/`: engine + `MasteryRepository` +
+      `TranscriptRepository`. **PostgreSQL support and Alembic migrations are NOT yet done
+      (Postgres is the engine-URI SEAM).**
+- [~] Implement mastery calculation (Bayesian Knowledge Tracking is the `MasteryScore.with_attempt`
+      model; **IRT and full prerequisite-gate persistence are pending**).
+- [~] Persist transcripts, diagnostic histories, mastery trees — transcripts + mastery persisted;
+      **full diagnostic/mastery-tree model is pending**.
 - [ ] **Production Hardening**: Blue/green deploy; health checks; rollback; load testing
       (100 concurrent streaming sessions).
 - [ ] **Observability Ops**: Langfuse alerts; cost/latency dashboards; eval regression gates.

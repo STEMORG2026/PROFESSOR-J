@@ -109,6 +109,13 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - 13 new pipeline tests. Note: PaddleOCR for scanned PDFs, table/formula extraction, bounding-box
   citations, and a dense Chroma retriever remain external-infra TODO.
 
+### Added (2026-08) — Phase 9a DatabaseEngine + persistence
+- **`DatabaseEngine` (`app/db/engine.py`):** engine-agnostic persistence backbone with a SQLite
+  implementation (Postgres is the engine-URI SEAM). Installs `mastery_records` + `transcripts`.
+- **`MasteryRepository` / `TranscriptRepository` (`app/db/repositories.py`):** persist/load
+  learner mastery and session transcripts (upsert semantics; per-session isolation).
+- 5 tests. Note: Postgres + Alembic migrations and full diagnostic/mastery-tree models remain TODO.
+
 ---
 
 ## Release discipline
