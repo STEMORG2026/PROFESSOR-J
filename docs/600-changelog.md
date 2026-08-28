@@ -87,6 +87,17 @@ deliberate consolidation of the reconciling changes landed this cycle.)
   with a `SafetyTier` and every call runs through the safety policy (injection + PII + HITL for
   DESTRUCTIVE), failing closed on denial. Sandbox (Phase 5) and MCP invocation are future work.
 
+### Added (2026-08) — Phase 5 Code & Math Sandbox
+- **`CodeSandbox` (`app/tools/sandbox.py`):** isolated subprocess execution (`python -I`, no stdin,
+  no network env) with a wall-clock timeout watchdog that terminates infinite loops and a
+  `RLIMIT_AS` memory cap.
+- **`MathSolver`:** deterministic SymPy algebra/calculus solver (`solve`, `simplify`,
+  `differentiate`, `integrate`), exposed SAFE through the executor.
+- **`ToolExecutor.register_sandbox_tools()`:** wires `run_code` (DESTRUCTIVE → mandatory HITL) and
+  `solve_math`/`math_calculus` (SAFE); the executor now awaits async tool functions.
+- Note: Docker + gVisor containment, Plotly charts, unit conversions, and the llama.cpp local
+  inference bundle remain external-infra TODO.
+
 ### Added (2026-08) — Phase 6 Knowledge & Research Pipeline
 - **`PDFExtractor` (`app/knowledge/pdf.py`):** PyMuPDF text extraction preserving page-level
   provenance; scanned/image-only PDFs raise a clear "OCR later" error.
