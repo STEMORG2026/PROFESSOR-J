@@ -128,12 +128,19 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 > SymPy step-verifier (Phase 5) are not yet done.
 
 ### Phase 4: Platform Parity — Session, Workspace, Memory, Tools
-- [ ] Port `SessionManager` and `WorkspaceManager` from JARVIS patterns; integrate with
-      LangGraph checkpointing (thread_id = session_id).
-- [ ] Port hybrid memory (`MemoryService`: ChromaDB dense + BM25 sparse) behind abstract
-      `MemoryBackend`; `ReflexionEngine` + `SkillSynthesizer` for self-improvement.
-- [ ] Port `ToolExecutor` and tool registry behind `@safety_gate`; add `MCPToolExecutor`
-      for MCP tool invocation.
+- [x] **SessionManager** (`app/session/`): per-learner durable, resumable sessions over the domain
+      `Session`/`Conversation` models, with a pluggable `SessionStore` (in-memory + JSON-file). A
+      session id is a valid LangGraph checkpoint `thread_id` (integrated with checkpointing).
+      Port of JARVIS session patterns.
+- [x] **WorkspaceManager** (`app/workspace/`): path-escape-safe, size-bounded file operations scoped
+      to a learner workspace; dispatch via the tool executor (SAFE vs DESTRUCTIVE).
+- [~] **Hybrid memory** (`app/memory/`): abstract `MemoryBackend` (in-memory + JSON-file) behind a
+      learner-namespaced `MemoryService` for durable cross-session recall.
+      **ChromaDB dense + BM25 sparse impl, `ReflexionEngine`, `SkillSynthesizer` are NOT yet done**
+      (the backend seam is in place).
+- [x] **ToolExecutor** (`app/tools/`): single safety choke point — tools register with a
+      `SafetyTier` and every call is funneled through the safety policy (injection + PII + HITL for
+      DESTRUCTIVE), failing closed on denial. `MCPToolExecutor` for MCP invocation is NOT yet done.
 - [ ] Enable general-purpose chat/file/workspace assistance (non-education paths).
 - [ ] **MCP Integration Complete**: `MCPServerManager` fully implemented with stdio +
       Streamable HTTP; `MCPToolSearch` on-demand loading; `CodeExecutionTools` pattern.
