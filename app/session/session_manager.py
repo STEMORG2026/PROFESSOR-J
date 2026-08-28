@@ -101,7 +101,9 @@ def _encode(obj: Any) -> Any:
 def _session_to_dict(session: Session) -> dict[str, Any]:
     """Encode a Session (enums -> values, dates -> iso) for JSON persistence."""
     encoded = _encode(session)
-    assert isinstance(encoded, dict)  # pragmatic: Session is a dataclass
+    # Session is a dataclass, so _encode returns a dict; guard defensively.
+    if not isinstance(encoded, dict):
+        raise TypeError(f"Unexpected session encoding: {type(encoded).__name__}")
     return encoded
 
 
