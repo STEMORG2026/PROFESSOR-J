@@ -210,6 +210,37 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 
 ---
 
+## 2b. Overall Implementation Status (honest, reconciled 2026-08)
+
+**Implemented & tested in-process (suite green, mypy strict, board 8/8):**
+- Phase 0, 0.5: governance, foundation hardening.
+- Phase 1: domain dataclasses, LHS adapter + general-knowledge fallback.
+- Phase 2 foundation: model pool (providers, catalog, circuit breakers, budgets, retry).
+- Phase 3: LangGraph brain, ProfessorAgent (Socratic), EvaluatorAgent (rubric), MemorySaver
+  checkpointed tutorial loop, simulated-student acceptance test. ResearchAgent/ToolExecutorAgent
+  pending.
+- Phase 4: SessionManager, WorkspaceManager, MemoryService + ReflexionEngine, ToolExecutor
+  (safety choke point), bootstrap `build_root()`. ChromaDB/BM25 dense+sparse, SkillSynthesizer,
+  MCP pending.
+- Phase 5 foundation: in-process CodeSandbox (timeout/memory-capped) + MathSolver (SymPy).
+- Phase 6 foundation: PDF text extraction + chunk/index + page-exact citations.
+- Phase 9a: SQLite DatabaseEngine + mastery/transcript persistence; AppRoot.health().
+
+**Genuinely external-infra / not implemented (do NOT mark done with stubs):**
+- Docker + gVisor sandbox containment, cgroups quotas (Phase 5 hardening).
+- llama.cpp / Ollama local inference bundle and quantization (Phase 5).
+- ChromaDB dense + BM25 sparse retrieval; Qdrant/PGVector (Phase 4/6).
+- PaddleOCR scanned-PDF OCR; table/formula extraction; bounding-box citations (Phase 6).
+- PostgreSQL + Alembic migrations; distributed bus (Phase 9).
+- FastAPI adapters; Next.js 15 frontend; WebRTC voice; SSE streaming (Phases 7, 8, 4).
+- Production hardening, Langfuse observability ops, prompt management, automated deploy (Phase 9b).
+
+These items depend on external infrastructure, real-time transport, or deployment targets not
+available in the in-process development environment, and remain explicitly TODO per the scope
+rules. The CI pipeline, branch protection, and Dependabot auto-merge are fully operational.
+
+---
+
 ## 3. Scope Discipline
 
 | Class | Items |

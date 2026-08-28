@@ -36,6 +36,26 @@ class AppRoot:
     research: ResearchAgent
     policy: SafetyPolicy
 
+    def health(self) -> dict[str, object]:
+        """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
+        return {
+            "db": self.db is not None,
+            "sessions": self.sessions is not None,
+            "memory": self.memory is not None,
+            "tools": self.tools is not None,
+            "knowledge": self.knowledge is not None,
+            "research": self.research is not None,
+            "ready": all(
+                (
+                    self.db is not None,
+                    self.sessions is not None,
+                    self.memory is not None,
+                    self.tools is not None,
+                    self.knowledge is not None,
+                )
+            ),
+        }
+
 
 def build_root(
     *,

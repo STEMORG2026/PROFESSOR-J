@@ -52,3 +52,14 @@ class TestBootstrap:
         assert root.mastery is not None
         assert root.transcripts is not None
         root.db.dispose()
+
+    def test_health_reports_ready(self, tmp_path: Path) -> None:
+        root = build_root(
+            db_path=str(tmp_path / "app.db"),
+            lhs_export=str(FIXTURE),
+            workspace_root=str(tmp_path / "ws"),
+        )
+        health = root.health()
+        assert health["ready"] is True
+        assert health["db"] is True
+        root.db.dispose()
