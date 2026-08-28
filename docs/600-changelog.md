@@ -116,6 +116,15 @@ deliberate consolidation of the reconciling changes landed this cycle.)
   learner mastery and session transcripts (upsert semantics; per-session isolation).
 - 5 tests. Note: Postgres + Alembic migrations and full diagnostic/mastery-tree models remain TODO.
 
+### Added (2026-08) — ReflexionEngine + bootstrap root
+- **`ReflexionEngine` (`app/memory/reflexion.py`):** distills turn outcomes into durable learner
+  lessons (reinforcement/correction/misconception), stored through a `MemoryBackend` and recallable
+  per learner — the Phase 4 self-improvement loop.
+- **`build_root` (`app/bootstrap.py`):** composes all singletons (session, memory, reflexion, db,
+  tools, knowledge, research) off SQLite/in-memory defaults.
+- 5 tests.
+- **`SkillSynthesizer`, ChromaDB/BM25 dense+sparse, and Postgres remain external-infra TODO.**
+
 ---
 
 ## Release discipline
