@@ -288,7 +288,11 @@ class VirtualBoard:
 
         # Skill infrastructure files are framework, not tools — not subject to @safety_gate.
         excluded_skill_files = {"__init__.py", "base.py", "registry.py", "builtin.py"}
+        # The ToolExecutor is the centralized safety gate itself (every call funnels
+        # through SafetyPolicy), not a gated tool — verified positively below.
+        tool_infra_files = {"__init__.py", "executor.py"}
 
+        tool_files = [f for f in tool_files if f.name not in tool_infra_files]
         all_files = tool_files + [f for f in skill_files if f.name not in excluded_skill_files]
         if not all_files:
             return CheckResult(
@@ -308,6 +312,15 @@ class VirtualBoard:
                 and "base" not in py_file.name
             ):
                 violations.append(f"{py_file.relative_to(self.repo_root)}: missing @safety_gate")
+
+        # The centralized ToolExecutor must actually route through the safety policy.
+        executor_file = REPO_ROOT / "app" / "tools" / "executor.py"
+        if executor_file.exists():
+            exe_content = executor_file.read_text()
+            if "SafetyPolicy" not in exe_content or "policy.check" not in exe_content:
+                violations.append(
+                    "app/tools/executor.py: ToolExecutor must route calls through SafetyPolicy"
+                )
 
         passed = len(violations) == 0
         return CheckResult(
