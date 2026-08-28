@@ -4,7 +4,7 @@
 # Runtime (Phase 0.5+)
 pydantic==2.12.0
 pydantic-settings>=2.15.0
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 
 # Logging
 python-json-logger==2.0.7
@@ -21,7 +21,7 @@ mcp-agent==0.2.6
 # Phase 1: Domain + LHS Adapter
 # Phase 2: Model Pool + Circuit Breakers
 # Phase 3: Cognitive Engine (LangGraph)
-langgraph>=0.2.0
+langgraph>=1.2.11
 langgraph-checkpoint-postgres>=1.0.0
 
 # Vector Store / Memory
@@ -43,7 +43,7 @@ asyncpg>=0.29.0
 
 # HTTP / Async
 httpx>=0.28.1
-fastapi>=0.115.0
+fastapi>=0.141.1
 uvicorn[standard]>=0.34.0
 
 # Dev / verification
