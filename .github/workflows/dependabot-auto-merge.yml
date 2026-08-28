@@ -1,0 +1,34 @@
+name: Dependabot auto-merge
+
+# Lands Dependabot pull requests fully hands-off once their required checks
+# are green. On any Dependabot PR event we approve it (no-op when no review is
+# required) and enable auto-merge with squash; GitHub completes the merge as
+# soon as all required status checks pass.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Approve and enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          number="${{ github.event.pull_request.number }}"
+          # Approve satisfies branch-protection review requirements if any;
+          # harmless when the repo requires no review (reviews: 0).
+          gh pr review "$number" --approve --repo "$GITHUB_REPOSITORY" || true
+          # Enable auto-merge (squash + delete branch). GitHub finishes the
+          # merge once ALL required checks pass.
+          gh pr merge "$number" --auto --squash --delete-branch \
+            --repo "$GITHUB_REPOSITORY" \
+            || echo "auto-merge queued/not-ready (checks may still be pending)"
