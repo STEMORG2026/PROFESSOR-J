@@ -68,7 +68,8 @@ def _doc_id(source: str, page: int, idx: int) -> str:
     import hashlib
 
     raw = f"{source}#p{page}#c{idx}"
-    return hashlib.sha1(raw.encode()).hexdigest()[:16]
+    # blake2b (not sha1) for a deterministic, non-crypto chunk id — B324-safe.
+    return hashlib.blake2b(raw.encode(), digest_size=8).hexdigest()
 
 
 class DocumentIngester:
