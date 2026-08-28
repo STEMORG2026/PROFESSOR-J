@@ -87,6 +87,17 @@ deliberate consolidation of the reconciling changes landed this cycle.)
   with a `SafetyTier` and every call runs through the safety policy (injection + PII + HITL for
   DESTRUCTIVE), failing closed on denial. Sandbox (Phase 5) and MCP invocation are future work.
 
+### Added (2026-08) — Phase 6 Knowledge & Research Pipeline
+- **`PDFExtractor` (`app/knowledge/pdf.py`):** PyMuPDF text extraction preserving page-level
+  provenance; scanned/image-only PDFs raise a clear "OCR later" error.
+- **`TextChunker` + `DocumentIngester` + `CitationMapper` (`app/knowledge/ingest.py`):** size-bounded
+  overlapping chunking, indexing into the Phase 4 `MemoryBackend` seam, and retrieval mapped to
+  page-exact (source, page, snippet) citations.
+- **`ResearchAgent` (`app/knowledge/research.py`):** ingest → retrieve → cited synthesis; ungrounded
+  when nothing matches.
+- 13 new pipeline tests. Note: PaddleOCR for scanned PDFs, table/formula extraction, bounding-box
+  citations, and a dense Chroma retriever remain external-infra TODO.
+
 ---
 
 ## Release discipline
