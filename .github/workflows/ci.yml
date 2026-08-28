@@ -51,7 +51,7 @@ jobs:
         run: .venv/bin/python -m pytest tests/unit/domain/ -q --cov=app.domain --cov-report=term-missing --cov-fail-under=95
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage.xml
           # Non-fatal by default: coverage is already enforced locally by the
