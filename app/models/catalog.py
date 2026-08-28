@@ -66,7 +66,7 @@ class ProviderCatalog:
             self.register(
                 NVIDIANIMProvider(
                     name="nvidia_nim",
-                    model="nvidia/nemotron-3-ultra",
+                    model="nvidia/nemotron-3-ultra-550b-a55b",
                     api_key=nim_key,
                 )
             )

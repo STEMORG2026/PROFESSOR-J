@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 
 from app.bootstrap import AppRoot, build_root
 from app.brain.graph import CognitiveBrain
+from app.brain.intents import Intent
+from app.domain.plan import ExecutionPlan
 from app.models.catalog import ProviderCatalog
 from app.models.cloud_providers import (
     GoogleAIProvider,
@@ -53,6 +55,10 @@ class ChatRequest(BaseModel):
     base_url: str | None = Field(
         default=None,
         description="Base URL for OpenAI-compatible providers",
+    )
+    system_prompt: str | None = Field(
+        default=None,
+        description="Optional system prompt to override the default persona",
     )
 
 
@@ -156,7 +162,11 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                 base_url=req.base_url,
             )
             if provider is not None:
-                catalog = ProviderCatalog([provider])
+                # Include MockProvider as fallback so the request never fully fails
+                from app.models.providers import MockProvider
+
+                fallback = MockProvider(name="mock", model="mock-model")
+                catalog = ProviderCatalog([provider, fallback])
                 router = __import__("app.models.router", fromlist=["ModelRouter"]).ModelRouter(
                     catalog
                 )
@@ -183,12 +193,17 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
     @app.post("/api/chat", response_model=ChatResponse)
     async def chat(req: ChatRequest) -> ChatResponse:
         active_brain = _build_brain_for(req)
-        result: dict[str, Any] = await active_brain.run(req.prompt)
+        out = await active_brain.graph.ainvoke(
+            {
+                "prompt": req.prompt,
+                "system_prompt": req.system_prompt,
+            }
+        )
         return ChatResponse(
-            response=str(result["response"]),
-            intent=str(result["intent"]),
-            provider=str(result["provider"]),
-            plan_steps=int(result["plan_steps"]),
+            response=str(out.get("response", "")),
+            intent=str((out.get("intent") or Intent.DIRECT_CHAT).value),
+            provider=str(out.get("provider_used", "unknown")),
+            plan_steps=len(out.get("plan", ExecutionPlan()).steps),
             session_id=req.session_id,
         )
 

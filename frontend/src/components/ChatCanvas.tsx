@@ -33,6 +33,7 @@ export default function ChatCanvas() {
   const [selectedModel, setSelectedModel] = useState("openrouter/auto");
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [baseUrl, setBaseUrl] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
 
   const endRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,6 +80,11 @@ export default function ChatCanvas() {
       // Send base URL for openai_compat
       if (selectedProvider === "openai_compat" && baseUrl.trim()) {
         body.base_url = baseUrl.trim();
+      }
+
+      // Send system prompt
+      if (systemPrompt.trim()) {
+        body.system_prompt = systemPrompt.trim();
       }
 
       const res = await fetch("/api/chat", {
@@ -148,6 +154,23 @@ export default function ChatCanvas() {
             onBaseUrlChange={setBaseUrl}
             isLoading={busy}
           />
+
+          {/* System Prompt */}
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <label className="mb-2 block text-sm font-medium text-slate-300">
+              System Prompt
+            </label>
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="Override the default persona (e.g., 'You are JARVIS...')"
+              rows={4}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-slate-100 placeholder-slate-500 transition-all focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 font-mono text-sm"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Leave empty to use the default PROFESSOR-J persona.
+            </p>
+          </div>
         </div>
       )}
 
