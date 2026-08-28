@@ -126,6 +126,7 @@ propose or act, but never override repository governance or workspace invariants
 | **Docs** | `docs/description` | Documentation-only changes | Until merged |
 | **Chore** | `chore/description` | Maintenance, tooling, non-feature | Until merged |
 | **CI** | `ci/description` | CI/CD pipeline changes | Until merged |
+| **Dependabot** | `dependabot/...` | Automated dependency bumps (generated) | Until merged |
 | **Experiment** | `exp/description` | Throwaway spikes, prototypes | Discarded or converted |
 
 **Workflow:**
