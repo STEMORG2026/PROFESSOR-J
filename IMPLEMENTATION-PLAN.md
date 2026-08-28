@@ -148,15 +148,25 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       from agents; checkpointing + Langfuse traces visible for all operations.
 
 ### Phase 5: Code & Math Sandbox Execution Engine
-- [ ] Implement `app/tools/sandbox.py` (Docker + gVisor isolation, CPU/memory limits,
-      timeout watchdog, no network, PII redaction).
+- [x] Implement `app/tools/sandbox.py` (foundation: isolated subprocess `-I`, wall-clock timeout
+      watchdog that terminates infinite loops, RLIMIT_AS memory cap, no network env leakage).
+      **Docker + gVisor isolation, cgroups CPU quotas, and PII redaction are the production
+      hardening remaining (see note below).**
 - [ ] **Local Inference**: Bundle `llama.cpp` (desktop); external Ollama server (server
       deployment); model quantization (Q4_K_M) for CPU-first UX.
-- [ ] Implement SymPy solver tool (algebra, calculus, unit conversions).
+- [x] Implement SymPy solver tool (`MathSolver`: algebra solve/simplify, calculus diff/integrate; unit
+      conversions pending). Wired SAFE into the executor.
 - [ ] Implement Plotly/Matplotlib chart generator tool.
-- [ ] Enforce `@safety_gate` tiers with HITL; audit logging for all DESTRUCTIVE calls.
+- [x] Enforce `@safety_gate` tiers with HITL — `run_code` is DESTRUCTIVE (mandatory approval),
+      `solve_math` SAFE; every DESTRUCTIVE call passes through the executor (audit-logged).
 - **Acceptance Criteria:** Sandbox prevents harmful filesystem calls and terminates
       infinite loops cleanly; bundled llama.cpp runs on CPU; OTel spans for sandbox events.
+
+> Note (reconciled 2026-08): the in-process subprocess sandbox is implemented and tested
+> (timeout kills infinite loops, memory capped, isolated mode). Docker + gVisor containment,
+> cgroups quota, real units solver, Plotly charts, and the llama.cpp/Ollama local-inference
+> bundle require external infrastructure and remain TODO — do not mark the phase fully
+> accepted until the Docker + llama.cpp criteria are genuinely met.
 
 ### Phase 6: Knowledge, Research & PDF Ingestion Pipeline
 - [ ] Implement `ResearchAgent` for academic paper processing.
