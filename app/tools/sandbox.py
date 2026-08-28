@@ -21,7 +21,7 @@ Security posture:
 from __future__ import annotations
 
 import logging
-import subprocess
+import subprocess  # nosec B404 - intentionally runs untrusted code; the sandbox IS the control layer
 import tempfile
 import time
 from collections.abc import Callable
@@ -107,7 +107,7 @@ class CodeSandbox:
 
             start = time.monotonic()
             try:
-                proc = subprocess.run(
+                proc = subprocess.run(  # nosec B603 - list-args isolated cmd; sandbox enforces limits
                     cmd,
                     capture_output=True,
                     text=True,
@@ -143,7 +143,7 @@ class MathSolver:
 
     @safety_gate(tier=SafetyTier.SAFE, description="Solve a math expression with SymPy")
     def solve(self, expression: str, variable: str | None = None) -> dict[str, Any]:
-        import sympy as sp
+        import sympy as sp  # type: ignore[import-untyped]  # SymPy ships without stubs
 
         try:
             expr = sp.sympify(expression)
