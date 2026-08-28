@@ -13,8 +13,8 @@ present) · **planned** (roadmap, not built).
 
 | Component | Responsibility | Status (2026-08) |
 |-----------|----------------|------------------|
-| `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic | planned |
-| `app/adapters/` | FastAPI REST, SSE, WebSocket/WebRTC signaling; Bearer auth | planned |
+| `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic | **IMPLEMENTED** (Next 15 + React 19 + Tailwind chat canvas; KaTeX/Plotly/SSE pending) |
+| `app/adapters/` | FastAPI REST (`/api/health`, `/api/chat`), SSE, WebSocket/WebRTC signaling; Bearer auth | **IMPLEMENTED** (FastAPI chat API; SSE/WebRTC/auth pending) |
 | `app/bootstrap.py` | Composition root — DI wiring of all singletons | **IMPLEMENTED** (`build_root`) |
 | `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; ProfessorAgent/EvaluatorAgent checkpointed Socratic loop; Research/ToolExecutor agents pending | scaffold→implemented (generic pipeline + ProfessorAgent/EvaluatorAgent + MemorySaver checkpointed `TutorialSession`; Research/ToolExecutor agents not built) |
 | `app/guardrails/` | `@safety_gate` tiers (SAFE/SENSITIVE/DESTRUCTIVE→HITL) + prompt-injection + PII | **IMPLEMENTED** |
