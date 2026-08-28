@@ -135,8 +135,9 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - [x] **WorkspaceManager** (`app/workspace/`): path-escape-safe, size-bounded file operations scoped
       to a learner workspace; dispatch via the tool executor (SAFE vs DESTRUCTIVE).
 - [~] **Hybrid memory** (`app/memory/`): abstract `MemoryBackend` (in-memory + JSON-file) behind a
-      learner-namespaced `MemoryService` for durable cross-session recall.
-      **ChromaDB dense + BM25 sparse impl, `ReflexionEngine`, `SkillSynthesizer` are NOT yet done**
+      learner-namespaced `MemoryService` for durable cross-session recall; `ReflexionEngine`
+      distills turn outcomes into durable lessons.
+      **ChromaDB dense + BM25 sparse impl and `SkillSynthesizer` are NOT yet done**
       (the backend seam is in place).
 - [x] **ToolExecutor** (`app/tools/`): single safety choke point — tools register with a
       `SafetyTier` and every call is funneled through the safety policy (injection + PII + HITL for
@@ -193,9 +194,13 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - **Acceptance Criteria:** Sub-700 ms roundtrip voice conversation.
 
 ### Phase 9: Mastery Tracking, Production & CI/CD Pipeline
-- [ ] Implement `DatabaseEngine` with SQLite (local) and PostgreSQL support; Alembic migrations.
-- [ ] Implement mastery calculation (Bayesian Knowledge Tracing / IRT); prerequisite gating.
-- [ ] Persist transcripts, diagnostic histories, mastery trees.
+- [x] Implement `DatabaseEngine` with SQLite (local) — `app/db/`: engine + `MasteryRepository` +
+      `TranscriptRepository`. **PostgreSQL support and Alembic migrations are NOT yet done
+      (Postgres is the engine-URI SEAM).**
+- [~] Implement mastery calculation (Bayesian Knowledge Tracking is the `MasteryScore.with_attempt`
+      model; **IRT and full prerequisite-gate persistence are pending**).
+- [~] Persist transcripts, diagnostic histories, mastery trees — transcripts + mastery persisted;
+      **full diagnostic/mastery-tree model is pending**.
 - [ ] **Production Hardening**: Blue/green deploy; health checks; rollback; load testing
       (100 concurrent streaming sessions).
 - [ ] **Observability Ops**: Langfuse alerts; cost/latency dashboards; eval regression gates.

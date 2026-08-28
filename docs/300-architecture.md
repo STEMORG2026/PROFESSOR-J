@@ -15,12 +15,12 @@ present) · **planned** (roadmap, not built).
 |-----------|----------------|------------------|
 | `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic | planned |
 | `app/adapters/` | FastAPI REST, SSE, WebSocket/WebRTC signaling; Bearer auth | planned |
-| `app/bootstrap.py` | Composition root — DI wiring of all singletons | planned |
+| `app/bootstrap.py` | Composition root — DI wiring of all singletons | **IMPLEMENTED** (`build_root`) |
 | `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; ProfessorAgent/EvaluatorAgent checkpointed Socratic loop; Research/ToolExecutor agents pending | scaffold→implemented (generic pipeline + ProfessorAgent/EvaluatorAgent + MemorySaver checkpointed `TutorialSession`; Research/ToolExecutor agents not built) |
 | `app/guardrails/` | `@safety_gate` tiers (SAFE/SENSITIVE/DESTRUCTIVE→HITL) + prompt-injection + PII | **IMPLEMENTED** |
 | `app/knowledge/` | LHS consumer adapter + general fallback + Phase 6 research pipeline (PDF extract → chunk → cited retrieval) | **IMPLEMENTED** (LHS + text-PDF pipeline; OCR/dense-retriever pending) |
-| `app/memory/` | Hybrid memory behind abstract `MemoryBackend` + learner-namespaced `MemoryService` | **IMPLEMENTED** (in-memory + JSON-file backends; ChromaDB dense + BM25 sparse pending — seam in place) |
-| `app/db/` | Learner mastery, transcripts, diagnostic history (SQLite → Postgres) | planned |
+| `app/memory/` | Hybrid memory behind abstract `MemoryBackend` + `MemoryService` + `ReflexionEngine` | **IMPLEMENTED** (in-memory + JSON-file backends + reflexion; ChromaDB dense + BM25 sparse pending — seam in place) |
+| `app/db/` | `DatabaseEngine` (SQLite) + `MasteryRepository`/`TranscriptRepository`; Postgres SEAM | **IMPLEMENTED** (SQLite; Postgres + Alembic pending) |
 | `app/session/` | Per-learner durable, resumable sessions (`SessionManager` + pluggable `SessionStore`) | **IMPLEMENTED** |
 | `app/workspace/` | Path-scoped, size-bounded file ops under the safety policy | **IMPLEMENTED** |
 | `app/tools/` | `ToolExecutor` safety choke point + `CodeSandbox` (isolated subprocess, timeout, memory cap) + `MathSolver` (SymPy) | **IMPLEMENTED** (executor + in-process sandbox; Docker/gVisor + Plotly pending) |
