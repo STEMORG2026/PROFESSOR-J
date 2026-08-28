@@ -125,6 +125,15 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - 5 tests.
 - **`SkillSynthesizer`, ChromaDB/BM25 dense+sparse, and Postgres remain external-infra TODO.**
 
+### Added (2026-08) — Phase 7 Frontend + API
+- **`frontend/`:** Next.js 15.3.1 + React 19 + Tailwind 4 chat/tutoring canvas (dark holographic),
+  `ChatCanvas` posts `/api/chat`, shows intent/provider, proxies `/api/*` to the backend.
+  Builds clean; `pnpm typecheck` + `pnpm lint` pass.
+- **`app/adapters/api.py`:** FastAPI `GET /api/health` + `POST /api/chat` wired to the CognitiveBrain
+  (MockProvider default → zero-config testing). `build_root()` degrades if LHS export absent.
+- **CI:** `build-frontend` job enabled (node 22, pnpm).
+- Kicks the SSE streaming/KaTeX/Plotly/@lobehub theme + WebRTC to later (see §2b).
+
 ---
 
 ## Release discipline
