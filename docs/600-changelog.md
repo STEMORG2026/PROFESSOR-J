@@ -74,6 +74,19 @@ deliberate consolidation of the reconciling changes landed this cycle.)
   correct attempts (`tests/unit/brain/test_tutorial_loop.py`, `test_professor.py`,
   `test_evaluator.py`).
 
+### Added (2026-08) — Phase 4 Platform Foundation (session / workspace / memory / tools)
+- **Session subsystem (`app/session/`):** `SessionManager` over the domain `Session`/`Conversation`
+  models; durable, resumable per-learner sessions via a pluggable `SessionStore` (in-memory +
+  JSON-file). A session id doubles as the LangGraph checkpoint `thread_id`.
+- **Workspace subsystem (`app/workspace/`):** `WorkspaceManager` enforces path-scope (no escaping
+  the root) and size bounds on reads/writes; dispatch is tiered through the tool executor.
+- **Memory subsystem (`app/memory/`):** abstract `MemoryBackend` (in-memory + JSON-file) behind a
+  learner-namespaced `MemoryService` for durable, searchable cross-session recall. Seam for
+  ChromaDB/BM25 later.
+- **Tool executor (`app/tools/`):** `ToolExecutor` is the single safety choke point — tools register
+  with a `SafetyTier` and every call runs through the safety policy (injection + PII + HITL for
+  DESTRUCTIVE), failing closed on denial. Sandbox (Phase 5) and MCP invocation are future work.
+
 ---
 
 ## Release discipline
