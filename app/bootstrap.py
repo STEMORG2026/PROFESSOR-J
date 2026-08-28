@@ -8,6 +8,7 @@ place to see what a running professor instance holds.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
@@ -18,6 +19,8 @@ from app.memory import InMemoryBackend, MemoryService, ReflexionEngine
 from app.session import SessionManager
 from app.tools import ToolExecutor
 from app.workspace import WorkspaceManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -32,7 +35,7 @@ class AppRoot:
     transcripts: TranscriptRepository
     workspace: WorkspaceManager
     tools: ToolExecutor
-    knowledge: LHSKnowledgeAdapter
+    knowledge: LHSKnowledgeAdapter | None
     research: ResearchAgent
     policy: SafetyPolicy
 
@@ -51,7 +54,6 @@ class AppRoot:
                     self.sessions is not None,
                     self.memory is not None,
                     self.tools is not None,
-                    self.knowledge is not None,
                 )
             ),
         }
@@ -72,7 +74,14 @@ def build_root(
     reflexion = ReflexionEngine(memory_backend)
     research = ResearchAgent(InMemoryBackend())
 
-    knowledge = LHSKnowledgeAdapter(lhs_export)
+    # LHS is optional: load if the export file is present, else degrade to no
+    # canonical knowledge (the brain still runs on the model pool).
+    knowledge: LHSKnowledgeAdapter | None = None
+    try:
+        knowledge = LHSKnowledgeAdapter(lhs_export)
+    except Exception as exc:  # noqa: BLE001 - export absent/invalid; degrade gracefully
+        logger.warning("LHS export unavailable (%s); running without canonical knowledge", exc)
+
     workspace = WorkspaceManager(workspace_root)
     policy = SafetyPolicy(approval_callback=None)
     tools = ToolExecutor(policy)
