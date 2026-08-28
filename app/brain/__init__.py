@@ -8,6 +8,7 @@ pool. Real tool execution through the safety gate arrives in later phases.
 from app.brain.graph import CognitiveBrain, build_brain_graph  # noqa: F401
 from app.brain.intents import Intent, classify_intent  # noqa: F401
 from app.brain.state import BrainState  # noqa: F401
+from app.brain.tutorial import TutorialSession, build_tutorial_graph  # noqa: F401
 
 __all__ = [
     "CognitiveBrain",
@@ -15,4 +16,6 @@ __all__ = [
     "Intent",
     "classify_intent",
     "BrainState",
+    "TutorialSession",
+    "build_tutorial_graph",
 ]
