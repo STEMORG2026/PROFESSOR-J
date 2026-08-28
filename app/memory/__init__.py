@@ -12,6 +12,7 @@ from app.memory.backends import (
     MemoryBackend,
     MemoryBackendError,
 )
+from app.memory.reflexion import Reflection, ReflexionEngine
 from app.memory.service import MemoryService, MemoryStoreError
 
 __all__ = [
@@ -21,4 +22,6 @@ __all__ = [
     "MemoryBackendError",
     "MemoryService",
     "MemoryStoreError",
+    "ReflexionEngine",
+    "Reflection",
 ]
