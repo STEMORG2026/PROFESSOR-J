@@ -18,7 +18,7 @@ present) · **planned** (roadmap, not built).
 | `app/bootstrap.py` | Composition root — DI wiring of all singletons | planned |
 | `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; ProfessorAgent/EvaluatorAgent checkpointed Socratic loop; Research/ToolExecutor agents pending | scaffold→implemented (generic pipeline + ProfessorAgent/EvaluatorAgent + MemorySaver checkpointed `TutorialSession`; Research/ToolExecutor agents not built) |
 | `app/guardrails/` | `@safety_gate` tiers (SAFE/SENSITIVE/DESTRUCTIVE→HITL) + prompt-injection + PII | **IMPLEMENTED** |
-| `app/knowledge/` | LearningHubSTEM consumer adapter + general-knowledge fallback | **IMPLEMENTED** |
+| `app/knowledge/` | LHS consumer adapter + general fallback + Phase 6 research pipeline (PDF extract → chunk → cited retrieval) | **IMPLEMENTED** (LHS + text-PDF pipeline; OCR/dense-retriever pending) |
 | `app/memory/` | Hybrid memory behind abstract `MemoryBackend` + learner-namespaced `MemoryService` | **IMPLEMENTED** (in-memory + JSON-file backends; ChromaDB dense + BM25 sparse pending — seam in place) |
 | `app/db/` | Learner mastery, transcripts, diagnostic history (SQLite → Postgres) | planned |
 | `app/session/` | Per-learner durable, resumable sessions (`SessionManager` + pluggable `SessionStore`) | **IMPLEMENTED** |

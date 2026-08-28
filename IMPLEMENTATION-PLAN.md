@@ -169,11 +169,15 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 > accepted until the Docker + llama.cpp criteria are genuinely met.
 
 ### Phase 6: Knowledge, Research & PDF Ingestion Pipeline
-- [ ] Implement `ResearchAgent` for academic paper processing.
-- [ ] Implement PDF text/table/formula extraction (`PyMuPDF` + `PaddleOCR`).
-- [ ] Set up `ChromaVectorStore` wrapper and BM25 retriever in `app/memory/`.
-- [ ] Implement citation provenance mapper (page number, bounding box, snippet).
-- **Acceptance Criteria:** Ingested paper is queryable with exact page-level citations.
+- [x] Implement `ResearchAgent` for academic paper processing (`app/knowledge/research.py`:
+      extract -> chunk -> index -> cited synthesis; deterministic, ungrounded when no match).
+- [~] Implement PDF text extraction (`app/knowledge/pdf.py` via PyMuPDF; page-level provenance).
+      **Table/formula extraction and PaddleOCR for scanned PDFs are NOT yet done.**
+- [ ] Set up `ChromaVectorStore` wrapper and BM25 retriever in `app/memory/` (Phase 4 `MemoryBackend`
+      seam used in-process; dense/sparse backends pending).
+- [~] Implement citation provenance mapper (page number + snippet; **bounding box pending**).
+- **Acceptance Criteria:** Ingested paper is queryable with exact page-level citations
+      (met for text-based PDFs; scanned-PDF OCR is external-infra TODO).
 
 ### Phase 7: Next.js 15 Interactive Canvas UI
 - [ ] Scaffold `frontend/` with Next.js 15 App Router, React 19, Tailwind.
