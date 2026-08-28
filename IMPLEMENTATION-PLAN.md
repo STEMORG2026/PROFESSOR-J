@@ -99,28 +99,33 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 > routing remains to be done to fully satisfy Phase 2 acceptance.
 
 ### Phase 3: Cognitive Engine (LangGraph) + Socratic Agents
-- [~] **LangGraph Integration** (`app/brain/`): `StateGraph` (TypedDict `BrainState`) with nodes
+- [x] **LangGraph Integration** (`app/brain/`): `StateGraph` (TypedDict `BrainState`) with nodes
       for intent classification → plan construction → synthesis, conditional flow.
-      **Checkpointing (pause/resume) and streaming are not yet implemented.**
+      **Checkpointing (pause/resume) implemented via `MemorySaver`** (thread_id = learner
+      id, `app/brain/tutorial.py`); streaming is not yet implemented.
 - [~] **CognitiveBrain**: LangGraph node composition — intent classification → plan generation
       → synthesis via the model router. Guarded execution (safety gate) and streaming are future work.
-- [ ] **ProfessorAgent** (subgraph): Tutoring modes (Socratic Mentor, Expository Lecture,
-      Exam Drill, Research Advisor); misconception diagnosis; adaptive difficulty from mastery.
-- [ ] **EvaluatorAgent**: SymPy step verification; diagnostic assessment; mastery tracking
-      via `DatabaseEngine`.
+- [x] **ProfessorAgent** (`app/brain/professor.py`): Tutoring modes (Socratic Mentor, Expository
+      Lecture, Exam Drill, Research Advisor); rule-based misconception diagnosis (MisconceptionType
+      catalog); prerequisite readiness gating; grounded-vs-ungrounded responses via LHS knowledge.
+- [x] **EvaluatorAgent** (`app/brain/evaluator.py`): deterministic rubric evaluation (numeric
+      tolerance + accepted-principle terms); diagnostic assessment; mastery tracking via
+      `LearnerState`. SymPy step verification is Phase 5 work.
 - [ ] **ResearchAgent**: PDF ingestion → chunking → embedding → retrieval → cited synthesis;
       integrates with MCP for external search.
 - [ ] **ToolExecutorAgent**: Sandbox dispatch; `@safety_gate` enforcement; MCP tool invocation
       via `MCPServerManager`; result synthesis.
-- [ ] **Simulated Student Test**: Newton's 2nd Law pass — agent guides without revealing answer.
+- [x] **Simulated Student Test**: Newton's 2nd Law pass — agent guides without revealing answer
+      (`tests/unit/brain/test_tutorial_loop.py`).
 - **Acceptance Criteria:** LangGraph checkpointing works (pause/resume); simulated student
       passes Newton's 2nd Law; OTel spans emitted for each node.
 
 > Note (reconciled 2026-08): a foundational `app/brain/` pipeline (rule-based intent classification →
 > deterministic plan from the domain ExecutionPlan models → synthesis through the ModelRouter) is
-> implemented and end-to-end tested against the deterministic MockProvider. The Professor/Evaluator/
-> Research/ToolExecutor agents, checkpointing, streaming, and the simulated-student acceptance test
-> are not yet done.
+> implemented and end-to-end tested against the deterministic MockProvider. The ProfessorAgent and
+> EvaluatorAgent now drive a checkpointed Socratic tutoring loop verified by the simulated-student
+> Newton's 2nd Law test. The Research/ToolExecutor agents, streaming, OTel per-node spans, and the
+> SymPy step-verifier (Phase 5) are not yet done.
 
 ### Phase 4: Platform Parity — Session, Workspace, Memory, Tools
 - [ ] Port `SessionManager` and `WorkspaceManager` from JARVIS patterns; integrate with

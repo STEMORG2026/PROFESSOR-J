@@ -16,7 +16,7 @@ present) · **planned** (roadmap, not built).
 | `frontend/` | Next.js 15 canvas & voice UI; render-only, no business logic | planned |
 | `app/adapters/` | FastAPI REST, SSE, WebSocket/WebRTC signaling; Bearer auth | planned |
 | `app/bootstrap.py` | Composition root — DI wiring of all singletons | planned |
-| `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; Professor/Research/Evaluator/ToolExecutor agents | scaffold (`app/brain/`: intent→plan→synthesize pipeline is implemented; agents not built) |
+| `app/brain/` | CognitiveBrain (intent→plan→synthesize) via LangGraph; ProfessorAgent/EvaluatorAgent checkpointed Socratic loop; Research/ToolExecutor agents pending | scaffold→implemented (generic pipeline + ProfessorAgent/EvaluatorAgent + MemorySaver checkpointed `TutorialSession`; Research/ToolExecutor agents not built) |
 | `app/guardrails/` | `@safety_gate` tiers (SAFE/SENSITIVE/DESTRUCTIVE→HITL) + prompt-injection + PII | **IMPLEMENTED** |
 | `app/knowledge/` | LearningHubSTEM consumer adapter + general-knowledge fallback | **IMPLEMENTED** |
 | `app/memory/` | Hybrid ChromaDB + BM25 retrieval | planned |

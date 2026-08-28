@@ -57,6 +57,23 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - Backend scaffolding: `.venv/`, pinned `requirements.txt`, strict mypy config,
   pre-commit hooks, pytest smoke test (`1 passed`).
 
+### Added (2026-08) — Phase 3 Cognitive Engine (tutoring brain)
+- **ProfessorAgent (`app/brain/professor.py`):** tutoring-mode Socratic prompts
+  (Socratic Mentor / Expository Lecture / Exam Drill / Research Advisor), rule-based
+  misconception diagnosis from the `MisconceptionType` catalog, prerequisite readiness
+  gating, and grounded-vs-ungrounded responses sourced from the `LHSKnowledgeAdapter`.
+  The Socratic scaffold mandates never revealing the final answer.
+- **EvaluatorAgent (`app/brain/evaluator.py`):** deterministic rubric evaluation
+  (numeric tolerance + accepted-principle terms) producing the domain `Evaluation`,
+  and folds results into `LearnerState` mastery + misconception records.
+- **Checkpointed tutorial loop (`app/brain/tutorial.py`):** `TutorialSession` compiles a
+  LangGraph loop over a `MemorySaver` keyed by `thread_id = learner id`, so learner state
+  resumes across calls and sessions. Snapshot serialisation round-trips enums as strings.
+- **Simulated-student acceptance test:** a scripted learner passes Newton's 2nd Law —
+  the professor scaffolds, diagnoses `heavier_falls_faster`, and only advances mastery on
+  correct attempts (`tests/unit/brain/test_tutorial_loop.py`, `test_professor.py`,
+  `test_evaluator.py`).
+
 ---
 
 ## Release discipline
