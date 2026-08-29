@@ -873,7 +873,7 @@ describe("{{component_name}}", () => {
     expect(screen.getByRole("{{role}}")).toBeInTheDocument();
   });
 });
-""",
+"""
                     ),
                     "{{component_name}}.stories.tsx": (
                         """import type { Meta, StoryObj } from "@storybook/react";
@@ -894,7 +894,7 @@ export const Default: Story = {
     {{/each}}
   },
 };
-""",
+"""
                     ),
                 },
             },
@@ -974,6 +974,9 @@ def test_root():
             # Simple variable substitution (in real implementation, use Jinja2)
             created_files = []
             for file_path, content in template["files"].items():
+                # Defensive: template file bodies must be text; coerce anything
+                # else (e.g. a metadata tuple) so substitution cannot crash.
+                content = content if isinstance(content, str) else str(content)
                 # Substitute variables
                 for key, value in variables.items():
                     content = content.replace(f"{{{{{key}}}}}", value)
