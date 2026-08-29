@@ -418,8 +418,7 @@ def test_whisper_api_init_defaults_and_availability() -> None:
 
     with_key = WhisperAPIProvider(api_key="sk-test", model="whisper-large-v3")
     assert with_key.is_available is True
-    # gitleaks:allow
-    assert with_key._model == "whisper-large-v3"
+    assert with_key._model == "whisper-large-v3"  # gitleaks:allow
 
 
 def test_whisper_api_transcribe_file_raises_without_key(tmp_path: Path) -> None:
