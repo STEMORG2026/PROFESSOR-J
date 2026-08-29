@@ -95,6 +95,22 @@ const PROVIDERS: ProviderDef[] = [
     customBaseUrl: true,
   },
   {
+    id: "singularity",
+    name: "Singularity (DeepSeek)",
+    models: [
+      "deepseek-v4-flash-0731",
+      "deepseek-v4-flash",
+      "deepseek-v4-pro",
+      "deepseek-v3.2",
+    ],
+    description:
+      "Workspace default. OpenAI-compatible Singularity endpoint; the API key is read server-side from .env (SINGULARITY_API_KEY)",
+    freeTier: false,
+    apiKeyRequired: false,
+    configKey: "",
+    baseUrl: "https://api.singularityapi.dev/v1",
+  },
+  {
     id: "mock",
     name: "Mock (Offline)",
     models: ["mock-model"],
