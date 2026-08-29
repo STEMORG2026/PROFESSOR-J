@@ -61,7 +61,7 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       prerequisite mapping from `mathematically_requires`/`logically_requires` relationship types.
 - [x] Implement `GeneralKnowledgeAdapter` fallback (labeled ungrounded with source provenance).
 - [ ] **Memory Backend Abstraction**: `MemoryBackend` protocol + `ChromaMemoryBackend` impl (pluggable for Qdrant/PGVector).
-- [ ] **MCP Client Design** (Phase 1 deliverable): `MCPServerManager` interface, stdio + Streamable HTTP transports,
+- [x] **MCP Client Design** (Phase 1 deliverable): `MCPServerManager` interface, stdio + Streamable HTTP transports,
       `MCPToolSearch` for on-demand loading, `MCPRegistry` for caching.
 - [x] Write unit tests: domain models (100%), LHS adapter (100% + zero-drift), prerequisite traversal,
       memory backend contract tests.

@@ -8,6 +8,20 @@
 
 ## Unreleased
 
+### Added (2026-08)
+- **API-key resolution:** provider credentials now resolve from the repo's gitignored `.env`
+  as the source of truth (accepting the bare env name and a `PROFESSOR_`-prefixed override) and can
+  no longer be shadowed by an unrelated ambient shell export (`SINGULARITY_API_KEY` in `~/.bashrc`).
+- **Chat session persistence:** `SessionRepository` (sessions, conversations, user settings + global
+  defaults, personas) over a new additive SQLite schema; the chat API persists sessions across restarts
+  and resolves provider/model/base_url/system-prompt via a session → global-default → built-in chain.
+- **Webapp redesign:** settings panel (general defaults, per-provider API keys with connection testing,
+  personas), top bar, session sidebar, model/persona dropdowns, voice components, and file upload.
+- **Voice subsystem:** provider abstractions + lazy factories with a local Piper TTS provider and a
+  local faster-whisper STT provider, exposed via `/api/voice` routes.
+- **MCP:** stdio MCP client (`StdioMCPClient`), `MCPClientManager`/`MCPRegistry` discovery + caching,
+  `MCPToolSearch` on-demand loading, `CodeExecutionTools` code-API adapter, and an `MCPToolSkill`.
+
 ### Changed (2026-08)
 - **Branch consolidation:** merged the phase 0.6 governance hardening and phase 1 LHS
   consumer work onto `main` in one controlled integration (resolved `exceptions.py`,
