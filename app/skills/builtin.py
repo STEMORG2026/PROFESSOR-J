@@ -566,7 +566,7 @@ class ProjectBuildSkill(Skill[dict[str, Any]]):
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
         import os
-        import subprocess
+        import subprocess  # nosec B404 - explicit list args, no shell (see skill body)
 
         operation = kwargs.get("operation", "all")
         project_path = kwargs.get("project_path", ".")
@@ -633,7 +633,7 @@ class ProjectBuildSkill(Skill[dict[str, Any]]):
 
             cmd = commands[project_type][op]
             try:
-                result = subprocess.run(
+                result = subprocess.run(  # nosec B603 - explicit list args, no shell
                     cmd,
                     cwd=project_path,
                     capture_output=True,
@@ -699,7 +699,7 @@ class GitExtendedSkill(Skill[dict[str, Any]]):
 
     async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
         import os
-        import subprocess
+        import subprocess  # nosec B404 - explicit list args, no shell (see skill body)
 
         operation = kwargs.get("operation")
         repo_path = kwargs.get("repo_path", ".")
@@ -732,7 +732,7 @@ class GitExtendedSkill(Skill[dict[str, Any]]):
 
         try:
             cmd = commands[operation]
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 - explicit list args, no shell
                 cmd,
                 cwd=repo_path,
                 capture_output=True,
