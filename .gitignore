@@ -45,3 +45,16 @@ coverage.xml
 
 # Virtual Board generated ledger (derived, regenerable)
 board/ledger.md
+
+# Local scratch / devel artifacts (throwaway, not source)
+# Manually authored runtime/dev config and downloaded assets used only for
+# ad-hoc voice/TTS experiments during webapp development.
+/default_system_prompt.json
+/jarvis_persona.json
+/jarvis_system_prompt.txt
+/session_update.json
+/mcp_servers.json
+/system_prompt.py
+/test_*.py
+/test_*.wav
+/piper_voices/
