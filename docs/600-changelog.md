@@ -134,6 +134,16 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - **CI:** `build-frontend` job enabled (node 22, pnpm).
 - Kicks the SSE streaming/KaTeX/Plotly/@lobehub theme + WebRTC to later (see §2b).
 
+### Added (2026-08-30) — Phase 1 Memory Backend Abstraction + MCP Client Design
+- **`app/memory/backends.py`:** `MemoryBackend` abstract protocol + `InMemoryBackend`,
+  `JsonMemoryBackend`, `ChromaMemoryBackend` implementations. Pluggable for Qdrant/PGVector.
+  `MemoryService` and `ReflexionEngine` now work with any backend implementation.
+- **`app/mcp/`:** Complete MCP client subsystem — `MCPServerManager` (multi-server management),
+  `StdioTransport` + `StreamableHTTPTransport`, `MCPRegistry` (caching), `MCPToolSearch`
+  (on-demand discovery + CodeExecutionTools pattern).
+- **Tests:** Extended `tests/unit/memory/test_memory.py` with ChromaDB backend tests.
+- **Virtual Board:** All 8 checks pass including new `mcp_tool_search` verification.
+
 ---
 
 ## Release discipline
