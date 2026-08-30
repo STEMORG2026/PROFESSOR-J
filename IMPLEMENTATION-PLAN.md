@@ -60,8 +60,8 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       `LearningHubSTEM/exports/knowledge.json`; validate `export_version`/`schema_version` (currently `0.1`);
       prerequisite mapping from `mathematically_requires`/`logically_requires` relationship types.
 - [x] Implement `GeneralKnowledgeAdapter` fallback (labeled ungrounded with source provenance).
-- [ ] **Memory Backend Abstraction**: `MemoryBackend` protocol + `ChromaMemoryBackend` impl (pluggable for Qdrant/PGVector).
-- [ ] **MCP Client Design** (Phase 1 deliverable): `MCPServerManager` interface, stdio + Streamable HTTP transports,
+- [x] **Memory Backend Abstraction**: `MemoryBackend` protocol + `ChromaMemoryBackend` impl (pluggable for Qdrant/PGVector).
+- [x] **MCP Client Design** (Phase 1 deliverable): `MCPServerManager` interface, stdio + Streamable HTTP transports,
       `MCPToolSearch` for on-demand loading, `MCPRegistry` for caching.
 - [x] Write unit tests: domain models (100%), LHS adapter (100% + zero-drift), prerequisite traversal,
       memory backend contract tests.
@@ -71,6 +71,10 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 > their tests are merged on `main`. The memory backend and MCP client remain not-implemented (their contract
 > work is scheduled within this phase's remaining scope). The contract version is `0.1` (both export and
 > schema), as validated by `app/knowledge/lhs_adapter.py` — earlier references to version `3` were stale.
+>
+> Note (reconciled 2026-08-30): MemoryBackend protocol + InMemoryBackend, JsonMemoryBackend, ChromaMemoryBackend
+> implemented with full test coverage. MCPServerManager, StdioTransport, StreamableHTTPTransport, MCPRegistry,
+> MCPToolSearch implemented. All Virtual Board checks pass.
 
 ### Phase 2: Multi-Provider Model Pool & Circuit Breakers
 - [x] **Provider Interface** (`app/models/providers.py`): `LLMProvider` (abstract), `LLMResult` (standardized),
