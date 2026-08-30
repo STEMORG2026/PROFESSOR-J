@@ -74,7 +74,7 @@ class SqliteDatabaseEngine(DatabaseEngine):
         self.uri = f"sqlite:///{self.path}"
         import sqlite3
 
-        self.conn = sqlite3.connect(str(self.path))
+        self.conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
 
     def create_schema(self) -> None:
