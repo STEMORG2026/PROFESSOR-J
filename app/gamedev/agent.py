@@ -124,21 +124,30 @@ class GameDevAgent:
 
         # Extract title or formulate default
         title = "DeterministicGameCore"
-        if "ludo" in low:
-            title = "LudoRulesCore"
-        elif "chess" in low:
-            title = "ChessRulesCore"
-        elif "tic tac toe" in low or "tictactoe" in low:
-            title = "TicTacToeCore"
+        if "card" in low or "deck" in low:
+            title = "CardGameCore"
+        elif "sim" in low or "physics" in low or "particle" in low:
+            title = "SimulationCore"
+        elif "strategy" in low or "tactics" in low:
+            title = "TacticsCore"
 
-        # Build components
+        # Build components based on explicit genre/request needs
         components: list[GameComponentSpec] = [
             GameComponentCatalog.event_bus(),
-            GameComponentCatalog.turn_manager(player_count=max_players),
+            GameComponentCatalog.command_dispatcher(),
         ]
 
-        if "dice" in low or "rng" in low or "random" in low or "ludo" in low:
+        if "turn" in low or "player" in low or genre == GameGenre.TURN_BASED_STRATEGY:
+            components.append(GameComponentCatalog.turn_manager(player_count=max_players))
+
+        if "dice" in low or "rng" in low or "random" in low:
             components.append(GameComponentCatalog.dice_rng(dice_count=1, sides=6))
+
+        if "card" in low or "deck" in low or genre == GameGenre.CARD_GAME:
+            components.append(GameComponentCatalog.deck_manager())
+
+        if "sim" in low or "physics" in low or genre == GameGenre.SIMULATION:
+            components.append(GameComponentCatalog.fixed_timestep())
 
         if "grid" in low or "board" in low or "tile" in low:
             components.append(GameComponentCatalog.grid_board(width=15, height=15))

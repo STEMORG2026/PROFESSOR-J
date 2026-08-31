@@ -92,16 +92,27 @@ class GameWorkflowEngine:
             affected_systems.append("MinimaxAI")
             required_knowledge.append("minimax_ai_decision")
 
-        if "turn" in low or "board" in low or "strategy" in low or "ludo" in low:
+        if "card" in low or "deck" in low or "hand" in low:
+            required_comps.append(self.components.deck_manager())
+            affected_systems.append("DeckManager")
+            affected_state.append("draw_pile")
+            required_knowledge.append("gameplay_systems")
+
+        if "sim" in low or "physics" in low or "timestep" in low:
+            required_comps.append(self.components.fixed_timestep())
+            affected_systems.append("FixedTimestep")
+            required_knowledge.append("game_loop_determinism")
+
+        if "turn" in low or "round" in low or "phase" in low or "board" in low or "strategy" in low:
             required_comps.append(self.components.turn_manager())
             applied_patterns.append(GameArchitecturePattern.STATE_MACHINE_EVENT_DRIVEN)
             required_knowledge.append("state_machine_fsm")
 
-        if "dice" in low or "roll" in low or "random" in low or "ludo" in low:
+        if "dice" in low or "roll" in low or "random" in low or "rng" in low or "board" in low:
             required_comps.append(self.components.dice_rng())
             required_knowledge.append("game_loop_determinism")
 
-        if "grid" in low or "tile" in low:
+        if "grid" in low or "tile" in low or "spatial" in low:
             required_comps.append(self.components.grid_board())
             required_knowledge.append("grid_spatial_indexing")
 
