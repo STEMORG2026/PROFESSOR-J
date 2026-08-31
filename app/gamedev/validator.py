@@ -67,7 +67,25 @@ class GameArchitectureValidator:
                 rel = str(p.relative_to(workspace.root))
                 all_files.append(rel)
 
-        core_files = [f for f in all_files if "Core" in f or "rules" in f or "domain" in f]
+        core_files = [
+            f
+            for f in all_files
+            if ("Core" in f or "rules" in f or "domain" in f or "Domain" in f)
+            and not any(
+                p in f
+                for p in (
+                    "CoreBridge",
+                    "Presentation",
+                    "Views",
+                    "View",
+                    "Input",
+                    "UI",
+                    "Runner",
+                    "Test",
+                    "test",
+                )
+            )
+        ]
         test_files = [f for f in all_files if "Test" in f or "tests" in f or f.startswith("test_")]
 
         # 1. Check prohibited imports in Core rules files

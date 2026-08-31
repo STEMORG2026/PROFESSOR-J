@@ -23,6 +23,7 @@ from app.domain.gamedev import (
 )
 from app.exceptions import SandboxTimeoutError
 from app.gamedev.adapters.pure_core import PureCoreAdapter
+from app.gamedev.adapters.unity import UnityEngineAdapter
 from app.gamedev.analyzer import GameProjectAnalyzer
 from app.gamedev.base import EngineRegistry
 from app.gamedev.components import GameComponentCatalog
@@ -81,13 +82,14 @@ class GameDevAgent:
         workspace: WorkspaceManager,
         project_dir: str = "",
     ) -> GameProjectModel:
-        """Inspect and build a structural representation of a game project."""
+        """Analyze an existing codebase and construct its structural GameProjectModel."""
         return self.analyzer.analyze_project(workspace, project_dir)
 
     @staticmethod
     def _default_registry() -> EngineRegistry:
         reg = EngineRegistry()
         reg.register(PureCoreAdapter())
+        reg.register(UnityEngineAdapter())
         return reg
 
     def plan_workflow(

@@ -418,3 +418,109 @@ class RepairProposal:
     edits: tuple[FileEdit, ...]
     rationale: str
     confidence: float = 1.0
+
+
+@dataclass(frozen=True, slots=True)
+class IntentResult:
+    """Deterministic outcome of applying an intent to a GameCore state."""
+
+    success: bool
+    new_state: dict[str, Any]
+    events: tuple[Any, ...] = field(default_factory=tuple)
+    error: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class StepResult:
+    """Deterministic outcome of advancing GameCore by delta time dt."""
+
+    new_state: dict[str, Any]
+    events: tuple[Any, ...] = field(default_factory=tuple)
+    dt: float = 0.0
+    tick: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayRecord:
+    """Complete, deterministic recording of a GameCore execution session."""
+
+    record_id: str
+    seed: int
+    initial_state: dict[str, Any]
+    intent_sequence: tuple[dict[str, Any], ...]
+    tick_count: int
+    dt_sequence: tuple[float, ...]
+    state_hashes: tuple[str, ...]
+    events_emitted: tuple[tuple[str, ...], ...]
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayVerificationResult:
+    """Telemetry outcome from verifying deterministic execution replay."""
+
+    success: bool
+    divergent_tick: int | None = None
+    expected_hash: str | None = None
+    actual_hash: str | None = None
+    divergence_reason: str | None = None
+    telemetry: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class SynthesisManifest:
+    """Machine-readable record of an autonomous game synthesis process."""
+
+    manifest_id: str
+    title: str
+    genre: GameGenre
+    project_model: GameProjectModel
+    state_schema: Any
+    intent_definitions: tuple[str, ...]
+    event_definitions: tuple[str, ...]
+    system_definitions: tuple[str, ...]
+    dependency_graph: dict[str, tuple[str, ...]]
+    invariant_set: tuple[str, ...]
+    execution_model: str
+    test_plan: tuple[str, ...]
+    verification_plan: tuple[str, ...]
+    created_at: datetime = field(default_factory=utc_now)
+
+
+@dataclass(frozen=True, slots=True)
+class GameCoreCertification:
+    """Formal audit and certification record for a synthesized GameCore."""
+
+    certified: bool
+    title: str
+    purity_passed: bool
+    determinism_passed: bool
+    invariants_passed: bool
+    replay_passed: bool
+    tests_passed: bool
+    repair_safety_passed: bool
+    protected_integrity_passed: bool
+    zero_engine_imports: bool
+    timestamp: datetime = field(default_factory=utc_now)
+    details: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class EngineBindingCertification:
+    """Formal audit and certification record for a downstream presentation engine binding."""
+
+    certified: bool
+    title: str
+    engine_target: EngineTarget
+    pure_core_certified: bool
+    boundary_purity_passed: bool
+    input_translation_passed: bool
+    event_propagation_passed: bool
+    state_sync_passed: bool
+    framerate_independence_passed: bool
+    replay_fidelity_passed: bool
+    failure_isolation_passed: bool
+    timestamp: datetime = field(default_factory=utc_now)
+    details: dict[str, Any] = field(default_factory=dict)

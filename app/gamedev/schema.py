@@ -25,16 +25,39 @@ from app.domain.gamedev import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GameStateSchema:
     """Specification of a game state version and its field descriptors."""
 
-    version: int
-    fields: dict[str, dict[str, Any]] = field(default_factory=dict)
+    version: int = 1
+    fields: dict[str, Any] = field(default_factory=dict)
+    defaults: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    def __init__(
+        self,
+        version: int = 1,
+        fields: dict[str, Any] | None = None,
+        defaults: dict[str, Any] | None = None,
+        metadata: dict[str, Any] | None = None,
+        schema_version: int | None = None,
+    ) -> None:
+        object.__setattr__(
+            self, "version", schema_version if schema_version is not None else version
+        )
+        object.__setattr__(self, "fields", fields or {})
+        object.__setattr__(self, "defaults", defaults or {})
+        object.__setattr__(self, "metadata", metadata or {})
+
+    @property
+    def schema_version(self) -> int:
+        return self.version
 
     def has_field(self, name: str) -> bool:
         return name in self.fields
+
+
+StateSchema = GameStateSchema
 
 
 class GameStateEvolutionEngine:
@@ -86,26 +109,37 @@ class GameStateEvolutionEngine:
         renamed_old = {r.old_name for r in renamed if r.old_name}
         renamed_new = {r.field_name for r in renamed}
 
+        def _get_type_and_default(spec: Any) -> tuple[str | None, Any]:
+            if isinstance(spec, dict):
+                return spec.get("type"), spec.get("default")
+            elif isinstance(spec, str):
+                return spec, None
+            return str(type(spec).__name__), spec
+
         # Added fields
         for name in new_names - old_names - renamed_new:
             spec = new_schema.fields[name]
+            f_type, f_default = _get_type_and_default(spec)
+            if f_default is None and name in new_schema.defaults:
+                f_default = new_schema.defaults[name]
             added.append(
                 StateFieldDiff(
                     field_name=name,
                     change_type="added",
-                    new_type=spec.get("type"),
-                    default_value=spec.get("default"),
+                    new_type=f_type,
+                    default_value=f_default,
                 )
             )
 
         # Removed fields
         for name in old_names - new_names - renamed_old:
             spec = old_schema.fields[name]
+            f_type, _ = _get_type_and_default(spec)
             removed.append(
                 StateFieldDiff(
                     field_name=name,
                     change_type="removed",
-                    old_type=spec.get("type"),
+                    old_type=f_type,
                 )
             )
 
@@ -113,18 +147,21 @@ class GameStateEvolutionEngine:
         for name in old_names & new_names:
             old_spec = old_schema.fields[name]
             new_spec = new_schema.fields[name]
-            if old_spec.get("type") != new_spec.get("type") or old_spec.get(
-                "default"
-            ) != new_spec.get("default"):
+            old_type, old_def = _get_type_and_default(old_spec)
+            new_type, new_def = _get_type_and_default(new_spec)
+            if old_def is None and name in old_schema.defaults:
+                old_def = old_schema.defaults[name]
+            if new_def is None and name in new_schema.defaults:
+                new_def = new_schema.defaults[name]
+
+            if old_type != new_type or old_def != new_def:
                 modified.append(
                     StateFieldDiff(
                         field_name=name,
-                        change_type="type_changed"
-                        if old_spec.get("type") != new_spec.get("type")
-                        else "default_changed",
-                        old_type=old_spec.get("type"),
-                        new_type=new_spec.get("type"),
-                        default_value=new_spec.get("default"),
+                        change_type="type_changed" if old_type != new_type else "default_changed",
+                        old_type=old_type,
+                        new_type=new_type,
+                        default_value=new_def,
                     )
                 )
 

@@ -5,11 +5,13 @@ Zero external dependencies. Zero framework imports. Serializable, validated, fro
 
 from app.domain.concept import ConceptEntity, ReviewStatus
 from app.domain.gamedev import (
+    EngineBindingCertification,
     EngineTarget,
     ExecutionTrace,
     FileEdit,
     GameArchitecturePattern,
     GameComponentSpec,
+    GameCoreCertification,
     GameGenre,
     GameKnowledgeCategory,
     GameKnowledgeTopic,
@@ -24,14 +26,19 @@ from app.domain.gamedev import (
     GameValidationReport,
     GameWorkflowPlan,
     GameWorkflowType,
+    IntentResult,
     MigrationSemantics,
     ModificationScope,
     RepairProposal,
+    ReplayRecord,
+    ReplayVerificationResult,
     StateDelta,
     StateFieldDiff,
     StateMigrationResult,
     StateSchemaDiff,
     StateSnapshot,
+    StepResult,
+    SynthesisManifest,
 )
 from app.domain.learner import (
     Evaluation,
@@ -84,6 +91,13 @@ __all__ = [
     "FileEdit",
     "RepairProposal",
     "GameRepairAudit",
+    "IntentResult",
+    "StepResult",
+    "ReplayRecord",
+    "ReplayVerificationResult",
+    "SynthesisManifest",
+    "GameCoreCertification",
+    "EngineBindingCertification",
     # Plans
     "ExecutionPlan",
     "ExecutionStep",

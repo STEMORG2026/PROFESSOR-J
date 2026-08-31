@@ -12,6 +12,7 @@ Invariants:
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import logging
 from pathlib import Path
@@ -31,6 +32,53 @@ from app.workspace.workspace import WorkspaceManager
 logger = logging.getLogger(__name__)
 
 
+class ASTPatchValidator:
+    """Validates python source patches structurally prior to committing changes."""
+
+    FORBIDDEN_MODULES = frozenset(
+        {
+            "unityengine",
+            "unityengine.ui",
+            "godot",
+            "unreal",
+            "pygame",
+            "raylib",
+        }
+    )
+
+    @classmethod
+    def validate_patch(
+        cls,
+        original_content: str,
+        patched_content: str,
+        file_path: str,
+    ) -> tuple[bool, str | None]:
+        """Verify that patched code parses as valid AST and contains no forbidden imports."""
+        p = Path(file_path)
+        if ".." in p.parts or file_path.startswith("/"):
+            return False, f"Path traversal / absolute path forbidden: {file_path}"
+
+        # 1. Syntax validation via AST parse
+        try:
+            tree = ast.parse(patched_content, filename=file_path)
+        except SyntaxError as e:
+            return False, f"AST Syntax error in patched code: {e}"
+
+        # 2. Check for forbidden engine imports
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root_mod = alias.name.split(".")[0].lower()
+                    if root_mod in cls.FORBIDDEN_MODULES:
+                        return False, f"Forbidden engine import detected: {alias.name}"
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                root_mod = node.module.split(".")[0].lower()
+                if root_mod in cls.FORBIDDEN_MODULES:
+                    return False, f"Forbidden engine import detected: {node.module}"
+
+        return True, None
+
+
 class CognitiveRepairEngine:
     """Diagnostic and repair engine for game domain logic and state defects."""
 
@@ -41,6 +89,7 @@ class CognitiveRepairEngine:
     ) -> None:
         self.knowledge = knowledge_catalog or GameKnowledgeCatalog()
         self.reasoner = reasoner or ModelGameDevReasoner()
+        self.validator = ASTPatchValidator()
 
     @staticmethod
     def classify_file_scope(rel_path: str) -> ModificationScope:
@@ -150,11 +199,12 @@ class CognitiveRepairEngine:
         proposal: RepairProposal,
         baseline_hashes: dict[str, str],
     ) -> tuple[bool, tuple[str, ...]]:
-        """Apply all edits in a RepairProposal atomically.
+        """Apply all edits in a RepairProposal atomically with AST validation.
 
-        Enforces strict modification scope and hash verification.
+        Enforces strict modification scope, AST syntax/purity, and hash verification.
         """
         backup: dict[str, str] = {}
+        pending_writes: dict[str, str] = {}
         modified: list[str] = []
 
         try:
@@ -171,29 +221,55 @@ class CognitiveRepairEngine:
 
             # 2. Read and backup targets
             for edit in proposal.edits:
-                res = workspace.read(edit.file_path)
-                if not res.get("success"):
-                    return False, ()
-                backup[edit.file_path] = res.get("content", "")
+                if edit.file_path not in backup:
+                    res = workspace.read(edit.file_path)
+                    if not res.get("success"):
+                        return False, ()
+                    backup[edit.file_path] = res.get("content", "")
+                    pending_writes[edit.file_path] = res.get("content", "")
 
-            # 3. Apply edits
+            # 3. Simulate and AST-validate edits
             for edit in proposal.edits:
-                current_content = backup[edit.file_path]
+                current_content = pending_writes[edit.file_path]
                 if edit.target_snippet not in current_content:
                     logger.debug(
-                        "Target snippet not found in %s: %s", edit.file_path, edit.target_snippet
+                        "Target snippet not found in %s: %s",
+                        edit.file_path,
+                        edit.target_snippet,
                     )
                     continue
 
-                patched = current_content.replace(edit.target_snippet, edit.replacement_snippet)
-                workspace.write(edit.file_path, patched)
-                modified.append(edit.file_path)
+                patched = current_content.replace(edit.target_snippet, edit.replacement_snippet, 1)
 
-            # 4. Verify protected files remained untouched
+                # Validate with AST
+                valid_ast, ast_err = self.validator.validate_patch(
+                    current_content, patched, edit.file_path
+                )
+                if not valid_ast:
+                    logger.warning(
+                        "REJECTED patch on %s failing AST validation: %s",
+                        edit.file_path,
+                        ast_err,
+                    )
+                    return False, ()
+
+                pending_writes[edit.file_path] = patched
+                if edit.file_path not in modified:
+                    modified.append(edit.file_path)
+
+            if not modified:
+                return False, ()
+
+            # 4. Commit all pending writes to workspace atomically
+            for file_path, content in pending_writes.items():
+                if file_path in modified:
+                    workspace.write(file_path, content)
+
+            # 5. Verify protected files remained untouched
             if not self.verify_protected_files_intact(workspace, baseline_hashes):
                 raise ValueError("Protected files were compromised during repair")
 
-            return len(modified) > 0, tuple(modified)
+            return True, tuple(modified)
 
         except Exception as e:
             logger.error("Atomic repair application failed, rolling back: %s", e)

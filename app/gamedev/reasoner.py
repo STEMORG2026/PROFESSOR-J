@@ -279,14 +279,25 @@ class ModelGameDevReasoner:
 
             # 2. Simulation Timestep Integration Repairs
             if "def update" in src or "def step" in src:
-                if "self.x += self.vx" in src and "self.x += self.vx * self.dt" not in src:
-                    edits.append(
-                        FileEdit(file_path, "self.x += self.vx", "self.x += self.vx * self.dt")
-                    )
-                if "self.y += self.vy" in src and "self.y += self.vy * self.dt" not in src:
-                    edits.append(
-                        FileEdit(file_path, "self.y += self.vy", "self.y += self.vy * self.dt")
-                    )
+                for line in src.splitlines():
+                    if (
+                        "self.x += self.vx" in line
+                        and "self.dt" not in line
+                        and not line.strip().startswith("#")
+                    ):
+                        indent = line[: len(line) - len(line.lstrip())]
+                        edits.append(
+                            FileEdit(file_path, line, f"{indent}self.x += self.vx * self.dt")
+                        )
+                    if (
+                        "self.y += self.vy" in line
+                        and "self.dt" not in line
+                        and not line.strip().startswith("#")
+                    ):
+                        indent = line[: len(line) - len(line.lstrip())]
+                        edits.append(
+                            FileEdit(file_path, line, f"{indent}self.y += self.vy * self.dt")
+                        )
                 if "self.x += self.vx" in src:
                     diag = "Simulation velocity integration lacks timestep scaling."
                     inv = "Continuous velocity integration must scale by dt."
@@ -362,14 +373,59 @@ class ModelGameDevReasoner:
             if "randint(0, sides)" in src:
                 edits.append(FileEdit(file_path, "randint(0, sides)", "randint(1, sides)"))
 
-            # Range / boundary comparison defects
-            if ">" in src and "assert" not in src:
-                if "dist > self.range" in src:
-                    edits.append(FileEdit(file_path, "dist > self.range", "dist <= self.range"))
-                    diag = "Turret range filtering logic inverted/exceeded."
-                    inv = "Turrets target only creeps within range radius (dist <= range)."
-                elif "dist > range" in src:
-                    edits.append(FileEdit(file_path, "dist > range", "dist <= range"))
+            # 7. Action point / Resource deduction defects
+            if "self.current_ap -= 0" in src:
+                edits.append(FileEdit(file_path, "self.current_ap -= 0", "self.current_ap -= cost"))
+            if "self.water += water_spent" in src:
+                edits.append(
+                    FileEdit(file_path, "self.water += water_spent", "self.water -= water_spent")
+                )
+
+            # 8. Detection / Range / Spatial inequality inversions
+            if "dist > self.vision_radius" in src:
+                edits.append(
+                    FileEdit(file_path, "dist > self.vision_radius", "dist <= self.vision_radius")
+                )
+            elif "dist > self.range" in src:
+                edits.append(FileEdit(file_path, "dist > self.range", "dist <= self.range"))
+                diag = "Range filtering logic inverted/exceeded."
+                inv = "Targeting checks must operate within radius (dist <= range)."
+            elif "dist > range" in src:
+                edits.append(FileEdit(file_path, "dist > range", "dist <= range"))
+
+            # 9. Rhythm / Timing symmetric bounds
+            if "diff <= self.perfect_window" in src and "-self.perfect_window" not in src:
+                for line in src.splitlines():
+                    if (
+                        "diff <= self.perfect_window" in line
+                        and "diff >=" not in line
+                        and not line.strip().startswith("#")
+                    ):
+                        indent = line[: len(line) - len(line.lstrip())]
+                        edits.append(
+                            FileEdit(
+                                file_path,
+                                line,
+                                f"{indent}if -self.perfect_window <= diff <= self.perfect_window:",
+                            )
+                        )
+                        break
+            if "diff <= self.good_window" in src and "-self.good_window" not in src:
+                for line in src.splitlines():
+                    if (
+                        "diff <= self.good_window" in line
+                        and "diff >=" not in line
+                        and not line.strip().startswith("#")
+                    ):
+                        indent = line[: len(line) - len(line.lstrip())]
+                        edits.append(
+                            FileEdit(
+                                file_path,
+                                line,
+                                f"{indent}elif -self.good_window <= diff <= self.good_window:",
+                            )
+                        )
+                        break
 
             # Timer decrement omissions (e.g. coyote timer)
             if "coyote_timer" in src and "self.coyote_timer = max(0.0" not in src:
@@ -488,12 +544,17 @@ class ModelGameDevReasoner:
                 )
                 inv = "Building footprints cannot intersect existing buildings."
 
+        target_files = (
+            tuple(dict.fromkeys(e.file_path for e in edits))
+            if edits
+            else tuple(f for f in context.target_files if "test" not in f)
+        )
         return RepairProposal(
             proposal_id="prop_cognitive_diag",
             diagnosis=diag,
             violated_invariant=inv,
             root_cause="Domain logic deviation detected from test failure telemetry.",
-            target_files=tuple(context.target_files),
+            target_files=target_files,
             edits=tuple(edits),
             rationale=(
                 "Apply cognitive patch targeting implementation source to satisfy invariants."

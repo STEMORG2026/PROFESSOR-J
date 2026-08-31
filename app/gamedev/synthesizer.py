@@ -16,14 +16,18 @@ import logging
 from app.domain.gamedev import (
     GameArchitecturePattern,
     GameComponentSpec,
+    GameGenre,
+    GameProjectModel,
     GameSystemSpec,
     GameSystemType,
+    SynthesisManifest,
 )
 from app.gamedev.reasoner import (
     CognitiveContext,
     GameDevReasoner,
     ModelGameDevReasoner,
 )
+from app.gamedev.schema import StateSchema
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +75,55 @@ class SystemSynthesizer:
             emitted_events=sys_spec.events,
             invariants=sys_spec.invariants,
             metadata=sys_spec.metadata,
+        )
+
+    def create_manifest(
+        self,
+        spec: GameSystemSpec,
+        project_model: GameProjectModel | None = None,
+    ) -> SynthesisManifest:
+        """Construct machine-readable SynthesisManifest."""
+        sys_name = spec.system_name
+        model = project_model or GameProjectModel(
+            project_name=sys_name,
+            root_dir=f"systems/{sys_name.lower()}",
+            architecture_pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+            detected_systems=(sys_name,),
+            state_models=(f"{sys_name}State",),
+            intent_handlers=spec.intents,
+            events_emitted=spec.events,
+            source_files=spec.source_files,
+            test_files=spec.test_files,
+            schema_version=1,
+        )
+        schema = StateSchema(
+            schema_version=1,
+            fields=spec.state_fields,
+            defaults=spec.state_defaults,
+        )
+        return SynthesisManifest(
+            manifest_id=f"manifest_{sys_name.lower()}",
+            title=sys_name,
+            genre=GameGenre.BOARD_GAME,
+            project_model=model,
+            state_schema=schema,
+            intent_definitions=spec.intents,
+            event_definitions=spec.events,
+            system_definitions=(sys_name,),
+            dependency_graph={sys_name: spec.dependencies},
+            invariant_set=spec.invariants,
+            execution_model="deterministic_command_dispatch",
+            test_plan=(
+                f"test_{sys_name.lower()}_initialization",
+                f"test_{sys_name.lower()}_intent_dispatch_success",
+                f"test_{sys_name.lower()}_unregistered_intent_rejection",
+                f"test_{sys_name.lower()}_invariants",
+            ),
+            verification_plan=(
+                "headless_sandbox_test",
+                "ast_purity_audit",
+                "deterministic_replay",
+            ),
         )
 
     def generate_system_code(self, spec: GameSystemSpec) -> dict[str, str]:
@@ -173,7 +226,7 @@ class {sys_name}:
         return files
 
     def generate_system_tests(self, spec: GameSystemSpec) -> dict[str, str]:
-        """Generate comprehensive unit and invariant tests."""
+        """Generate test suite asserting initialization, intent dispatch, and invariants."""
         sys_name = spec.system_name
         module_name = sys_name.lower()
 

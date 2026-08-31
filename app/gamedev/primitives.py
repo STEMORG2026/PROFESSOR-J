@@ -286,10 +286,156 @@ class ExecutionTracer:
         )
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 5. Spatial Coordinate & Motion Primitives
+# ──────────────────────────────────────────────────────────────────────────────
+@dataclass(frozen=True, slots=True)
+class Position2D:
+    """2D continuous point position."""
+
+    x: float
+    y: float
+
+    def distance_to(self, other: Position2D) -> float:
+        return math.hypot(self.x - other.x, self.y - other.y)
+
+    def to_tuple(self) -> tuple[float, float]:
+        return (self.x, self.y)
+
+
+@dataclass(frozen=True, slots=True)
+class Velocity2D:
+    """2D continuous velocity."""
+
+    vx: float
+    vy: float
+
+    @property
+    def speed(self) -> float:
+        return math.hypot(self.vx, self.vy)
+
+    def apply(self, pos: Position2D, dt: float) -> Position2D:
+        return Position2D(pos.x + self.vx * dt, pos.y + self.vy * dt)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 6. EntityRegistry (Stable Entity Identification & Lifecycle)
+# ──────────────────────────────────────────────────────────────────────────────
+class EntityRegistry:
+    """Stable entity registry and lifecycle management primitive."""
+
+    def __init__(self) -> None:
+        self._entities: dict[str, dict[str, Any]] = {}
+        self._dead_entities: set[str] = set()
+        self._counter: int = 0
+
+    def spawn(
+        self,
+        entity_type: str,
+        data: dict[str, Any] | None = None,
+        entity_id: str | None = None,
+    ) -> str:
+        """Spawn a new entity with a unique stable identifier."""
+        if entity_id:
+            if entity_id in self._entities:
+                raise ValueError(f"Entity ID '{entity_id}' is already alive")
+            if entity_id in self._dead_entities:
+                raise ValueError(
+                    f"Entity ID '{entity_id}' was previously despawned and cannot be reused"
+                )
+            e_id = entity_id
+        else:
+            self._counter += 1
+            e_id = f"ent_{entity_type}_{self._counter}"
+            while e_id in self._entities or e_id in self._dead_entities:
+                self._counter += 1
+                e_id = f"ent_{entity_type}_{self._counter}"
+
+        record = {
+            "id": e_id,
+            "type": entity_type,
+            "data": dict(data or {}),
+            "created_at_counter": self._counter,
+        }
+        self._entities[e_id] = record
+        return e_id
+
+    def despawn(self, entity_id: str) -> bool:
+        """Despawn an active entity. Returns True if despawned, False if not found."""
+        if entity_id not in self._entities:
+            return False
+        del self._entities[entity_id]
+        self._dead_entities.add(entity_id)
+        return True
+
+    def get(self, entity_id: str) -> dict[str, Any] | None:
+        """Retrieve entity state if alive."""
+        ent = self._entities.get(entity_id)
+        return dict(ent["data"]) if ent else None
+
+    def get_record(self, entity_id: str) -> dict[str, Any] | None:
+        """Retrieve full entity record (id, type, data) if alive."""
+        return dict(self._entities[entity_id]) if entity_id in self._entities else None
+
+    def update_data(self, entity_id: str, updates: dict[str, Any]) -> bool:
+        """Update mutable data of an active entity."""
+        if entity_id not in self._entities:
+            return False
+        self._entities[entity_id]["data"].update(updates)
+        return True
+
+    def is_alive(self, entity_id: str) -> bool:
+        """Check if entity is active and not despawned."""
+        return entity_id in self._entities
+
+    def query(
+        self,
+        entity_type: str | None = None,
+        required_fields: Sequence[str] = (),
+    ) -> list[str]:
+        """Query active entity IDs by type and/or data fields."""
+        results: list[str] = []
+        for e_id, rec in self._entities.items():
+            if entity_type is not None and rec["type"] != entity_type:
+                continue
+            data = rec["data"]
+            if all(f in data for f in required_fields):
+                results.append(e_id)
+        return results
+
+    @property
+    def active_count(self) -> int:
+        return len(self._entities)
+
+    @property
+    def all_ids(self) -> list[str]:
+        return list(self._entities.keys())
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize registry state."""
+        return {
+            "entities": {k: dict(v) for k, v in self._entities.items()},
+            "dead_entities": sorted(self._dead_entities),
+            "counter": self._counter,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EntityRegistry:
+        """Deserialize registry state."""
+        reg = cls()
+        reg._entities = {k: dict(v) for k, v in data.get("entities", {}).items()}
+        reg._dead_entities = set(data.get("dead_entities", []))
+        reg._counter = int(data.get("counter", 0))
+        return reg
+
+
 __all__ = [
     "FlowResource",
     "BoundingBox2D",
     "ContinuousSpace2D",
+    "Position2D",
+    "Velocity2D",
     "SeededPRNGStream",
     "ExecutionTracer",
+    "EntityRegistry",
 ]
