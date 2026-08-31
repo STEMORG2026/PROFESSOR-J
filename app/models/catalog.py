@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from app.models.providers import LLMProvider, MockProvider
+from app.models.real_providers import register_all_providers
 
 logger = logging.getLogger(__name__)
 
@@ -49,4 +50,6 @@ def default_catalog() -> ProviderCatalog:
     catalog = ProviderCatalog()
     # Local inference options (no API key required).
     catalog.register(MockProvider(name="mock", model="mock-model"))
+    # Register all available real providers (respects environment variables).
+    register_all_providers(catalog)
     return catalog

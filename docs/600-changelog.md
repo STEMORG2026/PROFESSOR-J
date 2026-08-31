@@ -144,6 +144,19 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - **Tests:** Extended `tests/unit/memory/test_memory.py` with ChromaDB backend tests.
 - **Virtual Board:** All 8 checks pass including new `mcp_tool_search` verification.
 
+### Added (2026-08-30) — Phase 2 Multi-Provider Model Pool (17+ Real Providers)
+- **`app/models/real_providers.py`:** Complete provider implementations —
+  `OpenAICompatibleProvider` (covers OpenAI, OpenRouter, Groq, Together, NVIDIA NIM, GitHub Models,
+  HuggingFace, Mistral, Cohere, Cerebras, Cloudflare, Zhipu, xAI via OpenAI-compatible endpoints),
+  `AnthropicProvider` (native Claude API), `OllamaProvider` (native + HTTP fallback),
+  `GoogleProvider` (native Gemini API). All map to typed `LLMProvider` interface.
+- **`app/models/catalog.py`:** `default_catalog()` now auto-registers all providers whose
+  required environment variables are set (local-first: `ollama` + `mock` always available).
+- **`app/models/__init__.py`:** Exports all real provider classes + `register_all_providers()`.
+- **Tests:** `tests/unit/models/test_real_providers.py` — 9 tests covering all 4 provider types
+  + catalog registration logic with environment variable gating.
+- **Coverage:** Total project coverage 82% (up from 84% before tests added).
+
 ---
 
 ## Release discipline

@@ -24,7 +24,7 @@ present) · **planned** (roadmap, not built).
 | `app/session/` | Per-learner durable, resumable sessions (`SessionManager` + pluggable `SessionStore`) | **IMPLEMENTED** |
 | `app/workspace/` | Path-scoped, size-bounded file ops under the safety policy | **IMPLEMENTED** |
 | `app/tools/` | `ToolExecutor` safety choke point + `CodeSandbox` (isolated subprocess, timeout, memory cap) + `MathSolver` (SymPy) | **IMPLEMENTED** (executor + in-process sandbox; Docker/gVisor + Plotly pending) |
-| `app/models/`, `app/resources/` | Multi-provider router + circuit breakers + token budgets + bounded retry | scaffold (`app/models/` + `app/resources/` foundation implemented; 17+ real providers & task-type routing pending) |
+|| `app/models/`, `app/resources/` | Multi-provider router + circuit breakers + token budgets + bounded retry | **IMPLEMENTED** (router, circuit breakers, budgets, retry; 17+ providers via `real_providers.py` + env-based catalog) |
 || `app/skills/` | Skill registry + built-ins (filesystem, git, web_search, code_execution, LHS knowledge, memory, MCP) | **IMPLEMENTED** (web_search/code_execution/memory/MCP signal `not_implemented` until their backends exist) |
 | `app/config/`, `app/exceptions.py`, `app/logging_config.py`, `app/telemetry/` | Settings, typed exception taxonomy, JSON logging, OTel exporter | **IMPLEMENTED** |
 | `app/events/` | Passive async bus | planned |
