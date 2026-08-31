@@ -26,6 +26,10 @@ authoritative for work inside PROFESSOR-J.
 11. **`docs/WORKING-PROCEDURE.md`** — how work gets done.
 12. **`docs/`** — Project Operating System foundation documents (start at
     `docs/100-identity.md`).
+13. **`docs/650-workspace-operations.md`** — PROFESSOR-J's workspace/umbrella awareness
+    record (the environment it governs, cross-repo seams, how to work across the
+    ecosystem). Read this when doing development work outside this repo or for
+    workspace-level context.
 
 ---
 
