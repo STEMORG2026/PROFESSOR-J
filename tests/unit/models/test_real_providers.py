@@ -120,6 +120,27 @@ class TestOllamaProvider:
             assert result.provider == "ollama"
 
 
+class TestRegisterAllProviders:
+    def test_register_all_providers(self) -> None:
+        catalog = ProviderCatalog()
+        register_all_providers(catalog)
+
+        # At minimum, ollama should always be registered (no API key needed)
+        assert "ollama" in catalog.names()
+
+    def test_register_providers_with_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Set some env vars to trigger cloud provider registration
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+
+        catalog = ProviderCatalog()
+        register_all_providers(catalog)
+
+        assert "ollama" in catalog.names()
+        assert "openai" in catalog.names()
+        assert "anthropic" in catalog.names()
+
+
 class TestGoogleProvider:
     @pytest.fixture
     def provider(self) -> GoogleProvider:
@@ -149,26 +170,52 @@ class TestGoogleProvider:
             assert result.completion_tokens == 6
             assert result.total_tokens == 18
 
+    @pytest.mark.asyncio
+    async def test_system_message_prepended_to_first_user_message(
+        self, provider: GoogleProvider
+    ) -> None:
+        """System messages should be prepended to the FIRST user message, not the last."""
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {
+                "candidates": [{"content": {"parts": [{"text": "Gemini response"}]}}],
+                "usageMetadata": {
+                    "promptTokenCount": 12,
+                    "candidatesTokenCount": 6,
+                    "totalTokenCount": 18,
+                },
+            }
+            mock_post.return_value = mock_resp
 
-class TestRegisterAllProviders:
-    def test_register_all_providers(self) -> None:
-        catalog = ProviderCatalog()
-        register_all_providers(catalog)
+            # System message followed by two user messages
+            # System prompt should be prepended to the FIRST user message
+            messages = [
+                LLMMessage(role="system", content="You are a helpful assistant."),
+                LLMMessage(role="user", content="First question"),
+                LLMMessage(role="user", content="Second question"),
+            ]
+            result = await provider.complete(messages)
+            assert result.text == "Gemini response"
 
-        # At minimum, ollama should always be registered (no API key needed)
-        assert "ollama" in catalog.names()
+            # Verify the request payload sent to the API
+            call_args = mock_post.call_args
+            payload = call_args.kwargs.get("json", {})
+            contents = payload.get("contents", [])
 
-    def test_register_providers_with_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Set some env vars to trigger cloud provider registration
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+            # Should have 2 user messages (system prepended to first)
+            user_messages = [c for c in contents if c.get("role") == "user"]
+            assert len(user_messages) == 2
 
-        catalog = ProviderCatalog()
-        register_all_providers(catalog)
+            # First user message should have system prompt prepended
+            first_user = user_messages[0]
+            assert "You are a helpful assistant." in first_user["parts"][0]["text"]
+            assert "First question" in first_user["parts"][0]["text"]
 
-        assert "ollama" in catalog.names()
-        assert "openai" in catalog.names()
-        assert "anthropic" in catalog.names()
+            # Second user message should NOT have system prompt
+            second_user = user_messages[1]
+            assert "You are a helpful assistant." not in second_user["parts"][0]["text"]
+            assert "Second question" in second_user["parts"][0]["text"]
 
 
 class TestDefaultCatalog:

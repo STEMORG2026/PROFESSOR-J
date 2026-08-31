@@ -298,18 +298,25 @@ class GoogleProvider(LLMProvider):
     async def complete(self, messages: list[LLMMessage], **kwargs: Any) -> LLMResult:
         # Convert to Gemini format
         contents: list[dict[str, Any]] = []
+        system_prompt = None
         for m in messages:
             role = "model" if m.role == "assistant" else "user"
             if m.role == "system":
-                # Prepend system to first user message
-                if contents and contents[-1]["role"] == "user":
-                    contents[-1]["parts"][0]["text"] = (
-                        m.content + "\n\n" + contents[-1]["parts"][0]["text"]
-                    )
-                else:
-                    contents.insert(0, {"role": "user", "parts": [{"text": m.content}]})
+                # Store system prompt to prepend to first user message
+                system_prompt = m.content
             else:
                 contents.append({"role": role, "parts": [{"text": m.content}]})
+
+        # Prepend system prompt to first user message if exists
+        if system_prompt is not None and contents:
+            first_user_idx = next((i for i, c in enumerate(contents) if c["role"] == "user"), None)
+            if first_user_idx is not None:
+                contents[first_user_idx]["parts"][0]["text"] = (
+                    system_prompt + "\n\n" + contents[first_user_idx]["parts"][0]["text"]
+                )
+            else:
+                # No user message, prepend as first user message
+                contents.insert(0, {"role": "user", "parts": [{"text": system_prompt}]})
 
         payload: dict[str, Any] = {
             "contents": contents,
