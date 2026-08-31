@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from app.authority.policy import default_register_policy
 from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
 from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
@@ -89,7 +90,14 @@ def build_root(
 
     workspace = WorkspaceManager(workspace_root)
     policy = SafetyPolicy(approval_callback=None)
-    tools = ToolExecutor(policy)
+    # Phase 2: the composition root is the BLESSED registrar — it may provision the standard
+    # toolset (incl. DESTRUCTIVE sandbox tools). Any later, non-blessed registration (agent or
+    # skill self-registration) is denied by the default registration policy.
+    tools = ToolExecutor(
+        policy,
+        register_policy=default_register_policy,
+        blessed_registrar=True,
+    )
     tools.register_sandbox_tools()
     tools.register_gamedev_tools(gamedev, workspace)
 

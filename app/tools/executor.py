@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from app.domain.gamedev import EngineTarget
 from app.domain.tool import SafetyTier
-from app.exceptions import ProfessorError
+from app.exceptions import CapabilityRegistrationError, ProfessorError
 from app.guardrails.policy import SafetyPolicy
 from app.tools.sandbox import CodeSandbox, MathSolver
 
@@ -54,12 +54,38 @@ class RegisteredTool:
 class ToolExecutor:
     """Dispatch table + safety gate for tool execution."""
 
-    def __init__(self, policy: SafetyPolicy | None = None) -> None:
+    def __init__(
+        self,
+        policy: SafetyPolicy | None = None,
+        *,
+        register_policy: Callable[..., bool] | None = None,
+        blessed_registrar: bool = False,
+    ) -> None:
         self.policy = policy or SafetyPolicy(approval_callback=None)
         self._tools: dict[str, RegisteredTool] = {}
+        # Optional guard on capability registration (Phase 2). When set, it is consulted
+        # before a tool may be registered; a False return denies registration.
+        # `blessed_registrar` marks the composition root, which may register DESTRUCTIVE tools.
+        self._register_policy: Callable[..., bool] | None = register_policy
+        self._blessed_registrar = blessed_registrar
+
+    def _check_register(self, name: str, tier: SafetyTier, description: str) -> None:
+        """Consult the registration policy (if any) and deny with a typed error on refusal."""
+        if self._register_policy is None:
+            return
+        allowed = self._register_policy(name, tier, self._blessed_registrar)
+        if not allowed:
+            raise CapabilityRegistrationError(
+                capability=name,
+                reason=(
+                    f"tier {tier.value} is not permitted for a non-blessed registrar "
+                    "(DESTRUCTIVE self-registration denied)"
+                ),
+            )
 
     def register(self, tool: RegisteredTool) -> None:
-        """Register a tool for dispatch."""
+        """Register a tool for dispatch (gated by the optional registration policy)."""
+        self._check_register(tool.name, tool.tier, tool.description)
         self._tools[tool.name] = tool
 
     def register_fn(

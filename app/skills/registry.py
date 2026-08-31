@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from app.domain.time import utc_now
+from app.exceptions import CapabilityRegistrationError
 from app.skills.base import Skill, SkillMetadata, SkillResult
 
 logger = logging.getLogger(__name__)
@@ -16,16 +18,39 @@ logger = logging.getLogger(__name__)
 class SkillRegistry:
     """Central registry for skill discovery and management."""
 
-    def __init__(self, skills_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        skills_dir: Path | None = None,
+        *,
+        register_policy: Callable[[str, str], bool] | None = None,
+    ) -> None:
         self._skills: dict[str, Skill[Any]] = {}
         self._metadata: dict[str, SkillMetadata] = {}
         self._skills_dir = skills_dir or Path("data/skills")
         self._skills_dir.mkdir(parents=True, exist_ok=True)
+        # Optional guard on capability registration (Phase 2). Consulted before a skill is
+        # registered; a False return denies registration. Mirrors ToolExecutor's policy seam.
+        self._register_policy: Callable[[str, str], bool] | None = register_policy
 
-    def register(self, skill: Skill[Any]) -> None:
-        """Register a skill instance."""
+    def register(self, skill: Skill[Any], *, overwrite: bool = False) -> None:
+        """Register a skill instance (gated by the optional registration policy).
+
+        Raises CapabilityRegistrationError if the registration policy denies, or if a skill
+        with the same name already exists and `overwrite` is not set (no silent overwrite).
+        """
         name = skill.metadata.name
-        if name in self._skills:
+        category = skill.metadata.category
+        if self._register_policy is not None and not self._register_policy(name, category):
+            raise CapabilityRegistrationError(
+                capability=name,
+                reason="denied by skill registration policy",
+            )
+        if name in self._skills and not overwrite:
+            raise CapabilityRegistrationError(
+                capability=name,
+                reason="skill already registered; pass overwrite=True to replace",
+            )
+        if overwrite and name in self._skills:
             logger.warning("Overwriting existing skill: %s", name)
         self._skills[name] = skill
         self._metadata[name] = skill.metadata
@@ -109,7 +134,9 @@ class SkillRegistry:
             metadata_dict = data.get("metadata", {})
             metadata = SkillMetadata(**metadata_dict)
             skill = skill_class(metadata=metadata)
-            self.register(skill)
+            # Loading from disk is safe rehydration (not capability self-granting), so it may
+            # overwrite an in-memory instance of the same skill.
+            self.register(skill, overwrite=True)
             return skill
         except Exception as e:
             logger.error("Failed to load skill %s: %s", skill_name, e)
