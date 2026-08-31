@@ -220,10 +220,10 @@ class OllamaProvider(LLMProvider):
     async def complete(self, messages: list[LLMMessage], **kwargs: Any) -> LLMResult:
         # Try native ollama client first, fall back to OpenAI-compatible endpoint
         try:
-            import ollama  # type: ignore[import-not-found]
+            import ollama
 
-            client = ollama.Client(host=self.base_url)
-            response = client.chat(
+            ollama_client = ollama.Client(host=self.base_url)
+            response = ollama_client.chat(
                 model=self.model,
                 messages=[{"role": m.role, "content": m.content} for m in messages],
             )
@@ -245,8 +245,8 @@ class OllamaProvider(LLMProvider):
         payload.update(kwargs.get("params", {}))
 
         try:
-            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                resp = await client.post(
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as http_client:
+                resp = await http_client.post(
                     url, json=payload, headers={"Content-Type": "application/json"}
                 )
         except httpx.TimeoutException as e:
