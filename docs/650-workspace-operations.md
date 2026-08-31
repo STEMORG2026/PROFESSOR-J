@@ -77,6 +77,13 @@ Layer 5  Artifacts / running systems
   JARVIS frozen: implementer+code-reviewer at T1). Pool files are signed (root-of-trust) and
   `verify_governance.py` `check_agent_pool()` gates them. PROFESSOR-J is allocated the full specialist
   set — it is the primary agent that draws from this pool for development work.
+- **Phase 4 in progress (shared infra contracts)** — workspace-sided increment merged: the LHS
+  `exports/knowledge.json` (consumed by PROFESSOR-J `app/knowledge/lhs_adapter.py` and STEM-TUITION
+  `apps/shell/src/lib/lhs-adapter.ts`) now has a signed digest contract via
+  `authority/exports-manifest.yaml` + `scripts/verify_export_contract.py`. `--record` is hard-blocked
+  unless LearningHubSTEM `validate.py` passes (ADR-002: never pin over an invalid tree). LHS is
+  currently in flux (in-progress untracked content fails validate), so the digest is unpinned and the
+  gate surfaces drift as a warning. Stage B (in-repo signing) is deferred until LHS stabilizes.
 
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
