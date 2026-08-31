@@ -1,0 +1,11 @@
+title = "PROFESSOR-J Gitleaks Configuration"
+
+[allowlist]
+description = "Allowlist for known test fixtures and false positives"
+paths = [
+    "tests/**/*",
+]
+# Allow test assertions with REDACTED placeholder
+regexes = [
+    '''REDACTED''',
+]
