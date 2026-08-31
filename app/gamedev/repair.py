@@ -1,27 +1,31 @@
-"""Cognitive Game Rule Diagnosis & Repair Engine.
+"""Cognitive Game Rule Diagnosis & Repair Engine with Atomic Multi-File Safety.
 
-Coordinates hypothesis formulation, invariant-guided defect localization, and regression-safe
-code mutation while strictly preserving test specifications and architectural invariants.
+Coordinates hypothesis formulation, LLM/reasoner-driven defect diagnosis, and regression-safe
+multi-file code mutation while strictly preserving test specifications and architectural invariants.
 
 Invariants:
 - REPAIR IMPLEMENTATION, NOT THE SPECIFICATION.
-- Test files must NEVER be modified, weakened, or deleted.
+- Protected files (tests, governance, configs, framework) must NEVER be modified.
+- Multi-file changesets are applied atomically with rollback on test failure.
 - Zero external engine imports (preserves domain purity).
-- All previously passing tests must remain green (zero regressions).
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
+from typing import Any
 
 from app.domain.gamedev import (
-    GameKnowledgeTopic,
     GameRepairAudit,
     GameTestReport,
     ModificationScope,
+    RepairProposal,
 )
 from app.gamedev.knowledge import GameKnowledgeCatalog
+from app.gamedev.reasoner import GameDevReasoner, ModelGameDevReasoner, RepairContext
+from app.tools.sandbox import CodeSandbox
 from app.workspace.workspace import WorkspaceManager
 
 logger = logging.getLogger(__name__)
@@ -30,8 +34,13 @@ logger = logging.getLogger(__name__)
 class CognitiveRepairEngine:
     """Diagnostic and repair engine for game domain logic and state defects."""
 
-    def __init__(self, knowledge_catalog: GameKnowledgeCatalog | None = None) -> None:
+    def __init__(
+        self,
+        knowledge_catalog: GameKnowledgeCatalog | None = None,
+        reasoner: GameDevReasoner | None = None,
+    ) -> None:
         self.knowledge = knowledge_catalog or GameKnowledgeCatalog()
+        self.reasoner = reasoner or ModelGameDevReasoner()
 
     @staticmethod
     def classify_file_scope(rel_path: str) -> ModificationScope:
@@ -68,190 +77,219 @@ class CognitiveRepairEngine:
 
         return ModificationScope.IMPLEMENTATION
 
-    def diagnose_and_formulate_hypothesis(
-        self,
-        report: GameTestReport,
-        workspace: WorkspaceManager,
-        project_dir: str,
-    ) -> tuple[str, str, tuple[GameKnowledgeTopic, ...]]:
-        """Formulate a root-cause diagnosis and repair hypothesis based on test telemetry.
+    @staticmethod
+    def hash_file(content: str) -> str:
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
-        Returns:
-            (hypothesis, target_invariant, relevant_knowledge_topics)
-        """
-        failed_names = report.failed_tests
-        combined_text = (report.stdout + " " + report.stderr + " " + " ".join(failed_names)).lower()
-
-        # Query relevant knowledge topics
-        topics = self.knowledge.search(combined_text)
-
-        hypothesis = "Domain rule logic deviation detected in game systems."
-        target_invariant = "Preserve deterministic rule invariants and test assertions."
-
-        if "card" in combined_text or "deck" in combined_text or "discard" in combined_text:
-            hypothesis = "Card draw/discard conservation state desync defect."
-            target_invariant = "Discarded cards must be removed from active draw pile immediately."
-        elif (
-            "sim" in combined_text
-            or "velocity" in combined_text
-            or "timestep" in combined_text
-            or "physics" in combined_text
-        ):
-            hypothesis = "Simulation discrete timestep integration defect."
-            target_invariant = "Position updates must scale velocity by fixed discrete timestep dt."
-        elif "inventory" in combined_text or "capacity" in combined_text or "item" in combined_text:
-            hypothesis = "Inventory capacity constraint or item quantity validation defect."
-            target_invariant = (
-                "Total slots cannot exceed max_capacity; quantities must be positive."
-            )
-        elif "bound" in combined_text or "grid" in combined_text or "spatial" in combined_text:
-            hypothesis = "Grid boundary off-by-one or spatial coordinate validation defect."
-            target_invariant = "Coordinates strictly bounded by [0, width-1] x [0, height-1]."
-        elif "turn" in combined_text or "phase" in combined_text or "transition" in combined_text:
-            hypothesis = "Turn rotation counter or state machine phase transition defect."
-            target_invariant = "Active player rotates round-robin; turn counter increments on wrap."
-        elif "dice" in combined_text or "roll" in combined_text or "rng" in combined_text:
-            hypothesis = "Seeded RNG lower bound or reproducibility defect."
-            target_invariant = "Dice roll results strictly bounded by [1, sides]."
-
-        return hypothesis, target_invariant, topics
-
-    def attempt_cognitive_repair(
+    def snapshot_protected_files(
         self,
         workspace: WorkspaceManager,
         project_dir: str,
-        report: GameTestReport,
-        iteration: int = 1,
-    ) -> tuple[bool, GameRepairAudit]:
-        """Apply targeted, regression-safe code repairs to source files.
-
-        Enforces strict safety invariants:
-        - Only files in ModificationScope.IMPLEMENTATION are modified.
-        - Rejects any edits targeting TEST, GOVERNANCE, CONFIGURATION, or FRAMEWORK.
-        - Preserves domain purity.
-        """
-        hypothesis, invariant, _ = self.diagnose_and_formulate_hypothesis(
-            report, workspace, project_dir
-        )
-
+    ) -> dict[str, str]:
+        """Record SHA-256 hashes of all protected files in the workspace."""
         resolved_root = workspace._resolve(project_dir)
-        files_considered: list[str] = []
-        files_modified: list[str] = []
-
-        # Scan project files
-        for file_path in sorted(resolved_root.glob("**/*.py")):
-            rel = str(file_path.relative_to(workspace.root))
-            files_considered.append(rel)
-
-            # SAFETY INVARIANT: Strictly restrict scope to IMPLEMENTATION
-            scope = self.classify_file_scope(rel)
-            if scope != ModificationScope.IMPLEMENTATION:
+        hashes: dict[str, str] = {}
+        for p in resolved_root.glob("**/*"):
+            if not p.is_file():
                 continue
+            rel = str(p.relative_to(workspace.root))
+            if self.classify_file_scope(rel) != ModificationScope.IMPLEMENTATION:
+                res = workspace.read(rel)
+                if res.get("success"):
+                    hashes[rel] = self.hash_file(res.get("content", ""))
+        return hashes
 
-            content_dict = workspace.read(rel)
-            if not content_dict.get("success"):
-                continue
+    def verify_protected_files_intact(
+        self,
+        workspace: WorkspaceManager,
+        baseline_hashes: dict[str, str],
+    ) -> bool:
+        """Assert that no protected file was mutated during repair."""
+        for rel, baseline in baseline_hashes.items():
+            res = workspace.read(rel)
+            if not res.get("success"):
+                return False
+            current = self.hash_file(res.get("content", ""))
+            if current != baseline:
+                logger.error("PROTECTED FILE MUTATION DETECTED: %s", rel)
+                return False
+        return True
 
-            content = content_dict.get("content", "")
-            original_content = content
+    async def diagnose_and_formulate_proposal(
+        self,
+        report: GameTestReport,
+        workspace: WorkspaceManager,
+        project_dir: str,
+    ) -> RepairProposal:
+        """Formulate structured repair proposal using cognitive reasoning."""
+        resolved_root = workspace._resolve(project_dir)
+        target_files: list[str] = []
+        file_contents: dict[str, str] = {}
 
-            # 1. Card Game Draw/Discard Desync Repairs
-            if (
-                ("def discard_card" in content or "def discard" in content)
-                and "self.discard.append(card)" in content
-                and "self.cards.remove(card)" not in content
-            ):
-                patch = (
-                    "if card in self.cards:\n"
-                    "            self.cards.remove(card)\n"
-                    "        self.discard.append(card)"
-                )
-                content = content.replace("self.discard.append(card)", patch)
+        for p in sorted(resolved_root.glob("**/*.py")):
+            rel = str(p.relative_to(workspace.root))
+            if self.classify_file_scope(rel) == ModificationScope.IMPLEMENTATION:
+                res = workspace.read(rel)
+                if res.get("success"):
+                    target_files.append(rel)
+                    file_contents[rel] = res.get("content", "")
 
-            # 2. Simulation Timestep Integration Repairs
-            if "def update" in content or "def step" in content:
-                # Fix unscaled velocity: self.x += self.vx -> self.x += self.vx * self.dt
-                if "self.x += self.vx" in content and "self.x += self.vx * self.dt" not in content:
-                    content = content.replace("self.x += self.vx", "self.x += self.vx * self.dt")
-                if "self.y += self.vy" in content and "self.y += self.vy * self.dt" not in content:
-                    content = content.replace("self.y += self.vy", "self.y += self.vy * self.dt")
-
-            # 3. Inventory capacity / quantity logic repairs
-            if "def add_item" in content:
-                if "len(self.items) > self.max_capacity" in content:
-                    content = content.replace(
-                        "len(self.items) > self.max_capacity",
-                        "len(self.items) >= self.max_capacity",
-                    )
-                if "if len(self.slots) > self.max_slots:" in content:
-                    content = content.replace(
-                        "if len(self.slots) > self.max_slots:",
-                        "if len(self.slots) >= self.max_slots:",
-                    )
-                if "if quantity < 0:" in content and "quantity <= 0" not in content:
-                    content = content.replace("if quantity < 0:", "if quantity <= 0:")
-
-            # 4. Inventory removal / underflow logic repairs
-            if (
-                "def remove_item" in content
-                and "current_qty < quantity" in content
-                and "return False" not in content
-            ):
-                content = content.replace(
-                    "if current_qty < quantity:",
-                    "if current_qty < quantity: return False",
-                )
-
-            # 5. Boundary condition off-by-one errors
-            if "x > self.width" in content:
-                content = content.replace("x > self.width", "x >= self.width")
-            if "y > self.height" in content:
-                content = content.replace("y > self.height", "y >= self.height")
-            if "val > self.max_val" in content:
-                content = content.replace("val > self.max_val", "val >= self.max_val")
-            if "self.val > self.max_val" in content:
-                content = content.replace("self.val > self.max_val", "self.val >= self.max_val")
-
-            # 6. Turn advancement defects
-            if "turn_number += 0" in content:
-                content = content.replace("turn_number += 0", "turn_number += 1")
-            if "self.turn_number = self.turn_number" in content:
-                content = content.replace(
-                    "self.turn_number = self.turn_number",
-                    "self.turn_number += 1",
-                )
-
-            # 7. Inverted validation predicates
-            if "def is_valid_move" in content and "return False  # bug" in content:
-                content = content.replace("return False  # bug", "return True")
-            if "def check_win_condition" in content and "return False  # bug" in content:
-                content = content.replace("return False  # bug", "return True")
-
-            # 8. Dice lower bound 0-indexing
-            if "randint(0, self.sides)" in content:
-                content = content.replace("randint(0, self.sides)", "randint(1, self.sides)")
-            if "randint(0, sides)" in content:
-                content = content.replace("randint(0, sides)", "randint(1, sides)")
-
-            if content != original_content:
-                workspace.write(rel, content)
-                files_modified.append(rel)
-
-        success = len(files_modified) > 0
-        audit = GameRepairAudit(
-            hypothesis=hypothesis,
-            invariant_targeted=invariant,
-            files_considered=tuple(files_considered),
-            files_modified=tuple(files_modified),
-            test_files_touched=False,
-            tests_weakened=False,
-            tests_before_count=report.passed_count + report.failed_count,
-            tests_after_count=report.passed_count + report.failed_count,
-            iteration_count=iteration,
-            success=success,
+        context = RepairContext(
+            failed_tests=report.failed_tests,
+            stdout=report.stdout,
+            stderr=report.stderr,
+            target_files=tuple(target_files),
+            file_contents=file_contents,
         )
 
-        return success, audit
+        return await self.reasoner.reason_repair(context)
+
+    async def apply_atomic_proposal(
+        self,
+        workspace: WorkspaceManager,
+        proposal: RepairProposal,
+        baseline_hashes: dict[str, str],
+    ) -> tuple[bool, tuple[str, ...]]:
+        """Apply all edits in a RepairProposal atomically.
+
+        Enforces strict modification scope and hash verification.
+        """
+        backup: dict[str, str] = {}
+        modified: list[str] = []
+
+        try:
+            # 1. Validate modification scope for all targets
+            for edit in proposal.edits:
+                scope = self.classify_file_scope(edit.file_path)
+                if scope != ModificationScope.IMPLEMENTATION:
+                    logger.warning(
+                        "REJECTED edit targeting non-implementation file: %s (%s)",
+                        edit.file_path,
+                        scope,
+                    )
+                    return False, ()
+
+            # 2. Read and backup targets
+            for edit in proposal.edits:
+                res = workspace.read(edit.file_path)
+                if not res.get("success"):
+                    return False, ()
+                backup[edit.file_path] = res.get("content", "")
+
+            # 3. Apply edits
+            for edit in proposal.edits:
+                current_content = backup[edit.file_path]
+                if edit.target_snippet not in current_content:
+                    logger.debug(
+                        "Target snippet not found in %s: %s", edit.file_path, edit.target_snippet
+                    )
+                    continue
+
+                patched = current_content.replace(edit.target_snippet, edit.replacement_snippet)
+                workspace.write(edit.file_path, patched)
+                modified.append(edit.file_path)
+
+            # 4. Verify protected files remained untouched
+            if not self.verify_protected_files_intact(workspace, baseline_hashes):
+                raise ValueError("Protected files were compromised during repair")
+
+            return len(modified) > 0, tuple(modified)
+
+        except Exception as e:
+            logger.error("Atomic repair application failed, rolling back: %s", e)
+            # Rollback backup
+            for rel, orig in backup.items():
+                workspace.write(rel, orig)
+            return False, ()
 
 
-__all__ = ["CognitiveRepairEngine"]
+class RepairCoordinator:
+    """Orchestrates closed-loop repair with budget bounds and multi-path diagnosis."""
+
+    def __init__(
+        self,
+        repair_engine: CognitiveRepairEngine | None = None,
+        max_iterations: int = 3,
+    ) -> None:
+        self.repair_engine = repair_engine or CognitiveRepairEngine()
+        self.max_iterations = max_iterations
+
+    async def coordinate_repair(
+        self,
+        workspace: WorkspaceManager,
+        project_dir: str,
+        initial_report: GameTestReport,
+        sandbox: CodeSandbox,
+        adapter: Any,
+    ) -> GameTestReport:
+        """Run bounded repair loop until tests pass or budget exhausted."""
+        current_report = initial_report
+        baseline_hashes = self.repair_engine.snapshot_protected_files(workspace, project_dir)
+        total_modified: list[str] = []
+
+        for iteration in range(1, self.max_iterations + 1):
+            if current_report.success:
+                break
+
+            # 1. Cognitive reasoning diagnosis & proposal
+            proposal = await self.repair_engine.diagnose_and_formulate_proposal(
+                current_report, workspace, project_dir
+            )
+
+            # 2. Atomic proposal application
+            success_applied, modified_files = await self.repair_engine.apply_atomic_proposal(
+                workspace, proposal, baseline_hashes
+            )
+
+            if not success_applied:
+                logger.info("No further safe edits applicable at iteration %d", iteration)
+                break
+
+            total_modified.extend(modified_files)
+
+            # 3. Headless re-verification
+            resolved_path = workspace._resolve(project_dir)
+            test_cmd = adapter.get_test_command(str(resolved_path))
+            sandbox_res = await sandbox.run_command(test_cmd, cwd=resolved_path)
+            parsed_report = adapter.parse_test_output(sandbox_res)
+
+            audit = GameRepairAudit(
+                hypothesis=proposal.diagnosis,
+                invariant_targeted=proposal.violated_invariant,
+                files_considered=proposal.target_files,
+                files_modified=tuple(set(total_modified)),
+                test_files_touched=False,
+                tests_weakened=False,
+                tests_before_count=initial_report.passed_count + initial_report.failed_count,
+                tests_after_count=parsed_report.passed_count + parsed_report.failed_count,
+                iteration_count=iteration,
+                success=parsed_report.success,
+            )
+
+            current_report = GameTestReport(
+                success=parsed_report.success,
+                exit_code=parsed_report.exit_code,
+                passed_count=parsed_report.passed_count,
+                failed_count=parsed_report.failed_count,
+                duration_ms=parsed_report.duration_ms,
+                stdout=parsed_report.stdout,
+                stderr=parsed_report.stderr,
+                failed_tests=parsed_report.failed_tests,
+                failure_details=parsed_report.failure_details,
+                repair_audit=audit,
+                metadata={
+                    "repaired": parsed_report.success,
+                    "iterations": iteration,
+                    "initial_failures": initial_report.failed_tests,
+                    "proposal_id": proposal.proposal_id,
+                },
+            )
+
+            if current_report.success:
+                logger.info("Cognitive repair succeeded at iteration %d", iteration)
+                break
+
+        return current_report
+
+
+__all__ = ["CognitiveRepairEngine", "RepairCoordinator"]

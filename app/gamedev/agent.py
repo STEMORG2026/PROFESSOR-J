@@ -13,7 +13,7 @@ from app.domain.gamedev import (
     GameGenre,
     GameProjectModel,
     GameProjectSpec,
-    GameRepairAudit,
+    GameSystemSpec,
     GameTestReport,
     GameValidationReport,
     GameWorkflowPlan,
@@ -27,8 +27,10 @@ from app.gamedev.analyzer import GameProjectAnalyzer
 from app.gamedev.base import EngineRegistry
 from app.gamedev.components import GameComponentCatalog
 from app.gamedev.knowledge import GameKnowledgeCatalog
-from app.gamedev.repair import CognitiveRepairEngine
+from app.gamedev.reasoner import CognitiveContext
+from app.gamedev.repair import CognitiveRepairEngine, RepairCoordinator
 from app.gamedev.schema import GameStateEvolutionEngine, GameStateSchema
+from app.gamedev.synthesizer import SystemSynthesizer
 from app.gamedev.workflows import GameWorkflowEngine
 from app.tools.sandbox import CodeSandbox
 from app.workspace.workspace import WorkspaceManager
@@ -45,19 +47,34 @@ class GameDevAgent:
         knowledge: GameKnowledgeCatalog | None = None,
         workflow_engine: GameWorkflowEngine | None = None,
         repair_engine: CognitiveRepairEngine | None = None,
+        repair_coordinator: RepairCoordinator | None = None,
         schema_engine: GameStateEvolutionEngine | None = None,
         analyzer: GameProjectAnalyzer | None = None,
+        synthesizer: SystemSynthesizer | None = None,
     ) -> None:
         self.registry = registry or self._default_registry()
         self.knowledge = knowledge or GameKnowledgeCatalog()
+        self.synthesizer = synthesizer or SystemSynthesizer()
         self.workflow_engine = workflow_engine or GameWorkflowEngine(
-            knowledge_catalog=self.knowledge
+            knowledge_catalog=self.knowledge,
+            synthesizer=self.synthesizer,
         )
         self.repair_engine = repair_engine or CognitiveRepairEngine(
             knowledge_catalog=self.knowledge
         )
+        self.repair_coordinator = repair_coordinator or RepairCoordinator(
+            repair_engine=self.repair_engine
+        )
         self.schema_engine = schema_engine or GameStateEvolutionEngine()
         self.analyzer = analyzer or GameProjectAnalyzer()
+
+    async def synthesize_system(
+        self,
+        request: str,
+        context: CognitiveContext | None = None,
+    ) -> tuple[GameSystemSpec, dict[str, str], dict[str, str]]:
+        """Synthesize a novel game system spec, implementation files, and test files."""
+        return await self.synthesizer.synthesize_system(request, context)
 
     def analyze_project(
         self,
@@ -265,60 +282,20 @@ class GameDevAgent:
         max_iterations: int = 3,
     ) -> GameTestReport:
         """Autonomous iterative test, cognitive diagnose, and regression-safe repair loop."""
+        adapter = self.registry.get(target)
+        if not adapter:
+            raise ValueError(f"No adapter registered for target engine: {target}")
+
         initial_report = await self.verify_game(workspace, project_dir, sandbox, target=target)
-        if initial_report.success or max_iterations <= 1:
+        if initial_report.success or max_iterations <= 0:
             return initial_report
 
-        current_report = initial_report
-        last_audit: GameRepairAudit | None = None
-
-        for iteration in range(1, max_iterations + 1):
-            if current_report.success:
-                return GameTestReport(
-                    success=True,
-                    exit_code=0,
-                    passed_count=current_report.passed_count,
-                    failed_count=0,
-                    duration_ms=current_report.duration_ms,
-                    stdout=current_report.stdout,
-                    stderr=current_report.stderr,
-                    failed_tests=(),
-                    failure_details=(),
-                    repair_audit=last_audit,
-                    metadata={
-                        "repaired": True,
-                        "iterations": iteration - 1,
-                        "initial_failures": initial_report.failed_tests,
-                    },
-                )
-
-            repaired, audit = self.repair_engine.attempt_cognitive_repair(
-                workspace, project_dir, current_report, iteration=iteration
-            )
-            last_audit = audit
-            if not repaired:
-                break
-
-            current_report = await self.verify_game(workspace, project_dir, sandbox, target=target)
-
-        return GameTestReport(
-            success=current_report.success,
-            exit_code=current_report.exit_code,
-            passed_count=current_report.passed_count,
-            failed_count=current_report.failed_count,
-            duration_ms=current_report.duration_ms,
-            stdout=current_report.stdout,
-            stderr=current_report.stderr,
-            error=current_report.error,
-            timed_out=current_report.timed_out,
-            failed_tests=current_report.failed_tests,
-            failure_details=current_report.failure_details,
-            repair_audit=last_audit,
-            metadata={
-                "repaired": current_report.success,
-                "iterations": max_iterations,
-                "initial_failures": initial_report.failed_tests,
-            },
+        return await self.repair_coordinator.coordinate_repair(
+            workspace=workspace,
+            project_dir=project_dir,
+            initial_report=initial_report,
+            sandbox=sandbox,
+            adapter=adapter,
         )
 
     def evolve_state_schema(

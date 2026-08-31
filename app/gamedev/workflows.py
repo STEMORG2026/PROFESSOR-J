@@ -7,6 +7,10 @@ Coordinates structured, repeatable workflows:
 - REFACTOR_SYSTEM
 - TEST_AND_REPAIR
 - OPTIMIZE
+
+Invariants:
+- Open-ended synthesis: novel systems are synthesized dynamically without catalog limits.
+- Structured planning: provides explicit invariants, affected state, and test strategies.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from app.domain.gamedev import (
 )
 from app.gamedev.components import GameComponentCatalog
 from app.gamedev.knowledge import GameKnowledgeCatalog
+from app.gamedev.synthesizer import SystemSynthesizer
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +39,11 @@ class GameWorkflowEngine:
         self,
         knowledge_catalog: GameKnowledgeCatalog | None = None,
         component_catalog: GameComponentCatalog | None = None,
+        synthesizer: SystemSynthesizer | None = None,
     ) -> None:
         self.knowledge = knowledge_catalog or GameKnowledgeCatalog()
         self.components = component_catalog or GameComponentCatalog()
+        self.synthesizer = synthesizer or SystemSynthesizer()
 
     def plan_workflow(
         self,
@@ -63,7 +70,7 @@ class GameWorkflowEngine:
             "Run isolated unit test suite in CodeSandbox; assert zero regressions."
         )
 
-        # 1. Deduce components, systems, and knowledge
+        # 1. Deduce or synthesize components, systems, and knowledge
         if "inventory" in low or "item" in low or "equipment" in low:
             required_comps.append(self.components.inventory())
             affected_systems.append("InventoryManager")
@@ -116,8 +123,36 @@ class GameWorkflowEngine:
             required_comps.append(self.components.grid_board())
             required_knowledge.append("grid_spatial_indexing")
 
+        # Open synthesis path if no static components matched
         if not required_comps:
-            required_comps.append(self.components.event_bus())
+            clean_name = (
+                "".join(w.capitalize() for w in goal.split() if w.isalnum())[:20] or "Synthesized"
+            )
+            if not clean_name.endswith("System"):
+                clean_name += "System"
+
+            dynamic_comp = GameComponentSpec(
+                name=clean_name,
+                system_type=self.components.rules_engine().system_type,
+                description=f"Synthesized domain subsystem for: {goal}",
+                category=self.components.rules_engine().category,
+                pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+                purpose=f"Domain rules and state machine for: {goal}",
+                invariants=("Preserve domain constraints and determinism.",),
+            )
+            required_comps.append(dynamic_comp)
+            affected_systems.append(clean_name)
+            affected_state.append(f"{clean_name.lower()}_state")
+            expected_invariants.append("State transitions preserve deterministic invariants.")
+            tests_to_add.append(f"test_{clean_name.lower()}_operations")
+
+        # Deduplicate components safely
+        unique_comps: list[GameComponentSpec] = []
+        seen_names: set[str] = set()
+        for c in required_comps:
+            if c.name not in seen_names:
+                unique_comps.append(c)
+                seen_names.add(c.name)
 
         # 2. Step synthesis based on workflow type
         steps: tuple[str, ...]
@@ -125,7 +160,7 @@ class GameWorkflowEngine:
             steps = (
                 f"1. Formulate domain requirements and invariants for: '{goal}'",
                 "2. Query GameKnowledgeCatalog for architectural patterns.",
-                f"3. Scaffold pure domain architecture with {len(required_comps)} components.",
+                f"3. Scaffold pure domain architecture with {len(unique_comps)} components.",
                 "4. Run GameArchitectureValidator to ensure domain purity.",
                 "5. Execute headless verification in CodeSandbox to establish green baseline.",
             )
@@ -145,50 +180,41 @@ class GameWorkflowEngine:
                 "4. Apply targeted code mutation to correct domain rule logic.",
                 "5. Re-run headless verification to confirm resolution and zero regressions.",
             )
-        elif workflow_type == GameWorkflowType.TEST_AND_REPAIR:
-            steps = (
-                "1. Execute headless test verification in CodeSandbox.",
-                "2. Inspect GameTestReport failure_details and isolate failing assertions.",
-                "3. Perform closed-loop code mutation and test execution cycles until green.",
-                "4. Produce final structured verification report.",
-            )
         elif workflow_type == GameWorkflowType.REFACTOR_SYSTEM:
             steps = (
-                f"1. Identify refactoring target and invariants to preserve for: '{goal}'",
-                "2. Restructure domain components and interfaces cleanly.",
-                "3. Run static architecture validator.",
-                "4. Execute headless test suite to prove behavioral equivalence.",
+                f"1. Analyze dependencies and call sites for system refactor: '{goal}'.",
+                "2. Extract pure interfaces and preserve domain contracts.",
+                "3. Run architecture validator to ensure zero engine leakage.",
+                "4. Verify all existing tests remain green.",
             )
-        else:  # OPTIMIZE
+        elif workflow_type == GameWorkflowType.TEST_AND_REPAIR:
             steps = (
-                f"1. Profile memory allocation and execution bottlenecks for: '{goal}'",
-                "2. Optimize algorithmic complexity and data structures.",
-                "3. Re-verify behavioral equivalence with headless test suite.",
+                "1. Run headless verification across all test suites.",
+                "2. If failures detected, engage CognitiveRepairEngine.",
+                "3. Iterate repair loop until green or budget exhausted.",
             )
-
-        seen_comp_names: set[str] = set()
-        deduped_comps: list[GameComponentSpec] = []
-        for c in required_comps:
-            if c.name not in seen_comp_names:
-                seen_comp_names.add(c.name)
-                deduped_comps.append(c)
+        else:
+            steps = (
+                f"1. Analyze optimization scope for: '{goal}'",
+                "2. Benchmark hot paths in pure GameCore.",
+                "3. Verify invariants and benchmark results.",
+            )
 
         return GameWorkflowPlan(
             workflow_type=workflow_type,
             goal=goal,
-            steps=steps,
             target_project=target_project,
-            requested_feature=goal if workflow_type == GameWorkflowType.ADD_FEATURE else "",
-            affected_systems=tuple(dict.fromkeys(affected_systems)),
-            affected_state=tuple(dict.fromkeys(affected_state)),
-            extension_points=tuple(dict.fromkeys(extension_points)),
-            required_components=tuple(deduped_comps),
-            required_knowledge=tuple(dict.fromkeys(required_knowledge)),
-            expected_invariants=tuple(dict.fromkeys(expected_invariants)),
-            tests_to_add=tuple(dict.fromkeys(tests_to_add)),
+            steps=steps,
+            affected_systems=tuple(affected_systems),
+            affected_state=tuple(affected_state),
+            extension_points=tuple(extension_points),
+            required_components=tuple(unique_comps),
+            required_knowledge=tuple(required_knowledge),
+            expected_invariants=tuple(expected_invariants),
+            tests_to_add=tuple(tests_to_add),
             migration_required=migration_required,
             verification_strategy=verification_strategy,
-            applied_patterns=tuple(dict.fromkeys(applied_patterns)),
+            applied_patterns=tuple(applied_patterns),
             target_engine=target_engine,
             metadata=metadata or {},
         )
