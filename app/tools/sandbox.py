@@ -156,19 +156,12 @@ class CodeSandbox:
                 0.0,
             )
 
-        # Allow-listed base executables
-        allowed_executables = {"python", "python3", "pytest", "dotnet"}
-        exe_name = Path(cmd[0]).name
-        is_allowed = (
-            exe_name in allowed_executables
-            or exe_name.startswith("python3.")
-            or exe_name == Path(sys.executable).name
-        )
-        if not is_allowed:
+        validation_error = self._validate_command(cmd)
+        if validation_error is not None:
             return SandboxResult(
                 False,
                 "",
-                f"Executable '{cmd[0]}' is not permitted in sandbox",
+                validation_error,
                 1,
                 False,
                 0.0,
@@ -227,6 +220,46 @@ class CodeSandbox:
                 timed_out=False,
                 duration_ms=duration_ms,
             )
+
+    def _validate_command(self, cmd: list[str]) -> str | None:
+        """Validate that the command and its arguments conform to safe execution primitives."""
+        if not cmd:
+            return "Command cannot be empty"
+
+        for arg in cmd:
+            if "\x00" in arg:
+                return "Null byte detected in command argument"
+
+        allowed_executables = {"python", "python3", "pytest", "dotnet"}
+        exe_name = Path(cmd[0]).name
+        is_allowed = (
+            exe_name in allowed_executables
+            or exe_name.startswith("python3.")
+            or exe_name == Path(sys.executable).name
+        )
+        if not is_allowed:
+            return f"Executable '{cmd[0]}' is not permitted in sandbox"
+
+        # Validate python subcommands (only approved modules)
+        if exe_name.startswith("python") or exe_name == Path(sys.executable).name:
+            if len(cmd) < 3 or cmd[1] != "-m":
+                return "Python in sandbox is only permitted with -m module invocation"
+            module = cmd[2]
+            if module not in {"pytest", "compileall", "unittest"}:
+                return f"Python module '{module}' is not an approved sandbox runner"
+
+        # Validate dotnet subcommands (only test and build)
+        elif exe_name == "dotnet":
+            if len(cmd) < 2 or cmd[1] not in {"test", "build"}:
+                subcmd = cmd[1] if len(cmd) > 1 else ""
+                return f"dotnet subcommand '{subcmd}' is not permitted in sandbox"
+
+        # Validate arguments do not contain dangerous flags
+        for arg in cmd[1:]:
+            if arg.startswith(("-c", "--override-ini", "-o", "--import-mode")):
+                return f"Flag '{arg}' is not permitted in sandbox"
+
+        return None
 
 
 class MathSolver:

@@ -1,7 +1,6 @@
-"""Comprehensive unit tests for GameDev headless verification and sandbox safety."""
-
 import tempfile
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 
@@ -111,7 +110,8 @@ def test_deliberate_failure():
     assert report.exit_code != 0
     assert report.failed_count >= 1
     assert report.error is not None
-    assert "failed" in report.error.lower() or "illegal move state" in report.stdout.lower()
+    assert "test_deliberate_failure" in report.failed_tests
+    assert len(report.failure_details) >= 1
 
 
 @pytest.mark.asyncio
@@ -240,3 +240,94 @@ async def test_safety_gates_cannot_be_bypassed(
     verify_res = await approved_executor.execute("gamedev_verify", {"project_dir": "safety_game"})
     assert verify_res["success"]
     assert verify_res["passed_count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_dangerous_arguments_rejected_in_sandbox(sandbox: CodeSandbox) -> None:
+    """10. Dangerous argument injection is rejected by sandbox validator."""
+    # 1. Reject python -c arbitrary execution
+    res1 = await sandbox.run_command(["python3", "-c", "import os; print('hacked')"], cwd="/tmp")  # nosec B108
+    assert not res1.success
+    assert "Python in sandbox is only permitted with -m module invocation" in res1.stderr
+
+    # 2. Reject unapproved python modules
+    res2 = await sandbox.run_command(["python3", "-m", "pip", "install", "pwned"], cwd="/tmp")  # nosec B108
+    assert not res2.success
+    assert "Python module 'pip' is not an approved sandbox runner" in res2.stderr
+
+    # 3. Reject unapproved dotnet subcommands
+    res3 = await sandbox.run_command(["dotnet", "tool", "install", "something"], cwd="/tmp")  # nosec B108
+    assert not res3.success
+    assert "dotnet subcommand 'tool' is not permitted" in res3.stderr
+
+    # 4. Reject dangerous flags
+    res4 = await sandbox.run_command(
+        ["python3", "-m", "pytest", "--override-ini=bad"],
+        cwd="/tmp",  # nosec B108
+    )
+    assert not res4.success
+    assert "is not permitted in sandbox" in res4.stderr and "--override-ini" in res4.stderr
+
+    # 5. Reject null bytes
+    res5 = await sandbox.run_command(["python3", "-m", "pytest", "arg\x00evil"], cwd="/tmp")  # nosec B108
+    assert not res5.success
+    assert "Null byte detected" in res5.stderr
+
+
+def test_symlink_path_escape_rejected_in_workspace(temp_workspace: WorkspaceManager) -> None:
+    """11. Symlink escape outside workspace is rejected."""
+    with tempfile.TemporaryDirectory() as outside_dir:
+        outside_file = Path(outside_dir) / "secret.txt"
+        outside_file.write_text("topsecret", encoding="utf-8")
+
+        # Create symlink inside workspace pointing to outside directory
+        symlink_path = temp_workspace.root / "symlink_outside"
+        try:
+            symlink_path.symlink_to(outside_dir, target_is_directory=True)
+        except OSError:
+            pytest.skip("Symlink creation not permitted in this test environment")
+
+        # Resolving relative path through symlink must raise WorkspaceSecurityError
+        with pytest.raises(WorkspaceSecurityError):
+            temp_workspace._resolve("symlink_outside/secret.txt")
+
+        # Reading file through symlink must raise WorkspaceSecurityError
+        with pytest.raises(WorkspaceSecurityError):
+            temp_workspace.read("symlink_outside/secret.txt")
+
+
+@pytest.mark.asyncio
+async def test_csharp_test_failure_parsing() -> None:
+    """12. Structured parsing of C# dotnet test failures for autonomous repair."""
+    adapter = PureCoreAdapter()
+
+    mock_dotnet_fail = """
+  GameCore -> /workspace/ludo/bin/Debug/net8.0/GameCore.dll
+  GameCoreTests -> /workspace/ludo/bin/Debug/net8.0/GameCoreTests.dll
+Test run for /workspace/ludo/bin/Debug/net8.0/GameCoreTests.dll (.NETCoreApp,Version=v8.0)
+
+  Failed GameCoreTests.InitialState_ShouldBeTurnActive [15 ms]
+  Error Message:
+   System.Exception: Initial phase must be TurnActive
+  Stack Trace:
+     at GameCoreTests.InitialState_ShouldBeTurnActive() in Tests/GameCoreTests.cs:line 12
+
+Failed!  - Failed:     1, Passed:     3, Skipped:     0, Total:     4, Duration: 42 ms
+"""
+    result = SandboxResult(
+        success=False,
+        stdout=mock_dotnet_fail,
+        stderr="",
+        exit_code=1,
+        timed_out=False,
+        duration_ms=45.0,
+    )
+
+    report = adapter.parse_test_output(result)
+    assert not report.success
+    assert report.passed_count == 3
+    assert report.failed_count == 1
+    assert "GameCoreTests.InitialState_ShouldBeTurnActive" in report.failed_tests
+    assert len(report.failure_details) == 1
+    assert report.failure_details[0]["test_name"] == "GameCoreTests.InitialState_ShouldBeTurnActive"
+    assert report.failure_details[0]["framework"] == "dotnet"

@@ -403,6 +403,8 @@ class TurnManager:
 
         passed_count = 0
         failed_count = 0
+        failed_tests: list[str] = []
+        failure_details: list[dict[str, Any]] = []
 
         # Check for pytest pattern (e.g. "3 passed, 1 failed in 0.05s")
         py_passed_match = re.search(r"(\d+)\s+passed", stdout)
@@ -412,6 +414,19 @@ class TurnManager:
         if py_failed_match:
             failed_count = int(py_failed_match.group(1))
 
+        # Extract individual failed pytest test names
+        for py_fail in re.finditer(r"FAILED\s+([^\s:]+)::([^\s]+)", stdout):
+            test_file = py_fail.group(1)
+            test_name = py_fail.group(2)
+            failed_tests.append(test_name)
+            failure_details.append(
+                {
+                    "test_name": test_name,
+                    "file": test_file,
+                    "framework": "pytest",
+                }
+            )
+
         # Check for dotnet test pattern (e.g. "Passed! - Failed: 0, Passed: 5")
         dotnet_passed_match = re.search(r"Passed:\s*(\d+)", stdout)
         dotnet_failed_match = re.search(r"Failed:\s*(\d+)", stdout)
@@ -419,6 +434,18 @@ class TurnManager:
             passed_count = int(dotnet_passed_match.group(1))
         if dotnet_failed_match:
             failed_count = int(dotnet_failed_match.group(1))
+
+        # Extract individual failed dotnet test names
+        for dn_fail in re.finditer(r"Failed\s+([A-Za-z0-9_.]+)\s*\[", stdout):
+            test_name = dn_fail.group(1)
+            if test_name not in failed_tests:
+                failed_tests.append(test_name)
+                failure_details.append(
+                    {
+                        "test_name": test_name,
+                        "framework": "dotnet",
+                    }
+                )
 
         if success and passed_count == 0 and failed_count == 0:
             passed_count = 1
@@ -428,7 +455,8 @@ class TurnManager:
             if timed_out:
                 error_msg = "Test execution timed out in sandbox."
             elif failed_count > 0:
-                error_msg = f"{failed_count} test(s) failed."
+                summary = ", ".join(failed_tests) if failed_tests else ""
+                error_msg = f"{failed_count} test(s) failed: {summary}".rstrip(": ")
             elif stderr:
                 error_msg = stderr.strip()
             elif stdout:
@@ -446,6 +474,8 @@ class TurnManager:
             stderr=stderr,
             error=error_msg,
             timed_out=timed_out,
+            failed_tests=tuple(failed_tests),
+            failure_details=tuple(failure_details),
         )
 
 

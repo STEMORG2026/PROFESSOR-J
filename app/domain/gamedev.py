@@ -150,4 +150,6 @@ class GameTestReport:
     stderr: str = ""
     error: str | None = None
     timed_out: bool = False
+    failed_tests: tuple[str, ...] = field(default_factory=tuple)
+    failure_details: tuple[dict[str, Any], ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
