@@ -84,6 +84,13 @@ Layer 5  Artifacts / running systems
   unless LearningHubSTEM `validate.py` passes (ADR-002: never pin over an invalid tree). LHS is
   currently in flux (in-progress untracked content fails validate), so the digest is unpinned and the
   gate surfaces drift as a warning. Stage B (in-repo signing) is deferred until LHS stabilizes.
+- **Phase 5 done (umbrella identity + born-manifest pool + independent review)** —
+  `docs/umbrella/IDENTITY.md` names the umbrella "Konstanze" (docs-only, no repo renamed);
+  `docs/umbrella/RISK-MATRIX.md` codifies independent-reviewer doctrine for T2+ (verifier must be
+  someone other than the author). ProjectTemplates `kernel/tpl.py` + profiles now carry optional
+  `pool` field, stamping a born project's manifest with `poolCategory` (e.g. `domain/software`)
+  so new projects start with their scoped pool slice (task 6.3). All validated: 7 golden profiles
+  compose and check green; VERSION unchanged (additive change).
 
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
