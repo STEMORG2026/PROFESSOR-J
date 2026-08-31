@@ -46,6 +46,9 @@ httpx>=0.28.1
 fastapi>=0.141.1
 uvicorn[standard]>=0.52.4
 
+# Local inference
+ollama>=0.6.0
+
 # Dev / verification
 pytest==9.1.1
 pytest-asyncio==1.4.0
