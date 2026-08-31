@@ -12,11 +12,14 @@ from app.domain.gamedev import (
     GameComponentSpec,
     GameGenre,
     GameProjectSpec,
+    GameTestReport,
     GameValidationReport,
 )
+from app.exceptions import SandboxTimeoutError
 from app.gamedev.adapters.pure_core import PureCoreAdapter
 from app.gamedev.base import EngineRegistry
 from app.gamedev.components import GameComponentCatalog
+from app.tools.sandbox import CodeSandbox
 from app.workspace.workspace import WorkspaceManager
 
 logger = logging.getLogger(__name__)
@@ -146,6 +149,52 @@ class GameDevAgent:
         """Validate an existing game project in workspace."""
         adapter = self.registry.get(target) or self.registry.require(EngineTarget.PURE_CORE)
         return adapter.validate_codebase(workspace, project_dir)
+
+    async def verify_game(
+        self,
+        workspace: WorkspaceManager,
+        project_dir: str,
+        sandbox: CodeSandbox,
+        target: EngineTarget = EngineTarget.PURE_CORE,
+    ) -> GameTestReport:
+        """Execute headless verification in the isolated sandbox."""
+        resolved_path = workspace._resolve(project_dir)
+        if not resolved_path.exists() or not resolved_path.is_dir():
+            return GameTestReport(
+                success=False,
+                exit_code=1,
+                passed_count=0,
+                failed_count=1,
+                duration_ms=0.0,
+                error=f"Project directory '{project_dir}' does not exist inside workspace.",
+            )
+
+        adapter = self.registry.get(target) or self.registry.require(EngineTarget.PURE_CORE)
+        test_cmd = adapter.get_test_command(str(resolved_path))
+
+        try:
+            sandbox_result = await sandbox.run_command(test_cmd, cwd=resolved_path)
+            return adapter.parse_test_output(sandbox_result)
+        except SandboxTimeoutError as exc:
+            timeout_val = exc.context.get("timeout", 10)
+            return GameTestReport(
+                success=False,
+                exit_code=124,
+                passed_count=0,
+                failed_count=1,
+                duration_ms=float(timeout_val * 1000),
+                error=f"Test execution timed out after {timeout_val}s.",
+                timed_out=True,
+            )
+        except Exception as exc:
+            return GameTestReport(
+                success=False,
+                exit_code=1,
+                passed_count=0,
+                failed_count=1,
+                duration_ms=0.0,
+                error=str(exc),
+            )
 
 
 __all__ = ["GameDevAgent"]

@@ -134,6 +134,7 @@ class ToolExecutor:
         self,
         gamedev: GameDevAgent,
         workspace: WorkspaceManager,
+        sandbox: CodeSandbox | None = None,
     ) -> None:
         """Wire Game Development capability tools into the executor."""
 
@@ -165,6 +166,28 @@ class ToolExecutor:
                 "warnings": [w.message for w in report.warnings],
             }
 
+        async def _gamedev_verify(
+            project_dir: str = "", target: str = "pure_core"
+        ) -> dict[str, Any]:
+            box = sandbox or CodeSandbox()
+            target_enum = (
+                EngineTarget(target)
+                if target in [e.value for e in EngineTarget]
+                else EngineTarget.PURE_CORE
+            )
+            report = await gamedev.verify_game(workspace, project_dir, box, target=target_enum)
+            return {
+                "success": report.success,
+                "passed_count": report.passed_count,
+                "failed_count": report.failed_count,
+                "exit_code": report.exit_code,
+                "duration_ms": report.duration_ms,
+                "stdout": report.stdout,
+                "stderr": report.stderr,
+                "error": report.error,
+                "timed_out": report.timed_out,
+            }
+
         self.register_fn(
             "gamedev_plan",
             _gamedev_plan,
@@ -182,6 +205,12 @@ class ToolExecutor:
             _gamedev_validate,
             tier=SafetyTier.SAFE,
             description="Validate game architecture compliance and domain purity",
+        )
+        self.register_fn(
+            "gamedev_verify",
+            _gamedev_verify,
+            tier=SafetyTier.DESTRUCTIVE,
+            description="Execute headless game tests in isolated sandbox",
         )
 
     async def execute(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:

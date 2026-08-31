@@ -12,6 +12,7 @@ from app.domain.gamedev import (
     GameProjectSpec,
     GameRuleViolation,
     GameSystemType,
+    GameTestReport,
     GameValidationReport,
 )
 from app.domain.learner import (
@@ -46,6 +47,7 @@ __all__ = [
     "GameProjectSpec",
     "GameRuleViolation",
     "GameValidationReport",
+    "GameTestReport",
     # Plans
     "ExecutionPlan",
     "ExecutionStep",

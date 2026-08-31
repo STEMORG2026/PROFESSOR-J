@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from typing import Any
 
 from app.domain.gamedev import (
     EngineTarget,
     GameComponentSpec,
     GameProjectSpec,
+    GameTestReport,
     GameValidationReport,
 )
 from app.workspace.workspace import WorkspaceManager
@@ -84,6 +86,11 @@ class GameEngineAdapter(ABC):
     @abstractmethod
     def get_test_command(self, project_dir: str) -> list[str]:
         """Return the CLI command to execute tests headlessly."""
+        ...
+
+    @abstractmethod
+    def parse_test_output(self, result: Any) -> GameTestReport:
+        """Parse raw sandbox test execution result into structured GameTestReport."""
         ...
 
 

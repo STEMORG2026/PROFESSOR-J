@@ -7,6 +7,10 @@ ready for headless test execution and integration into Unity, Godot, or custom c
 from __future__ import annotations
 
 import logging
+import re
+import sys
+from pathlib import Path
+from typing import Any
 
 from app.domain.gamedev import (
     EngineTarget,
@@ -14,6 +18,7 @@ from app.domain.gamedev import (
     GameComponentSpec,
     GameProjectSpec,
     GameSystemType,
+    GameTestReport,
     GameValidationReport,
 )
 from app.gamedev.base import GameEngineAdapter
@@ -376,10 +381,72 @@ class TurnManager:
         )
 
     def get_build_command(self, project_dir: str) -> list[str]:
+        p = Path(project_dir)
+        if p.exists() and list(p.glob("**/*.py")) and not list(p.glob("**/*.csproj")):
+            return [sys.executable, "-m", "compileall", project_dir]
         return ["dotnet", "build", project_dir]
 
     def get_test_command(self, project_dir: str) -> list[str]:
+        p = Path(project_dir)
+        if p.exists() and list(p.glob("**/*.py")) and not list(p.glob("**/*.csproj")):
+            return [sys.executable, "-m", "pytest", project_dir]
         return ["dotnet", "test", project_dir]
+
+    def parse_test_output(self, result: Any) -> GameTestReport:
+        """Parse raw sandbox test execution result into structured GameTestReport."""
+        stdout = getattr(result, "stdout", "")
+        stderr = getattr(result, "stderr", "")
+        exit_code = getattr(result, "exit_code", 1)
+        timed_out = getattr(result, "timed_out", False)
+        duration_ms = getattr(result, "duration_ms", 0.0)
+        success = getattr(result, "success", False)
+
+        passed_count = 0
+        failed_count = 0
+
+        # Check for pytest pattern (e.g. "3 passed, 1 failed in 0.05s")
+        py_passed_match = re.search(r"(\d+)\s+passed", stdout)
+        py_failed_match = re.search(r"(\d+)\s+failed", stdout)
+        if py_passed_match:
+            passed_count = int(py_passed_match.group(1))
+        if py_failed_match:
+            failed_count = int(py_failed_match.group(1))
+
+        # Check for dotnet test pattern (e.g. "Passed! - Failed: 0, Passed: 5")
+        dotnet_passed_match = re.search(r"Passed:\s*(\d+)", stdout)
+        dotnet_failed_match = re.search(r"Failed:\s*(\d+)", stdout)
+        if dotnet_passed_match:
+            passed_count = int(dotnet_passed_match.group(1))
+        if dotnet_failed_match:
+            failed_count = int(dotnet_failed_match.group(1))
+
+        if success and passed_count == 0 and failed_count == 0:
+            passed_count = 1
+
+        error_msg = None
+        if not success:
+            if timed_out:
+                error_msg = "Test execution timed out in sandbox."
+            elif failed_count > 0:
+                error_msg = f"{failed_count} test(s) failed."
+            elif stderr:
+                error_msg = stderr.strip()
+            elif stdout:
+                error_msg = stdout.strip()
+            else:
+                error_msg = f"Test command failed with exit code {exit_code}."
+
+        return GameTestReport(
+            success=success,
+            exit_code=exit_code,
+            passed_count=passed_count,
+            failed_count=failed_count,
+            duration_ms=duration_ms,
+            stdout=stdout,
+            stderr=stderr,
+            error=error_msg,
+            timed_out=timed_out,
+        )
 
 
 __all__ = ["PureCoreAdapter"]

@@ -135,3 +135,19 @@ class GameValidationReport:
     @property
     def warning_count(self) -> int:
         return len(self.warnings)
+
+
+@dataclass(frozen=True, slots=True)
+class GameTestReport:
+    """Outcome of headless game rule test execution."""
+
+    success: bool
+    exit_code: int
+    passed_count: int
+    failed_count: int
+    duration_ms: float
+    stdout: str = ""
+    stderr: str = ""
+    error: str | None = None
+    timed_out: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)

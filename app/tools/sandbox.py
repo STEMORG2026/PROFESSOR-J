@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import subprocess  # nosec B404 - intentionally runs untrusted code; the sandbox IS the control layer
+import sys
 import tempfile
 import time
 from collections.abc import Callable
@@ -132,6 +133,100 @@ class CodeSandbox:
             timed_out=False,
             duration_ms=duration_ms,
         )
+
+    async def run_command(
+        self,
+        cmd: list[str],
+        cwd: Path | str,
+        env: dict[str, str] | None = None,
+        timeout_seconds: int | None = None,
+    ) -> SandboxResult:
+        """Execute an allow-listed command in an isolated directory with resource limits."""
+        if not cmd:
+            return SandboxResult(True, "", "", 0, False, 0.0)
+
+        work_dir = Path(cwd).resolve()
+        if not work_dir.exists() or not work_dir.is_dir():
+            return SandboxResult(
+                False,
+                "",
+                f"Working directory does not exist: {cwd}",
+                1,
+                False,
+                0.0,
+            )
+
+        # Allow-listed base executables
+        allowed_executables = {"python", "python3", "pytest", "dotnet"}
+        exe_name = Path(cmd[0]).name
+        is_allowed = (
+            exe_name in allowed_executables
+            or exe_name.startswith("python3.")
+            or exe_name == Path(sys.executable).name
+        )
+        if not is_allowed:
+            return SandboxResult(
+                False,
+                "",
+                f"Executable '{cmd[0]}' is not permitted in sandbox",
+                1,
+                False,
+                0.0,
+            )
+
+        # Prepare constrained environment
+        timeout = timeout_seconds or self.config.timeout_seconds
+        venv_bin = str(Path(sys.executable).parent)
+        default_env = {
+            "PATH": (
+                f"{venv_bin}:/usr/local/bin:/usr/bin:/bin:"
+                "/usr/local/share/dotnet:/usr/share/dotnet"
+            ),
+            "LANG": "C.UTF-8",
+            "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+            "DOTNET_NOLOGO": "1",
+        }
+        if env:
+            default_env.update(env)
+
+        if not self.config.network_enabled:
+            default_env = {
+                k: v for k, v in default_env.items() if k not in ("HTTP_PROXY", "HTTPS_PROXY")
+            }
+
+        start = time.monotonic()
+        try:
+            proc = subprocess.run(  # nosec B603
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                cwd=str(work_dir),
+                env=default_env,
+                stdin=subprocess.DEVNULL,
+                preexec_fn=_limits(self.config),
+            )
+            duration_ms = (time.monotonic() - start) * 1000.0
+            return SandboxResult(
+                success=proc.returncode == 0,
+                stdout=proc.stdout[: self.config.max_output_bytes],
+                stderr=proc.stderr[: self.config.max_output_bytes],
+                exit_code=proc.returncode,
+                timed_out=False,
+                duration_ms=duration_ms,
+            )
+        except subprocess.TimeoutExpired:
+            raise SandboxTimeoutError(timeout) from None
+        except Exception as e:
+            duration_ms = (time.monotonic() - start) * 1000.0
+            return SandboxResult(
+                success=False,
+                stdout="",
+                stderr=str(e),
+                exit_code=1,
+                timed_out=False,
+                duration_ms=duration_ms,
+            )
 
 
 class MathSolver:

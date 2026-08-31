@@ -85,6 +85,16 @@ def _steps_for(intent: Intent, prompt: str) -> list[ExecutionStep]:
                 ),
             ),
             ExecutionStep(
+                step_id="headless-verification",
+                title="Execute Headless Rule Verification in Isolated Sandbox",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_verify",
+                    args={},
+                    safety_tier=SafetyTier.DESTRUCTIVE,
+                    description="Execute headless game tests in isolated sandbox",
+                ),
+            ),
+            ExecutionStep(
                 step_id="synthesize",
                 title="Synthesize Game Dev Delivery Summary",
             ),
