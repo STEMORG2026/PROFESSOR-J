@@ -9,11 +9,15 @@ from app.domain.gamedev import (
     GameArchitecturePattern,
     GameComponentSpec,
     GameGenre,
+    GameKnowledgeCategory,
+    GameKnowledgeTopic,
     GameProjectSpec,
     GameRuleViolation,
     GameSystemType,
     GameTestReport,
     GameValidationReport,
+    GameWorkflowPlan,
+    GameWorkflowType,
 )
 from app.domain.learner import (
     Evaluation,
@@ -48,6 +52,10 @@ __all__ = [
     "GameRuleViolation",
     "GameValidationReport",
     "GameTestReport",
+    "GameWorkflowType",
+    "GameWorkflowPlan",
+    "GameKnowledgeCategory",
+    "GameKnowledgeTopic",
     # Plans
     "ExecutionPlan",
     "ExecutionStep",

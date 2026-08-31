@@ -62,6 +62,60 @@ class GameSystemType(str, Enum):
     SCORING = "scoring"
     SAVE_STATE = "save_state"
     EVENT_BUS = "event_bus"
+    AI_DECISION = "ai_decision"
+    STATE_MACHINE = "state_machine"
+
+
+class GameWorkflowType(str, Enum):
+    """Goal-driven game development workflow lifecycles."""
+
+    CREATE_GAME = "create_game"
+    ADD_FEATURE = "add_feature"
+    FIX_BUG = "fix_bug"
+    REFACTOR_SYSTEM = "refactor_system"
+    TEST_AND_REPAIR = "test_and_repair"
+    OPTIMIZE = "optimize"
+
+
+class GameKnowledgeCategory(str, Enum):
+    """Taxonomy of game engineering knowledge domains."""
+
+    ARCHITECTURE = "architecture"
+    STATE_MANAGEMENT = "state_management"
+    GAMEPLAY_SYSTEMS = "gameplay_systems"
+    AI_AND_DECISION = "ai_and_decision"
+    PHYSICS_AND_COLLISION = "physics_and_collision"
+    INPUT_AND_CONTROL = "input_and_control"
+    STORAGE_AND_STATE = "storage_and_state"
+    TESTING_AND_REPAIR = "testing_and_repair"
+
+
+@dataclass(frozen=True, slots=True)
+class GameKnowledgeTopic:
+    """Structured, queryable engineering knowledge topic for reasoning and code generation."""
+
+    topic_id: str
+    name: str
+    category: GameKnowledgeCategory
+    summary: str
+    key_invariants: tuple[str, ...] = field(default_factory=tuple)
+    anti_patterns: tuple[str, ...] = field(default_factory=tuple)
+    recommended_patterns: tuple[GameArchitecturePattern, ...] = field(default_factory=tuple)
+    testing_strategy: str = ""
+    tags: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class GameWorkflowPlan:
+    """Structured plan for executing a game development workflow."""
+
+    workflow_type: GameWorkflowType
+    goal: str
+    steps: tuple[str, ...] = field(default_factory=tuple)
+    required_components: tuple[GameComponentSpec, ...] = field(default_factory=tuple)
+    applied_patterns: tuple[GameArchitecturePattern, ...] = field(default_factory=tuple)
+    target_engine: EngineTarget = EngineTarget.PURE_CORE
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

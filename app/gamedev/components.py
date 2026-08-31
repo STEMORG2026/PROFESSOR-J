@@ -88,6 +88,80 @@ class GameComponentCatalog:
         )
 
     @staticmethod
+    def inventory(max_slots: int = 20, max_weight: float = 100.0) -> GameComponentSpec:
+        """Create an inventory management component spec."""
+        return GameComponentSpec(
+            name="InventoryManager",
+            system_type=GameSystemType.INVENTORY,
+            description="Item storage, stacking, slot constraints, and equipment management.",
+            pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+            parameters={"max_slots": max_slots, "max_weight": max_weight},
+            dependencies=("EventBus",),
+            source_files=("InventoryManager.cs",),
+            test_files=("InventoryManagerTests.cs",),
+        )
+
+    @staticmethod
+    def score_manager(initial_score: int = 0) -> GameComponentSpec:
+        """Create a scoring and multiplier management component spec."""
+        return GameComponentSpec(
+            name="ScoreManager",
+            system_type=GameSystemType.SCORING,
+            description="Score tracking, combo multipliers, high scores, and leaderboards.",
+            pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+            parameters={"initial_score": initial_score},
+            dependencies=("EventBus",),
+            source_files=("ScoreManager.cs",),
+            test_files=("ScoreManagerTests.cs",),
+        )
+
+    @staticmethod
+    def state_machine(initial_state: str = "NotStarted") -> GameComponentSpec:
+        """Create a generic finite state machine component spec."""
+        return GameComponentSpec(
+            name="GameStateMachine",
+            system_type=GameSystemType.STATE_MACHINE,
+            description=(
+                "Explicit hierarchical state machine with transition guards and event hooks."
+            ),
+            pattern=GameArchitecturePattern.STATE_MACHINE_EVENT_DRIVEN,
+            parameters={"initial_state": initial_state},
+            dependencies=("EventBus",),
+            source_files=("GameStateMachine.cs",),
+            test_files=("GameStateMachineTests.cs",),
+        )
+
+    @staticmethod
+    def ai_minimax(depth: int = 3) -> GameComponentSpec:
+        """Create a minimax AI decision engine component spec."""
+        return GameComponentSpec(
+            name="MinimaxAI",
+            system_type=GameSystemType.AI_DECISION,
+            description="Deterministic game tree lookahead AI evaluator with alpha-beta pruning.",
+            pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+            parameters={"depth": depth},
+            dependencies=("RulesEngine",),
+            source_files=("MinimaxAI.cs",),
+            test_files=("MinimaxAITests.cs",),
+        )
+
+    @staticmethod
+    def save_state_manager(format_type: str = "json") -> GameComponentSpec:
+        """Create a save state manager component spec."""
+        return GameComponentSpec(
+            name="SaveStateManager",
+            system_type=GameSystemType.SAVE_STATE,
+            description=(
+                "Deterministic match serialization, snapshot restoration, and version migration."
+            ),
+            pattern=GameArchitecturePattern.PURE_CORE_HEADLESS,
+            parameters={"format": format_type},
+            dependencies=(),
+            source_files=("SaveStateManager.cs",),
+            test_files=("SaveStateManagerTests.cs",),
+        )
+
+    @staticmethod
     def get_default_board_game_components(player_count: int = 2) -> tuple[GameComponentSpec, ...]:
         """Return the standard set of components for a turn-based board game."""
         return (
