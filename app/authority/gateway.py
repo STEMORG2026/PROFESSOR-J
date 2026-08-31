@@ -51,7 +51,7 @@ class AllocationError(ProfessorError):
 
 
 class TierExceededError(ProfessorError):
-    """Raised when capability tier exceeds principal's maximum."""
+    """Raised when tier ceiling is exceeded."""
 
     code = "TIER_EXCEEDED"
 
@@ -76,6 +76,7 @@ class AuthorizationDecision:
     allowed: bool
     reason: str
     provenance_source: str
+    provenance_chain: list[str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,11 +105,11 @@ class AuthorityGateway:
         self.allocation_path = Path(allocation_path)
         self.permission_manifest_path = Path(permission_manifest_path)
         self.audit_log_path = Path(audit_log_path) if audit_log_path else None
-        self._allocation_cache: dict | None = None
-        self._permission_cache: dict | None = None
+        self._allocation_cache: dict[str, Any] | None = None
+        self._permission_cache: dict[str, Any] | None = None
         self._audit_entries: list[AuthorizationDecision] = []
 
-    def _load_allocation(self) -> dict:
+    def _load_allocation(self) -> dict[str, Any]:
         """Load and cache allocation.yaml."""
         if self._allocation_cache is None:
             if not self.allocation_path.is_file():
@@ -116,7 +117,7 @@ class AuthorityGateway:
             self._allocation_cache = yaml.safe_load(self.allocation_path.read_text()) or {}
         return self._allocation_cache
 
-    def _load_permission_manifest(self) -> dict:
+    def _load_permission_manifest(self) -> dict[str, Any]:
         """Load and cache permission-manifest.yaml."""
         if self._permission_cache is None:
             if not self.permission_manifest_path.is_file():
@@ -195,7 +196,7 @@ class AuthorityGateway:
             principal_tier_num = tier_order.get(principal.tier, 0)
             if principal_tier_num > max_tier:
                 raise TierExceededError(
-                    f"Principal tier {principal.tier.value} exceeds project max tier {max_tier}"
+                    "Principal tier " f"{principal.tier.value} exceeds project max tier {max_tier}"
                 )
 
         # Check capability is granted to project
@@ -218,6 +219,53 @@ class AuthorityGateway:
                 f"{principal.tier.value} cannot execute "
                 f"{capability_tier.value} capability"
             )
+
+    def _enforce_provenance_rules(self, chain: list[str], capability: str) -> None:
+        """Enforce provenance-based authorization rules.
+
+        Rules:
+        - AI-generated content cannot directly mutate canonical artifacts
+        - MCP/external tool output requires human review before privileged mutations
+        - Retrieved/untrusted data cannot become authority without human review
+        """
+        # Check if chain contains AI-generated content
+        if "ai" in chain:
+            # Check if this is a privileged mutation capability
+            mutation_caps = [
+                "sign_authority",
+                "modify_canonical_artifact",
+                "register_capability",
+                "modify_allocation",
+                "modify_permission_manifest",
+                "code-exec/sandbox",
+                "mcp-call-tool",
+            ]
+            if capability in mutation_caps:
+                # Check if human is in the chain before AI
+                try:
+                    ai_idx = chain.index("ai")
+                    if "human" not in chain[:ai_idx]:
+                        raise AuthorizationError(
+                            f"AI-generated request for privileged capability '{capability}' "
+                            f"requires human review before execution. Chain: {' → '.join(chain)}"
+                        )
+                except ValueError:
+                    pass  # 'ai' not found (shouldn't happen)
+
+        # Check if chain contains untrusted sources
+        untrusted_sources = {"mcp", "retrieved", "tool", "external"}
+        if any(src in chain for src in untrusted_sources):
+            # For privileged mutations, require human in chain
+            mutation_caps = [
+                "sign_authority",
+                "modify_canonical_artifact",
+                "register_capability",
+            ]
+            if capability in mutation_caps and "human" not in chain:
+                raise AuthorizationError(
+                    f"Untrusted source in chain for privileged capability '{capability}'. "
+                    f"Requires human authorization. Chain: {' → '.join(chain)}"
+                )
 
     def _record_decision(self, decision: AuthorizationDecision) -> None:
         """Record authorization decision for audit."""
@@ -254,10 +302,18 @@ class AuthorityGateway:
         capability: str,
         args: dict[str, Any],
         provenance_source: str = "agent",
+        provenance_chain: list[str] | None = None,
     ) -> GatewayResult:
         """Execute a capability through the authoritative gateway.
 
         This is the single entry point for ALL privileged execution.
+
+        Args:
+            capability: Name of the capability to execute
+            args: Arguments for the capability
+            provenance_source: Source of this request
+                ("human", "agent", "tool", "mcp", "ai", "retrieved")
+            provenance_chain: Optional chain of provenance sources leading to this request
         """
         principal = require_principal()
 
@@ -270,6 +326,12 @@ class AuthorityGateway:
                 capability_tier = tool.tier
             else:
                 raise CapabilityNotGrantedError(f"Capability '{capability}' not registered")
+
+        # Build provenance chain
+        if provenance_chain is None:
+            provenance_chain = [provenance_source]
+        else:
+            provenance_chain = provenance_chain + [provenance_source]
 
         # Authorization checks
         self._check_allocation(principal, capability)
@@ -285,7 +347,6 @@ class AuthorityGateway:
             )
         except (SafetyGateError, HITLRequiredError) as e:
             allocation_for_max = self._get_project_allocation(principal.project)
-            max_tier_val = allocation_for_max.get("max_tier") if allocation_for_max else None
             decision = AuthorizationDecision(
                 timestamp=datetime.now(UTC).isoformat(),
                 principal_id=principal.id,
@@ -293,10 +354,11 @@ class AuthorityGateway:
                 capability=capability,
                 capability_tier=capability_tier.value,
                 principal_tier=principal.tier.value,
-                max_tier=max_tier_val,
+                max_tier=allocation_for_max.get("max_tier") if allocation_for_max else None,
                 allowed=False,
                 reason=str(e),
                 provenance_source=provenance_source,
+                provenance_chain=provenance_chain,
             )
             self._record_decision(decision)
             raise
@@ -314,12 +376,18 @@ class AuthorityGateway:
             allowed=True,
             reason="authorized",
             provenance_source=provenance_source,
+            provenance_chain=provenance_chain,
         )
         self._record_decision(decision)
 
-        # Execute with principal context
-        provenance = self._build_provenance(provenance_source, capability, args)
+        # Enforce provenance rules
+        self._enforce_provenance_rules(provenance_chain, capability)
 
+        # Build provenance with chain
+        provenance = self._build_provenance(provenance_source, capability, args)
+        provenance["chain"] = provenance_chain
+
+        # Execute with principal context
         with self._principal_context(
             Principal.create(
                 id=principal.id,
