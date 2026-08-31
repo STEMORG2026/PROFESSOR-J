@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
+from app.domain.tool import SafetyTier
+from app.exceptions import SafetyGateError
+from app.guardrails.policy import SafetyPolicy
 from app.mcp.transports import MCPMessage, MCPTransport, StdioTransport, StreamableHTTPTransport
 
 logger = logging.getLogger(__name__)
@@ -26,23 +29,30 @@ class MCPServerConfig:
 
 @dataclass
 class MCPTool:
-    """Represents an MCP tool."""
+    """Represents an MCP tool. Carries a safety tier so external capability calls are gated."""
 
     name: str
     description: str
     input_schema: dict[str, Any]
     server_name: str
+    # External MCP tools may have side effects; default to SENSITIVE (needs policy approval
+    # check before execution). DESTRUCTIVE MCP tools would require HITL.
+    tier: SafetyTier = field(default_factory=lambda: SafetyTier.SENSITIVE)
 
 
 class MCPServerManager:
     """Manages multiple MCP server connections and tool discovery."""
 
-    def __init__(self) -> None:
+    def __init__(self, policy: SafetyPolicy | None = None) -> None:
         self._servers: dict[str, MCPServerConfig] = {}
         self._transports: dict[str, MCPTransport] = {}
         self._tools: dict[str, MCPTool] = {}
         self._server_tools: dict[str, list[str]] = {}
         self._initialized = False
+        # MCP is an EXTERNAL capability source: every tool call must be routed through the
+        # safety gate (closes the audit's latent MCP bypass, ADVERSARIAL A4). Fail closed:
+        # if no policy is wired, external tool execution is refused.
+        self._policy = policy
 
     def register_server(self, config: MCPServerConfig) -> None:
         """Register an MCP server configuration."""
@@ -104,10 +114,24 @@ class MCPServerManager:
             logger.info("Discovered %d tools from MCP server %s", len(tools_data), server_name)
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
-        """Call an MCP tool by name."""
+        """Call an MCP tool by name, routed through the safety gate (fail closed)."""
         tool = self._tools.get(tool_name)
         if not tool:
             raise ValueError(f"Tool not found: {tool_name}")
+
+        # Security boundary: an external (MCP) capability must NOT execute without passing
+        # the safety policy. Fail closed — refuse if no gate is wired. Closes the audit's
+        # latent MCP bypass (ADVERSARIAL A4: external tool call avoiding @safety_gate).
+        if self._policy is None:
+            raise SafetyGateError(
+                tool=tool_name,
+                tier=tool.tier.value,
+                reason=(
+                    "MCP tool call refused: no safety policy wired "
+                    "(external capability must be gated)"
+                ),
+            )
+        self._policy.check(tool_name, arguments, tool.tier, tool.description)
 
         transport = self._transports.get(tool.server_name)
         if not transport or not transport.is_connected:

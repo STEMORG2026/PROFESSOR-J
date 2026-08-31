@@ -100,16 +100,33 @@ class TestMCPServerManager:
 
     @pytest.mark.asyncio
     async def test_call_tool_server_not_connected(self) -> None:
-        manager = MCPServerManager()
+        # With a wired safety policy, a call to a disconnected server raises "not connected".
+        from app.domain.tool import SafetyTier
+        from app.guardrails.policy import SafetyPolicy
+
+        manager = MCPServerManager(policy=SafetyPolicy(approval_callback=None))
         tool = MCPTool(
             name="test_tool",
             description="Test",
             input_schema={},
             server_name="server1",
+            tier=SafetyTier.SAFE,
         )
         manager._tools["test_tool"] = tool
         # Server not connected
         with pytest.raises(RuntimeError, match="not connected"):
+            await manager.call_tool("test_tool", {})
+
+    @pytest.mark.asyncio
+    async def test_call_tool_fails_closed_without_policy(self) -> None:
+        # Phase-2 security boundary: an MCP tool call with NO safety policy wired is refused
+        # before reaching the transport. Closes the audit's latent MCP bypass.
+        from app.exceptions import SafetyGateError
+
+        manager = MCPServerManager()  # no policy
+        tool = MCPTool(name="test_tool", description="Test", input_schema={}, server_name="s1")
+        manager._tools["test_tool"] = tool
+        with pytest.raises(SafetyGateError):
             await manager.call_tool("test_tool", {})
 
     @pytest.mark.asyncio
