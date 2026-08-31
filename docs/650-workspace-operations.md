@@ -50,6 +50,18 @@ Layer 4  Capabilities, tools, pipelines
 Layer 5  Artifacts / running systems
 ```
 
+**Build status (as of 2026-08-31):**
+- **Phase 0 done** — license matrix applied; `check-governance` CI made a real gate;
+  `scripts/verify_governance.py` added; `authority/capability-registry.json` (9 caps,
+  discovered/selected/routed) + `authority/permission-manifest.yaml` (typed grants + lifecycles).
+- **Phase 1 done** — **signed root-of-trust (P8)**: `scripts/sign_authority.py` signs the
+  authority layer with a root key (private key outside repo at `~/.hermes/authority/root.key`;
+  public key `authority/root-key.pub` + signatures in `authority/.signatures/` committed);
+  `verify_governance.py` gate FAILS on tampering. `docs/umbrella/RISK-MATRIX.md` adds typed
+  graduated-autonomy tiers T0–T4 (autonomy by risk; no self-granted authority).
+- **Phase 2 (pending)** — policy engine (OPA or typed-validator), PROFESSOR-J capability gating
+  (`ToolExecutor`/`SkillRegistry` grant checks), close MCP bypass, immutable audit ledger.
+
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
 External capabilities (skills, MCP, retrieved content, generated AI output) are
