@@ -52,6 +52,43 @@ def _steps_for(intent: Intent, prompt: str) -> list[ExecutionStep]:
                 title="Synthesize a grounded explanation",
             ),
         ]
+    if intent == Intent.GAME_DEV:
+        return [
+            ExecutionStep(
+                step_id="spec-planning",
+                title="Formulate Game Project Specification",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_plan",
+                    args={"prompt": prompt},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Plan game architecture and component requirements",
+                ),
+            ),
+            ExecutionStep(
+                step_id="scaffold-generation",
+                title="Scaffold Game Engine & Core Rules",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_scaffold",
+                    args={"prompt": prompt},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Generate game project structure and pure rule contracts",
+                ),
+            ),
+            ExecutionStep(
+                step_id="architecture-validation",
+                title="Validate Game Architecture & Domain Purity",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_validate",
+                    args={},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Validate engine boundary isolation and determinism",
+                ),
+            ),
+            ExecutionStep(
+                step_id="synthesize",
+                title="Synthesize Game Dev Delivery Summary",
+            ),
+        ]
     if intent == Intent.FILE_QUERY:
         return [ExecutionStep(step_id="access-workspace", title="Access workspace file")]
     if intent == Intent.TOOL_SEARCH:

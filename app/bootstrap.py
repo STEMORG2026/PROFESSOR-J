@@ -12,6 +12,7 @@ import logging
 from dataclasses import dataclass
 
 from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
+from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
@@ -37,6 +38,7 @@ class AppRoot:
     tools: ToolExecutor
     knowledge: LHSKnowledgeAdapter | None
     research: ResearchAgent
+    gamedev: GameDevAgent
     policy: SafetyPolicy
 
     def health(self) -> dict[str, object]:
@@ -48,12 +50,14 @@ class AppRoot:
             "tools": self.tools is not None,
             "knowledge": self.knowledge is not None,
             "research": self.research is not None,
+            "gamedev": self.gamedev is not None,
             "ready": all(
                 (
                     self.db is not None,
                     self.sessions is not None,
                     self.memory is not None,
                     self.tools is not None,
+                    self.gamedev is not None,
                 )
             ),
         }
@@ -73,6 +77,7 @@ def build_root(
     memory = MemoryService(memory_backend)
     reflexion = ReflexionEngine(memory_backend)
     research = ResearchAgent(InMemoryBackend())
+    gamedev = GameDevAgent()
 
     # LHS is optional: load if the export file is present, else degrade to no
     # canonical knowledge (the brain still runs on the model pool).
@@ -86,6 +91,7 @@ def build_root(
     policy = SafetyPolicy(approval_callback=None)
     tools = ToolExecutor(policy)
     tools.register_sandbox_tools()
+    tools.register_gamedev_tools(gamedev, workspace)
 
     return AppRoot(
         sessions=SessionManager(),
@@ -98,6 +104,7 @@ def build_root(
         tools=tools,
         knowledge=knowledge,
         research=research,
+        gamedev=gamedev,
         policy=policy,
     )
 

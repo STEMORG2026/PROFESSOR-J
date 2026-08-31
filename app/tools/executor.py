@@ -16,12 +16,17 @@ import inspect
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from app.domain.gamedev import EngineTarget
 from app.domain.tool import SafetyTier
 from app.exceptions import ProfessorError
 from app.guardrails.policy import SafetyPolicy
 from app.tools.sandbox import CodeSandbox, MathSolver
+
+if TYPE_CHECKING:
+    from app.gamedev import GameDevAgent
+    from app.workspace import WorkspaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +128,60 @@ class ToolExecutor:
             mth.calculus,
             tier=SafetyTier.SAFE,
             description="Differentiate or integrate an expression",
+        )
+
+    def register_gamedev_tools(
+        self,
+        gamedev: GameDevAgent,
+        workspace: WorkspaceManager,
+    ) -> None:
+        """Wire Game Development capability tools into the executor."""
+
+        def _gamedev_plan(prompt: str, target: str = "pure_core") -> dict[str, Any]:
+            target_enum = (
+                EngineTarget(target)
+                if target in [e.value for e in EngineTarget]
+                else EngineTarget.PURE_CORE
+            )
+            spec = gamedev.plan_project(prompt, target=target_enum)
+            return {
+                "title": spec.title,
+                "genre": spec.genre.value,
+                "target_engine": spec.target_engine.value,
+                "components": [c.name for c in spec.components],
+                "max_players": spec.max_players,
+            }
+
+        def _gamedev_scaffold(prompt: str, project_dir: str | None = None) -> dict[str, Any]:
+            spec = gamedev.plan_project(prompt)
+            return gamedev.scaffold(spec, workspace, project_dir=project_dir)
+
+        def _gamedev_validate(project_dir: str = "") -> dict[str, Any]:
+            report = gamedev.validate(workspace, project_dir)
+            return {
+                "is_valid": report.is_valid,
+                "summary": report.summary,
+                "errors": [v.message for v in report.violations],
+                "warnings": [w.message for w in report.warnings],
+            }
+
+        self.register_fn(
+            "gamedev_plan",
+            _gamedev_plan,
+            tier=SafetyTier.SAFE,
+            description="Plan game architecture and component requirements",
+        )
+        self.register_fn(
+            "gamedev_scaffold",
+            _gamedev_scaffold,
+            tier=SafetyTier.SAFE,
+            description="Scaffold game project structure and pure rule contracts in workspace",
+        )
+        self.register_fn(
+            "gamedev_validate",
+            _gamedev_validate,
+            tier=SafetyTier.SAFE,
+            description="Validate game architecture compliance and domain purity",
         )
 
     async def execute(self, name: str, args: dict[str, Any] | None = None) -> dict[str, Any]:

@@ -1,0 +1,137 @@
+"""Game Development Domain Models — Pure Python dataclasses for game specifications.
+
+Invariants:
+- Pure Python 3.11+ dataclasses only.
+- ZERO imports from adapters/, brain/, db/, tools/, or external game engines.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
+from uuid import uuid4
+
+from app.domain.time import utc_now
+
+
+class EngineTarget(str, Enum):
+    """Target game engine or execution runtime."""
+
+    PURE_CORE = "pure_core"  # Headless, deterministic rules (C# / Python)
+    UNITY = "unity"  # Unity Engine (C# / WebGL / Desktop)
+    GODOT = "godot"  # Godot Engine (GDScript / C#)
+    UNREAL = "unreal"  # Unreal Engine (C++ / Blueprints)
+    WEB_CANVAS = "web_canvas"  # Browser HTML5 / Canvas / WebGL
+    CUSTOM = "custom"  # Custom runtime / engine
+
+
+class GameGenre(str, Enum):
+    """Game genre classification."""
+
+    BOARD_GAME = "board_game"
+    TURN_BASED_STRATEGY = "turn_based_strategy"
+    PUZZLE = "puzzle"
+    ARCADE = "arcade"
+    RPG = "rpg"
+    CARD_GAME = "card_game"
+    SIMULATION = "simulation"
+    EDUCATIONAL_STEM = "educational_stem"
+
+
+class GameArchitecturePattern(str, Enum):
+    """Architectural pattern governing game codebase organization."""
+
+    PURE_CORE_HEADLESS = "pure_core_headless"  # Pure rules + presentation separation
+    ECS = "ecs"  # Entity Component System
+    STATE_MACHINE_EVENT_DRIVEN = "state_machine_event_driven"  # Event bus + hierarchical FSM
+    MODEL_VIEW_PRESENTER = "model_view_presenter"  # MVP separation
+
+
+class GameSystemType(str, Enum):
+    """Standard game subsystems."""
+
+    RULES_ENGINE = "rules_engine"
+    TURN_MANAGER = "turn_manager"
+    GRID_BOARD = "grid_board"
+    DICE_RNG = "dice_rng"
+    INVENTORY = "inventory"
+    COMBAT = "combat"
+    MOVEMENT = "movement"
+    SCORING = "scoring"
+    SAVE_STATE = "save_state"
+    EVENT_BUS = "event_bus"
+
+
+@dataclass(frozen=True, slots=True)
+class GameComponentSpec:
+    """Specification of a reusable game component or subsystem."""
+
+    name: str
+    system_type: GameSystemType
+    description: str
+    pattern: GameArchitecturePattern = GameArchitecturePattern.PURE_CORE_HEADLESS
+    parameters: dict[str, Any] = field(default_factory=dict)
+    dependencies: tuple[str, ...] = field(default_factory=tuple)
+    source_files: tuple[str, ...] = field(default_factory=tuple)
+    test_files: tuple[str, ...] = field(default_factory=tuple)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class GameProjectSpec:
+    """Specification for a game project."""
+
+    title: str
+    genre: GameGenre
+    target_engine: EngineTarget = EngineTarget.PURE_CORE
+    architecture_pattern: GameArchitecturePattern = GameArchitecturePattern.PURE_CORE_HEADLESS
+    project_id: str = field(default_factory=lambda: f"game-{uuid4().hex[:8]}")
+    description: str = ""
+    components: tuple[GameComponentSpec, ...] = field(default_factory=tuple)
+    target_language: str = "csharp"  # "csharp", "python", "typescript"
+    max_players: int = 2
+    is_deterministic: bool = True
+    created_at: datetime = field(default_factory=utc_now)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def component_names(self) -> tuple[str, ...]:
+        """Return all component names in this project."""
+        return tuple(c.name for c in self.components)
+
+    def has_system(self, system_type: GameSystemType) -> bool:
+        """Check if project includes a specific game system."""
+        return any(c.system_type == system_type for c in self.components)
+
+
+@dataclass(frozen=True, slots=True)
+class GameRuleViolation:
+    """Architecture or domain rule violation in a game project."""
+
+    rule_name: str
+    file_path: str
+    line_number: int | None = None
+    message: str = ""
+    severity: str = "error"  # "error", "warning"
+
+
+@dataclass(frozen=True, slots=True)
+class GameValidationReport:
+    """Result of game architecture and domain purity validation."""
+
+    is_valid: bool
+    violations: tuple[GameRuleViolation, ...] = field(default_factory=tuple)
+    warnings: tuple[GameRuleViolation, ...] = field(default_factory=tuple)
+    architecture_pattern: GameArchitecturePattern = GameArchitecturePattern.PURE_CORE_HEADLESS
+    engine_target: EngineTarget = EngineTarget.PURE_CORE
+    summary: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def error_count(self) -> int:
+        return len(self.violations)
+
+    @property
+    def warning_count(self) -> int:
+        return len(self.warnings)

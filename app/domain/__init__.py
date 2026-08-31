@@ -4,6 +4,16 @@ Zero external dependencies. Zero framework imports. Serializable, validated, fro
 """
 
 from app.domain.concept import ConceptEntity, ReviewStatus
+from app.domain.gamedev import (
+    EngineTarget,
+    GameArchitecturePattern,
+    GameComponentSpec,
+    GameGenre,
+    GameProjectSpec,
+    GameRuleViolation,
+    GameSystemType,
+    GameValidationReport,
+)
 from app.domain.learner import (
     Evaluation,
     LearnerState,
@@ -27,6 +37,15 @@ __all__ = [
     # Concepts
     "ConceptEntity",
     "ReviewStatus",
+    # GameDev
+    "EngineTarget",
+    "GameGenre",
+    "GameArchitecturePattern",
+    "GameSystemType",
+    "GameComponentSpec",
+    "GameProjectSpec",
+    "GameRuleViolation",
+    "GameValidationReport",
     # Plans
     "ExecutionPlan",
     "ExecutionStep",
