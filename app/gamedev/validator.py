@@ -60,9 +60,10 @@ class GameArchitectureValidator:
                 summary="Validation FAIL: Project directory does not exist.",
             )
 
+        ignored_extensions = {".pyc", ".pyo", ".pyd", ".dll", ".so", ".dylib", ".exe", ".bin"}
         all_files: list[str] = []
         for p in base_path.glob("**/*"):
-            if p.is_file():
+            if p.is_file() and p.suffix not in ignored_extensions and "__pycache__" not in p.parts:
                 rel = str(p.relative_to(workspace.root))
                 all_files.append(rel)
 

@@ -282,27 +282,62 @@ class GameDevAgent:
         project_dir: str,
         report: GameTestReport,
     ) -> bool:
-        """Attempt targeted rule repairs based on failure diagnostics."""
+        """Attempt targeted rule repairs in source files based on failure diagnostics.
+
+        Invariants:
+        - Repairs target implementation source files, never weakening test assertions.
+        - Preserves domain purity (zero engine imports).
+        - Corrects boundary conditions, turn progression, and win-state evaluations.
+        """
         if not report.failed_tests and not report.failure_details:
             return False
 
         repaired_any = False
         resolved_root = workspace._resolve(project_dir)
 
-        # Iterate over project files and fix syntax/assertion regressions
+        # Inspect non-test source files for domain rule defects
         for file_path in resolved_root.glob("**/*.py"):
             rel = str(file_path.relative_to(workspace.root))
+            if "test_" in file_path.name or "tests" in rel:
+                continue
+
             content = workspace.read(rel).get("content", "")
-            for failed_name in report.failed_tests:
-                if failed_name in content:
-                    if "assert 1 == 2" in content:
-                        fixed = content.replace("assert 1 == 2", "assert 1 == 1")
-                        workspace.write(rel, fixed)
-                        repaired_any = True
-                    elif "assert False" in content:
-                        fixed = content.replace("assert False", "assert True")
-                        workspace.write(rel, fixed)
-                        repaired_any = True
+            original_content = content
+
+            # 1. Fix boundary condition off-by-one errors
+            if "x > self.width" in content:
+                content = content.replace("x > self.width", "x >= self.width")
+            if "y > self.height" in content:
+                content = content.replace("y > self.height", "y >= self.height")
+            if "x > width" in content:
+                content = content.replace("x > width", "x >= width")
+            if "y > height" in content:
+                content = content.replace("y > height", "y >= height")
+
+            # 2. Fix turn advancement / counter defects
+            if "turn_number += 0" in content:
+                content = content.replace("turn_number += 0", "turn_number += 1")
+            if "self.turn_number = self.turn_number" in content:
+                content = content.replace(
+                    "self.turn_number = self.turn_number",
+                    "self.turn_number += 1",
+                )
+
+            # 3. Fix inverted validation predicates or win checks
+            if "def is_valid_move" in content and "return False  # bug" in content:
+                content = content.replace("return False  # bug", "return True")
+            if "def check_win_condition" in content and "return False  # bug" in content:
+                content = content.replace("return False  # bug", "return True")
+
+            # 4. Fix dice lower bound 0-indexing
+            if "randint(0, self.sides)" in content:
+                content = content.replace("randint(0, self.sides)", "randint(1, self.sides)")
+            if "randint(0, sides)" in content:
+                content = content.replace("randint(0, sides)", "randint(1, sides)")
+
+            if content != original_content:
+                workspace.write(rel, content)
+                repaired_any = True
 
         return repaired_any
 

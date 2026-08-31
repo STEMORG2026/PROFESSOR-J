@@ -130,12 +130,30 @@ async def test_autonomous_diagnose_and_repair_loop(
     )
     agent.scaffold(spec, temp_workspace, "repair_game")
 
-    # Inject an intentional assertion failure
-    broken_test = """
-def test_movement_state():
-    assert 1 == 2, "Illegal move state calculation"
+    # Write a grid system with an off-by-one boundary defect
+    defective_grid = """
+class GridBoard:
+    def __init__(self, width=8, height=8):
+        self.width = width
+        self.height = height
+
+    def is_in_bounds(self, x, y):
+        if x < 0 or x > self.width:  # Off-by-one defect (should be >=)
+            return False
+        return y >= 0 and y < self.height
 """
-    temp_workspace.write("repair_game/tests/test_broken.py", broken_test)
+    temp_workspace.write("repair_game/systems/grid.py", defective_grid)
+
+    # Write a test expecting strict bounds checking
+    grid_test = """
+from systems.grid import GridBoard
+
+def test_grid_boundary_max():
+    grid = GridBoard(width=8, height=8)
+    assert grid.is_in_bounds(7, 7) is True
+    assert grid.is_in_bounds(8, 7) is False
+"""
+    temp_workspace.write("repair_game/tests/test_grid.py", grid_test)
 
     # Verify that standard verification fails
     initial_verify = await agent.verify_game(temp_workspace, "repair_game", sandbox)
@@ -155,4 +173,4 @@ def test_movement_state():
     assert repaired_report.exit_code == 0
     assert repaired_report.failed_count == 0
     assert repaired_report.metadata.get("repaired") is True
-    assert "test_movement_state" in repaired_report.metadata.get("initial_failures", ())
+    assert "test_grid_boundary_max" in repaired_report.metadata.get("initial_failures", ())
