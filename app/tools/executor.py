@@ -60,21 +60,40 @@ class ToolExecutor:
         *,
         register_policy: Callable[..., bool] | None = None,
         blessed_registrar: bool = False,
+        ledger: Any | None = None,
     ) -> None:
         self.policy = policy or SafetyPolicy(approval_callback=None)
         self._tools: dict[str, RegisteredTool] = {}
-        # Optional guard on capability registration (Phase 2). When set, it is consulted
-        # before a tool may be registered; a False return denies registration.
-        # `blessed_registrar` marks the composition root, which may register DESTRUCTIVE tools.
         self._register_policy: Callable[..., bool] | None = register_policy
         self._blessed_registrar = blessed_registrar
+        # Optional immutable audit ledger (Phase 2 / P9). Best-effort: a ledger failure must
+        # never fail the operation it is recording.
+        self._ledger = ledger
+
+    def _ledger_event(
+        self, action: str, resource: str, approved: bool | None, reason: str = ""
+    ) -> None:
+        if self._ledger is None:
+            return
+        try:
+            self._ledger.append(
+                action=action,
+                principal="professor:tool-executor",
+                resource=resource,
+                approved=approved,
+                detail={"reason": reason} if reason else None,
+            )
+        except Exception:  # noqa: BLE001 - audit is best-effort
+            logger.warning("ledger append failed for %s %s", action, resource)
 
     def _check_register(self, name: str, tier: SafetyTier, description: str) -> None:
         """Consult the registration policy (if any) and deny with a typed error on refusal."""
         if self._register_policy is None:
+            self._ledger_event("register", name, True)
             return
         allowed = self._register_policy(name, tier, self._blessed_registrar)
         if not allowed:
+            self._ledger_event("register-denied", name, False, f"tier {tier.value}")
             raise CapabilityRegistrationError(
                 capability=name,
                 reason=(
@@ -82,6 +101,7 @@ class ToolExecutor:
                     "(DESTRUCTIVE self-registration denied)"
                 ),
             )
+        self._ledger_event("register", name, True)
 
     def register(self, tool: RegisteredTool) -> None:
         """Register a tool for dispatch (gated by the optional registration policy)."""
