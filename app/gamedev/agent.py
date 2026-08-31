@@ -12,16 +12,21 @@ from app.domain.gamedev import (
     GameComponentSpec,
     GameGenre,
     GameProjectSpec,
+    GameRepairAudit,
     GameTestReport,
     GameValidationReport,
     GameWorkflowPlan,
     GameWorkflowType,
+    StateMigrationResult,
+    StateSchemaDiff,
 )
 from app.exceptions import SandboxTimeoutError
 from app.gamedev.adapters.pure_core import PureCoreAdapter
 from app.gamedev.base import EngineRegistry
 from app.gamedev.components import GameComponentCatalog
 from app.gamedev.knowledge import GameKnowledgeCatalog
+from app.gamedev.repair import CognitiveRepairEngine
+from app.gamedev.schema import GameStateEvolutionEngine, GameStateSchema
 from app.gamedev.workflows import GameWorkflowEngine
 from app.tools.sandbox import CodeSandbox
 from app.workspace.workspace import WorkspaceManager
@@ -37,12 +42,18 @@ class GameDevAgent:
         registry: EngineRegistry | None = None,
         knowledge: GameKnowledgeCatalog | None = None,
         workflow_engine: GameWorkflowEngine | None = None,
+        repair_engine: CognitiveRepairEngine | None = None,
+        schema_engine: GameStateEvolutionEngine | None = None,
     ) -> None:
         self.registry = registry or self._default_registry()
         self.knowledge = knowledge or GameKnowledgeCatalog()
         self.workflow_engine = workflow_engine or GameWorkflowEngine(
             knowledge_catalog=self.knowledge
         )
+        self.repair_engine = repair_engine or CognitiveRepairEngine(
+            knowledge_catalog=self.knowledge
+        )
+        self.schema_engine = schema_engine or GameStateEvolutionEngine()
 
     @staticmethod
     def _default_registry() -> EngineRegistry:
@@ -54,10 +65,16 @@ class GameDevAgent:
         self,
         workflow_type: GameWorkflowType,
         goal: str,
+        target_project: str = "",
         target: EngineTarget = EngineTarget.PURE_CORE,
     ) -> GameWorkflowPlan:
-        """Formulate a goal-driven operational workflow plan."""
-        return self.workflow_engine.plan_workflow(workflow_type, goal, target)
+        """Formulate a goal-driven operational workflow plan with structured metadata."""
+        return self.workflow_engine.plan_workflow(
+            workflow_type=workflow_type,
+            goal=goal,
+            target_project=target_project,
+            target_engine=target,
+        )
 
     def plan_project(
         self,
@@ -226,12 +243,14 @@ class GameDevAgent:
         target: EngineTarget = EngineTarget.PURE_CORE,
         max_iterations: int = 3,
     ) -> GameTestReport:
-        """Autonomous iterative test, diagnose, and repair loop."""
+        """Autonomous iterative test, cognitive diagnose, and regression-safe repair loop."""
         initial_report = await self.verify_game(workspace, project_dir, sandbox, target=target)
         if initial_report.success or max_iterations <= 1:
             return initial_report
 
         current_report = initial_report
+        last_audit: GameRepairAudit | None = None
+
         for iteration in range(1, max_iterations + 1):
             if current_report.success:
                 return GameTestReport(
@@ -244,6 +263,7 @@ class GameDevAgent:
                     stderr=current_report.stderr,
                     failed_tests=(),
                     failure_details=(),
+                    repair_audit=last_audit,
                     metadata={
                         "repaired": True,
                         "iterations": iteration - 1,
@@ -251,7 +271,10 @@ class GameDevAgent:
                     },
                 )
 
-            repaired = self._attempt_repair(workspace, project_dir, current_report)
+            repaired, audit = self.repair_engine.attempt_cognitive_repair(
+                workspace, project_dir, current_report, iteration=iteration
+            )
+            last_audit = audit
             if not repaired:
                 break
 
@@ -269,6 +292,7 @@ class GameDevAgent:
             timed_out=current_report.timed_out,
             failed_tests=current_report.failed_tests,
             failure_details=current_report.failure_details,
+            repair_audit=last_audit,
             metadata={
                 "repaired": current_report.success,
                 "iterations": max_iterations,
@@ -276,70 +300,22 @@ class GameDevAgent:
             },
         )
 
-    def _attempt_repair(
+    def evolve_state_schema(
         self,
-        workspace: WorkspaceManager,
-        project_dir: str,
-        report: GameTestReport,
-    ) -> bool:
-        """Attempt targeted rule repairs in source files based on failure diagnostics.
+        old_schema: GameStateSchema,
+        new_schema: GameStateSchema,
+        renames: dict[str, str] | None = None,
+    ) -> StateSchemaDiff:
+        """Compute structural schema diff between two state versions."""
+        return self.schema_engine.compute_diff(old_schema, new_schema, renames)
 
-        Invariants:
-        - Repairs target implementation source files, never weakening test assertions.
-        - Preserves domain purity (zero engine imports).
-        - Corrects boundary conditions, turn progression, and win-state evaluations.
-        """
-        if not report.failed_tests and not report.failure_details:
-            return False
-
-        repaired_any = False
-        resolved_root = workspace._resolve(project_dir)
-
-        # Inspect non-test source files for domain rule defects
-        for file_path in resolved_root.glob("**/*.py"):
-            rel = str(file_path.relative_to(workspace.root))
-            if "test_" in file_path.name or "tests" in rel:
-                continue
-
-            content = workspace.read(rel).get("content", "")
-            original_content = content
-
-            # 1. Fix boundary condition off-by-one errors
-            if "x > self.width" in content:
-                content = content.replace("x > self.width", "x >= self.width")
-            if "y > self.height" in content:
-                content = content.replace("y > self.height", "y >= self.height")
-            if "x > width" in content:
-                content = content.replace("x > width", "x >= width")
-            if "y > height" in content:
-                content = content.replace("y > height", "y >= height")
-
-            # 2. Fix turn advancement / counter defects
-            if "turn_number += 0" in content:
-                content = content.replace("turn_number += 0", "turn_number += 1")
-            if "self.turn_number = self.turn_number" in content:
-                content = content.replace(
-                    "self.turn_number = self.turn_number",
-                    "self.turn_number += 1",
-                )
-
-            # 3. Fix inverted validation predicates or win checks
-            if "def is_valid_move" in content and "return False  # bug" in content:
-                content = content.replace("return False  # bug", "return True")
-            if "def check_win_condition" in content and "return False  # bug" in content:
-                content = content.replace("return False  # bug", "return True")
-
-            # 4. Fix dice lower bound 0-indexing
-            if "randint(0, self.sides)" in content:
-                content = content.replace("randint(0, self.sides)", "randint(1, self.sides)")
-            if "randint(0, sides)" in content:
-                content = content.replace("randint(0, sides)", "randint(1, sides)")
-
-            if content != original_content:
-                workspace.write(rel, content)
-                repaired_any = True
-
-        return repaired_any
+    def migrate_state_snapshot(
+        self,
+        state_dict: dict[str, Any],
+        diff: StateSchemaDiff,
+    ) -> StateMigrationResult:
+        """Migrate a raw state snapshot according to a schema diff."""
+        return self.schema_engine.migrate_state(state_dict, diff)
 
 
 __all__ = ["GameDevAgent"]

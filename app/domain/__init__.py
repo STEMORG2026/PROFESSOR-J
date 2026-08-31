@@ -12,12 +12,16 @@ from app.domain.gamedev import (
     GameKnowledgeCategory,
     GameKnowledgeTopic,
     GameProjectSpec,
+    GameRepairAudit,
     GameRuleViolation,
     GameSystemType,
     GameTestReport,
     GameValidationReport,
     GameWorkflowPlan,
     GameWorkflowType,
+    StateFieldDiff,
+    StateMigrationResult,
+    StateSchemaDiff,
 )
 from app.domain.learner import (
     Evaluation,
@@ -56,6 +60,10 @@ __all__ = [
     "GameWorkflowPlan",
     "GameKnowledgeCategory",
     "GameKnowledgeTopic",
+    "StateFieldDiff",
+    "StateSchemaDiff",
+    "StateMigrationResult",
+    "GameRepairAudit",
     # Plans
     "ExecutionPlan",
     "ExecutionStep",

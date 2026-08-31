@@ -42,31 +42,73 @@ class GameWorkflowEngine:
         self,
         workflow_type: GameWorkflowType,
         goal: str,
+        target_project: str = "",
         target_engine: EngineTarget = EngineTarget.PURE_CORE,
         metadata: dict[str, Any] | None = None,
     ) -> GameWorkflowPlan:
-        """Formulate a structured workflow plan for the given goal."""
+        """Formulate a structured workflow plan with rich metadata for the given goal."""
         low = goal.lower()
         required_comps: list[GameComponentSpec] = []
         applied_patterns: list[GameArchitecturePattern] = [
             GameArchitecturePattern.PURE_CORE_HEADLESS
         ]
+        affected_systems: list[str] = []
+        affected_state: list[str] = []
+        extension_points: list[str] = []
+        required_knowledge: list[str] = []
+        expected_invariants: list[str] = []
+        tests_to_add: list[str] = []
+        migration_required = False
+        verification_strategy = (
+            "Run isolated unit test suite in CodeSandbox; assert zero regressions."
+        )
 
-        # Knowledge-driven component & pattern deduction
+        # 1. Deduce components, systems, and knowledge
+        if "inventory" in low or "item" in low or "equipment" in low:
+            required_comps.append(self.components.inventory())
+            affected_systems.append("InventoryManager")
+            affected_state.append("player_inventories")
+            extension_points.append("GameState.inventories")
+            required_knowledge.append("inventory_invariants")
+            required_knowledge.append("state_schema_evolution")
+            expected_invariants.append(
+                "Inventory capacity cannot exceed maximum configured slot limit."
+            )
+            expected_invariants.append("Item quantities must be strictly positive integers.")
+            tests_to_add.append("test_add_item_within_capacity")
+            tests_to_add.append("test_item_stacking_limits")
+            tests_to_add.append("test_remove_item_success_and_underflow")
+            migration_required = True
+
+        if "score" in low or "leaderboard" in low:
+            required_comps.append(self.components.score_manager())
+            affected_systems.append("ScoreManager")
+            affected_state.append("player_scores")
+            extension_points.append("GameState.scores")
+            migration_required = True
+
+        if "ai" in low or "bot" in low or "minimax" in low:
+            required_comps.append(self.components.ai_minimax())
+            affected_systems.append("MinimaxAI")
+            required_knowledge.append("minimax_ai_decision")
+
         if "turn" in low or "board" in low or "strategy" in low or "ludo" in low:
             required_comps.append(self.components.turn_manager())
             applied_patterns.append(GameArchitecturePattern.STATE_MACHINE_EVENT_DRIVEN)
+            required_knowledge.append("state_machine_fsm")
 
         if "dice" in low or "roll" in low or "random" in low or "ludo" in low:
             required_comps.append(self.components.dice_rng())
+            required_knowledge.append("game_loop_determinism")
 
-        if "board" in low or "grid" in low or "tile" in low or "ludo" in low:
+        if "grid" in low or "tile" in low:
             required_comps.append(self.components.grid_board())
+            required_knowledge.append("grid_spatial_indexing")
 
-        if "event" in low or "bus" in low or "listener" in low or not required_comps:
+        if not required_comps:
             required_comps.append(self.components.event_bus())
 
-        # Step synthesis based on workflow type
+        # 2. Step synthesis based on workflow type
         steps: tuple[str, ...]
         if workflow_type == GameWorkflowType.CREATE_GAME:
             steps = (
@@ -78,11 +120,11 @@ class GameWorkflowEngine:
             )
         elif workflow_type == GameWorkflowType.ADD_FEATURE:
             steps = (
-                f"1. Analyze existing project structure for extension points: '{goal}'",
-                "2. Synthesize new domain contracts, state properties, and intent handlers.",
-                "3. Generate pure component implementation and register with GameState.",
-                "4. Synthesize unit tests covering new feature behavior.",
-                "5. Execute headless verification to ensure zero regressions.",
+                f"1. Inspect existing project '{target_project}' architecture and state model.",
+                f"2. Formulate StateSchemaDiff for new state fields: {affected_state}.",
+                "3. Synthesize component implementation & wire into GameState.",
+                f"4. Generate unit tests covering: {tests_to_add}.",
+                "5. Execute headless verification in sandbox to verify zero regressions.",
             )
         elif workflow_type == GameWorkflowType.FIX_BUG:
             steps = (
@@ -113,11 +155,28 @@ class GameWorkflowEngine:
                 "3. Re-verify behavioral equivalence with headless test suite.",
             )
 
+        seen_comp_names: set[str] = set()
+        deduped_comps: list[GameComponentSpec] = []
+        for c in required_comps:
+            if c.name not in seen_comp_names:
+                seen_comp_names.add(c.name)
+                deduped_comps.append(c)
+
         return GameWorkflowPlan(
             workflow_type=workflow_type,
             goal=goal,
             steps=steps,
-            required_components=tuple(required_comps),
+            target_project=target_project,
+            requested_feature=goal if workflow_type == GameWorkflowType.ADD_FEATURE else "",
+            affected_systems=tuple(dict.fromkeys(affected_systems)),
+            affected_state=tuple(dict.fromkeys(affected_state)),
+            extension_points=tuple(dict.fromkeys(extension_points)),
+            required_components=tuple(deduped_comps),
+            required_knowledge=tuple(dict.fromkeys(required_knowledge)),
+            expected_invariants=tuple(dict.fromkeys(expected_invariants)),
+            tests_to_add=tuple(dict.fromkeys(tests_to_add)),
+            migration_required=migration_required,
+            verification_strategy=verification_strategy,
             applied_patterns=tuple(dict.fromkeys(applied_patterns)),
             target_engine=target_engine,
             metadata=metadata or {},

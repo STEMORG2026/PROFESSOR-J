@@ -106,13 +106,77 @@ class GameKnowledgeTopic:
 
 
 @dataclass(frozen=True, slots=True)
+class StateFieldDiff:
+    """Diff describing a change to a single field in a game state schema."""
+
+    field_name: str
+    change_type: str  # "added", "removed", "renamed", "type_changed", "default_changed"
+    old_type: str | None = None
+    new_type: str | None = None
+    default_value: Any = None
+    old_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StateSchemaDiff:
+    """Overall schema diff between two state versions."""
+
+    from_version: int
+    to_version: int
+    added_fields: tuple[StateFieldDiff, ...] = field(default_factory=tuple)
+    removed_fields: tuple[StateFieldDiff, ...] = field(default_factory=tuple)
+    renamed_fields: tuple[StateFieldDiff, ...] = field(default_factory=tuple)
+    modified_fields: tuple[StateFieldDiff, ...] = field(default_factory=tuple)
+    requires_migration: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class StateMigrationResult:
+    """Outcome of migrating a state instance from an older schema version."""
+
+    success: bool
+    from_version: int
+    to_version: int
+    migrated_state: dict[str, Any]
+    applied_steps: tuple[str, ...] = field(default_factory=tuple)
+    error: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class GameRepairAudit:
+    """Audit log of an autonomous repair attempt ensuring safety and specification preservation."""
+
+    hypothesis: str
+    invariant_targeted: str
+    files_considered: tuple[str, ...] = field(default_factory=tuple)
+    files_modified: tuple[str, ...] = field(default_factory=tuple)
+    test_files_touched: bool = False
+    tests_weakened: bool = False
+    tests_before_count: int = 0
+    tests_after_count: int = 0
+    iteration_count: int = 1
+    success: bool = True
+    rejected_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class GameWorkflowPlan:
     """Structured plan for executing a game development workflow."""
 
     workflow_type: GameWorkflowType
     goal: str
     steps: tuple[str, ...] = field(default_factory=tuple)
+    target_project: str = ""
+    requested_feature: str = ""
+    affected_systems: tuple[str, ...] = field(default_factory=tuple)
+    affected_state: tuple[str, ...] = field(default_factory=tuple)
+    extension_points: tuple[str, ...] = field(default_factory=tuple)
     required_components: tuple[GameComponentSpec, ...] = field(default_factory=tuple)
+    required_knowledge: tuple[str, ...] = field(default_factory=tuple)
+    expected_invariants: tuple[str, ...] = field(default_factory=tuple)
+    tests_to_add: tuple[str, ...] = field(default_factory=tuple)
+    migration_required: bool = False
+    verification_strategy: str = ""
     applied_patterns: tuple[GameArchitecturePattern, ...] = field(default_factory=tuple)
     target_engine: EngineTarget = EngineTarget.PURE_CORE
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -130,6 +194,12 @@ class GameComponentSpec:
     dependencies: tuple[str, ...] = field(default_factory=tuple)
     source_files: tuple[str, ...] = field(default_factory=tuple)
     test_files: tuple[str, ...] = field(default_factory=tuple)
+    purpose: str = ""
+    inputs: tuple[str, ...] = field(default_factory=tuple)
+    outputs: tuple[str, ...] = field(default_factory=tuple)
+    state_fields: tuple[str, ...] = field(default_factory=tuple)
+    emitted_events: tuple[str, ...] = field(default_factory=tuple)
+    invariants: tuple[str, ...] = field(default_factory=tuple)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -206,4 +276,5 @@ class GameTestReport:
     timed_out: bool = False
     failed_tests: tuple[str, ...] = field(default_factory=tuple)
     failure_details: tuple[dict[str, Any], ...] = field(default_factory=tuple)
+    repair_audit: GameRepairAudit | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

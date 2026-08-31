@@ -1,4 +1,4 @@
-"""Reusable Game Components Catalog — Specifications and templates for common game systems."""
+"""Reusable Game Components Catalog — Specifications and contracts for common game systems."""
 
 from __future__ import annotations
 
@@ -25,6 +25,15 @@ class GameComponentCatalog:
             },
             source_files=("DiceRng.cs",),
             test_files=("DiceRngTests.cs",),
+            purpose="Generate deterministic pseudo-random integer values seeded per match.",
+            inputs=("sides: int", "count: int"),
+            outputs=("roll_result: int",),
+            state_fields=("_seed: int", "_roll_count: int"),
+            emitted_events=("DiceRolledEvent",),
+            invariants=(
+                "Roll results are strictly between 1 and sides inclusive.",
+                "Given identical initial seed, roll sequence is 100% reproducible.",
+            ),
         )
 
     @staticmethod
@@ -42,6 +51,15 @@ class GameComponentCatalog:
             dependencies=("EventBus",),
             source_files=("TurnManager.cs",),
             test_files=("TurnManagerTests.cs",),
+            purpose="Orchestrate round-robin player turn rotation and phase transitions.",
+            inputs=("next_turn_intent",),
+            outputs=("active_player: int", "turn_number: int"),
+            state_fields=("active_player: int", "turn_number: int", "player_count: int"),
+            emitted_events=("TurnAdvancedEvent", "PhaseChangedEvent"),
+            invariants=(
+                "Active player index is always in [0, player_count - 1].",
+                "Turn number increments when rotating back to player 0.",
+            ),
         )
 
     @staticmethod
@@ -58,6 +76,15 @@ class GameComponentCatalog:
             },
             source_files=("GridBoard.cs",),
             test_files=("GridBoardTests.cs",),
+            purpose="Manage 2D spatial coordinates, distance metrics, and boundary validation.",
+            inputs=("x: int", "y: int"),
+            outputs=("is_valid: bool", "tile_occupant: int | None"),
+            state_fields=("width: int", "height: int", "occupancy_map: dict"),
+            emitted_events=("TileOccupiedEvent", "TileClearedEvent"),
+            invariants=(
+                "Coordinates outside [0, width-1] x [0, height-1] are rejected as out of bounds.",
+                "Manhattan distance is calculated as |x1 - x2| + |y1 - y2|.",
+            ),
         )
 
     @staticmethod
@@ -71,6 +98,15 @@ class GameComponentCatalog:
             parameters={},
             source_files=("GameEventBus.cs",),
             test_files=("GameEventBusTests.cs",),
+            purpose="Publish and subscribe to immutable domain events synchronously in memory.",
+            inputs=("event: IDomainEvent", "listener: Callable"),
+            outputs=(),
+            state_fields=("_listeners: dict",),
+            emitted_events=(),
+            invariants=(
+                "Events are dispatched synchronously in publication order.",
+                "Subscribers cannot mutate event payloads.",
+            ),
         )
 
     @staticmethod
@@ -85,6 +121,15 @@ class GameComponentCatalog:
             dependencies=("EventBus", "TurnManager"),
             source_files=(f"{rule_name}.cs",),
             test_files=(f"{rule_name}Tests.cs",),
+            purpose="Enforce authoritative game rules and evaluate legal moves & win states.",
+            inputs=("intent: IGameIntent", "state: GameState"),
+            outputs=("result: MoveResult", "is_game_over: bool", "winner: int | None"),
+            state_fields=("rules_config: dict",),
+            emitted_events=("MoveValidatedEvent", "GameOverEvent"),
+            invariants=(
+                "Illegal player moves are rejected without mutating match state.",
+                "Win conditions are evaluated authoritatively following each valid move.",
+            ),
         )
 
     @staticmethod
@@ -99,6 +144,16 @@ class GameComponentCatalog:
             dependencies=("EventBus",),
             source_files=("InventoryManager.cs",),
             test_files=("InventoryManagerTests.cs",),
+            purpose="Manage item storage, stack limits, capacity constraints, and equipment.",
+            inputs=("item_id: str", "quantity: int", "slot_index: int | None"),
+            outputs=("success: bool", "remaining_slots: int", "current_weight: float"),
+            state_fields=("slots: list", "max_slots: int", "max_weight: float"),
+            emitted_events=("ItemAddedEvent", "ItemRemovedEvent", "InventoryFullEvent"),
+            invariants=(
+                "Total allocated item slots cannot exceed max_slots.",
+                "Item quantities must be strictly positive integers (quantity >= 1).",
+                "Removing items fails if requested quantity exceeds available count.",
+            ),
         )
 
     @staticmethod
@@ -113,6 +168,15 @@ class GameComponentCatalog:
             dependencies=("EventBus",),
             source_files=("ScoreManager.cs",),
             test_files=("ScoreManagerTests.cs",),
+            purpose="Track player scores, streak multipliers, and high score leaderboards.",
+            inputs=("points: int", "player_id: int", "multiplier: float"),
+            outputs=("current_score: int",),
+            state_fields=("scores: dict[int, int]", "multipliers: dict[int, float]"),
+            emitted_events=("ScoreUpdatedEvent", "HighScoreAchievedEvent"),
+            invariants=(
+                "Scores are non-negative integers.",
+                "Points awarded are modified by the active combo multiplier.",
+            ),
         )
 
     @staticmethod
@@ -129,6 +193,15 @@ class GameComponentCatalog:
             dependencies=("EventBus",),
             source_files=("GameStateMachine.cs",),
             test_files=("GameStateMachineTests.cs",),
+            purpose="Maintain explicit phase transitions and guard against invalid intent timings.",
+            inputs=("transition_trigger: str",),
+            outputs=("current_state: str", "is_transition_valid: bool"),
+            state_fields=("current_state: str", "valid_transitions: dict"),
+            emitted_events=("StateTransitionedEvent",),
+            invariants=(
+                "Transitions must be explicitly declared in the transition graph.",
+                "Guards must evaluate to True before state transition completes.",
+            ),
         )
 
     @staticmethod
@@ -143,6 +216,15 @@ class GameComponentCatalog:
             dependencies=("RulesEngine",),
             source_files=("MinimaxAI.cs",),
             test_files=("MinimaxAITests.cs",),
+            purpose="Evaluate game tree lookahead to select optimal deterministic bot actions.",
+            inputs=("state: GameState", "depth: int"),
+            outputs=("best_intent: IGameIntent", "eval_score: float"),
+            state_fields=("search_depth: int", "eval_weights: dict"),
+            emitted_events=("AIDecisionFormulatedEvent",),
+            invariants=(
+                "AI operates on state clones without side effects on active match state.",
+                "Outputs the intent with the highest heuristic minimax score.",
+            ),
         )
 
     @staticmethod
@@ -159,6 +241,15 @@ class GameComponentCatalog:
             dependencies=(),
             source_files=("SaveStateManager.cs",),
             test_files=("SaveStateManagerTests.cs",),
+            purpose="Serialize and deserialize match state snapshots with schema versioning.",
+            inputs=("state: GameState", "snapshot_str: str"),
+            outputs=("snapshot_dict: dict", "restored_state: GameState"),
+            state_fields=("schema_version: int", "format: str"),
+            emitted_events=("StateSavedEvent", "StateRestoredEvent"),
+            invariants=(
+                "Serializing and immediately deserializing yields an identical state object.",
+                "Snapshots must include an explicit schema_version field.",
+            ),
         )
 
     @staticmethod
