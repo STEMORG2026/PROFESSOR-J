@@ -11,6 +11,7 @@ from app.domain.gamedev import (
     GameArchitecturePattern,
     GameComponentSpec,
     GameGenre,
+    GameProjectModel,
     GameProjectSpec,
     GameRepairAudit,
     GameTestReport,
@@ -22,6 +23,7 @@ from app.domain.gamedev import (
 )
 from app.exceptions import SandboxTimeoutError
 from app.gamedev.adapters.pure_core import PureCoreAdapter
+from app.gamedev.analyzer import GameProjectAnalyzer
 from app.gamedev.base import EngineRegistry
 from app.gamedev.components import GameComponentCatalog
 from app.gamedev.knowledge import GameKnowledgeCatalog
@@ -44,6 +46,7 @@ class GameDevAgent:
         workflow_engine: GameWorkflowEngine | None = None,
         repair_engine: CognitiveRepairEngine | None = None,
         schema_engine: GameStateEvolutionEngine | None = None,
+        analyzer: GameProjectAnalyzer | None = None,
     ) -> None:
         self.registry = registry or self._default_registry()
         self.knowledge = knowledge or GameKnowledgeCatalog()
@@ -54,6 +57,15 @@ class GameDevAgent:
             knowledge_catalog=self.knowledge
         )
         self.schema_engine = schema_engine or GameStateEvolutionEngine()
+        self.analyzer = analyzer or GameProjectAnalyzer()
+
+    def analyze_project(
+        self,
+        workspace: WorkspaceManager,
+        project_dir: str = "",
+    ) -> GameProjectModel:
+        """Inspect and build a structural representation of a game project."""
+        return self.analyzer.analyze_project(workspace, project_dir)
 
     @staticmethod
     def _default_registry() -> EngineRegistry:

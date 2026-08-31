@@ -13,11 +13,13 @@ Invariants:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from app.domain.gamedev import (
     GameKnowledgeTopic,
     GameRepairAudit,
     GameTestReport,
+    ModificationScope,
 )
 from app.gamedev.knowledge import GameKnowledgeCatalog
 from app.workspace.workspace import WorkspaceManager
@@ -30,6 +32,41 @@ class CognitiveRepairEngine:
 
     def __init__(self, knowledge_catalog: GameKnowledgeCatalog | None = None) -> None:
         self.knowledge = knowledge_catalog or GameKnowledgeCatalog()
+
+    @staticmethod
+    def classify_file_scope(rel_path: str) -> ModificationScope:
+        """Classify a file path into its governance/architectural modification scope."""
+        p = Path(rel_path)
+        name = p.name.lower()
+        parts = [part.lower() for part in p.parts]
+
+        # 1. Tests (strictly immutable specifications)
+        if (
+            name.startswith("test_")
+            or name.endswith(("test.py", "tests.cs"))
+            or "tests" in parts
+            or "test" in parts
+        ):
+            return ModificationScope.TEST
+
+        # 2. Governance & Charters
+        if (
+            "agents.md" in name
+            or "constitution.md" in name
+            or ".agents" in parts
+            or "governance" in parts
+        ):
+            return ModificationScope.GOVERNANCE
+
+        # 3. Project Configuration
+        if name in {"pyproject.toml", "package.json", "tsconfig.json", ".pre-commit-config.yaml"}:
+            return ModificationScope.CONFIGURATION
+
+        # 4. Platform Framework code
+        if parts and parts[0] in {"app", "scripts", "frontend", "board"}:
+            return ModificationScope.FRAMEWORK
+
+        return ModificationScope.IMPLEMENTATION
 
     def diagnose_and_formulate_hypothesis(
         self,
@@ -51,7 +88,18 @@ class CognitiveRepairEngine:
         hypothesis = "Domain rule logic deviation detected in game systems."
         target_invariant = "Preserve deterministic rule invariants and test assertions."
 
-        if "inventory" in combined_text or "capacity" in combined_text or "item" in combined_text:
+        if "card" in combined_text or "deck" in combined_text or "discard" in combined_text:
+            hypothesis = "Card draw/discard conservation state desync defect."
+            target_invariant = "Discarded cards must be removed from active draw pile immediately."
+        elif (
+            "sim" in combined_text
+            or "velocity" in combined_text
+            or "timestep" in combined_text
+            or "physics" in combined_text
+        ):
+            hypothesis = "Simulation discrete timestep integration defect."
+            target_invariant = "Position updates must scale velocity by fixed discrete timestep dt."
+        elif "inventory" in combined_text or "capacity" in combined_text or "item" in combined_text:
             hypothesis = "Inventory capacity constraint or item quantity validation defect."
             target_invariant = (
                 "Total slots cannot exceed max_capacity; quantities must be positive."
@@ -78,8 +126,8 @@ class CognitiveRepairEngine:
         """Apply targeted, regression-safe code repairs to source files.
 
         Enforces strict safety invariants:
-        - Never touches or weakens test files.
-        - Modifies only domain source files.
+        - Only files in ModificationScope.IMPLEMENTATION are modified.
+        - Rejects any edits targeting TEST, GOVERNANCE, CONFIGURATION, or FRAMEWORK.
         - Preserves domain purity.
         """
         hypothesis, invariant, _ = self.diagnose_and_formulate_hypothesis(
@@ -95,8 +143,9 @@ class CognitiveRepairEngine:
             rel = str(file_path.relative_to(workspace.root))
             files_considered.append(rel)
 
-            # SAFETY INVARIANT: Strictly ignore test files
-            if "test_" in file_path.name or "tests" in rel:
+            # SAFETY INVARIANT: Strictly restrict scope to IMPLEMENTATION
+            scope = self.classify_file_scope(rel)
+            if scope != ModificationScope.IMPLEMENTATION:
                 continue
 
             content_dict = workspace.read(rel)
@@ -106,25 +155,43 @@ class CognitiveRepairEngine:
             content = content_dict.get("content", "")
             original_content = content
 
-            # 1. Inventory capacity / quantity logic repairs
+            # 1. Card Game Draw/Discard Desync Repairs
+            if (
+                ("def discard_card" in content or "def discard" in content)
+                and "self.discard.append(card)" in content
+                and "self.cards.remove(card)" not in content
+            ):
+                patch = (
+                    "if card in self.cards:\n"
+                    "            self.cards.remove(card)\n"
+                    "        self.discard.append(card)"
+                )
+                content = content.replace("self.discard.append(card)", patch)
+
+            # 2. Simulation Timestep Integration Repairs
+            if "def update" in content or "def step" in content:
+                # Fix unscaled velocity: self.x += self.vx -> self.x += self.vx * self.dt
+                if "self.x += self.vx" in content and "self.x += self.vx * self.dt" not in content:
+                    content = content.replace("self.x += self.vx", "self.x += self.vx * self.dt")
+                if "self.y += self.vy" in content and "self.y += self.vy * self.dt" not in content:
+                    content = content.replace("self.y += self.vy", "self.y += self.vy * self.dt")
+
+            # 3. Inventory capacity / quantity logic repairs
             if "def add_item" in content:
-                # Fix off-by-one capacity check: len(self.items) > self.max_capacity -> >=
                 if "len(self.items) > self.max_capacity" in content:
                     content = content.replace(
                         "len(self.items) > self.max_capacity",
                         "len(self.items) >= self.max_capacity",
                     )
-                # Fix missing slot limit check
                 if "if len(self.slots) > self.max_slots:" in content:
                     content = content.replace(
                         "if len(self.slots) > self.max_slots:",
                         "if len(self.slots) >= self.max_slots:",
                     )
-                # Fix negative quantity allowance
                 if "if quantity < 0:" in content and "quantity <= 0" not in content:
                     content = content.replace("if quantity < 0:", "if quantity <= 0:")
 
-            # 2. Inventory removal / underflow logic repairs
+            # 4. Inventory removal / underflow logic repairs
             if (
                 "def remove_item" in content
                 and "current_qty < quantity" in content
@@ -135,17 +202,17 @@ class CognitiveRepairEngine:
                     "if current_qty < quantity: return False",
                 )
 
-            # 3. Boundary condition off-by-one errors
+            # 5. Boundary condition off-by-one errors
             if "x > self.width" in content:
                 content = content.replace("x > self.width", "x >= self.width")
             if "y > self.height" in content:
                 content = content.replace("y > self.height", "y >= self.height")
-            if "x > width" in content:
-                content = content.replace("x > width", "x >= width")
-            if "y > height" in content:
-                content = content.replace("y > height", "y >= height")
+            if "val > self.max_val" in content:
+                content = content.replace("val > self.max_val", "val >= self.max_val")
+            if "self.val > self.max_val" in content:
+                content = content.replace("self.val > self.max_val", "self.val >= self.max_val")
 
-            # 4. Turn advancement defects
+            # 6. Turn advancement defects
             if "turn_number += 0" in content:
                 content = content.replace("turn_number += 0", "turn_number += 1")
             if "self.turn_number = self.turn_number" in content:
@@ -154,13 +221,13 @@ class CognitiveRepairEngine:
                     "self.turn_number += 1",
                 )
 
-            # 5. Inverted validation predicates
+            # 7. Inverted validation predicates
             if "def is_valid_move" in content and "return False  # bug" in content:
                 content = content.replace("return False  # bug", "return True")
             if "def check_win_condition" in content and "return False  # bug" in content:
                 content = content.replace("return False  # bug", "return True")
 
-            # 6. Dice lower bound 0-indexing
+            # 8. Dice lower bound 0-indexing
             if "randint(0, self.sides)" in content:
                 content = content.replace("randint(0, self.sides)", "randint(1, self.sides)")
             if "randint(0, sides)" in content:

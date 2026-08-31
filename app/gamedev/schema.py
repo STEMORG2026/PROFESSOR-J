@@ -6,6 +6,7 @@ OLD STATE -> State Schema Diff -> NEW STATE -> Migration -> Regression Verificat
 Invariants:
 - 100% generic; zero coupling to any specific game rules or titles.
 - Preserves backward compatibility when migrating older match states.
+- Classifies migration semantics (ADDITIVE, DESTRUCTIVE, LOSSY, REVERSIBLE, INCOMPATIBLE).
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.gamedev import (
+    MigrationSemantics,
     StateFieldDiff,
     StateMigrationResult,
     StateSchemaDiff,
@@ -37,6 +39,19 @@ class GameStateSchema:
 
 class GameStateEvolutionEngine:
     """Generic engine for calculating state schema diffs and executing migrations."""
+
+    @staticmethod
+    def classify_semantics(diff: StateSchemaDiff) -> MigrationSemantics:
+        """Classify the semantic nature of a state migration."""
+        if diff.to_version < diff.from_version:
+            return MigrationSemantics.LOSSY
+        if diff.removed_fields:
+            return MigrationSemantics.DESTRUCTIVE
+        if diff.renamed_fields and not diff.added_fields and not diff.removed_fields:
+            return MigrationSemantics.REVERSIBLE
+        if diff.added_fields and not diff.removed_fields:
+            return MigrationSemantics.ADDITIVE
+        return MigrationSemantics.ADDITIVE
 
     @staticmethod
     def compute_diff(

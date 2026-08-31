@@ -49,6 +49,19 @@ class GameArchitecturePattern(str, Enum):
     MODEL_VIEW_PRESENTER = "model_view_presenter"  # MVP separation
 
 
+class GameSystemCategory(str, Enum):
+    """Taxonomy of game component and subsystem domains."""
+
+    CORE = "core"
+    STATE = "state"
+    GAMEPLAY = "gameplay"
+    SPATIAL = "spatial"
+    AI = "ai"
+    SIMULATION = "simulation"
+    CARD = "card"
+    PRESENTATION = "presentation"
+
+
 class GameSystemType(str, Enum):
     """Standard game subsystems."""
 
@@ -64,6 +77,31 @@ class GameSystemType(str, Enum):
     EVENT_BUS = "event_bus"
     AI_DECISION = "ai_decision"
     STATE_MACHINE = "state_machine"
+    DECK_MANAGER = "deck_manager"
+    FIXED_TIMESTEP = "fixed_timestep"
+    SPATIAL_INDEX_2D = "spatial_index_2d"
+    COMMAND_DISPATCHER = "command_dispatcher"
+
+
+class ModificationScope(str, Enum):
+    """Classification of code modification targets for autonomous repair safety."""
+
+    IMPLEMENTATION = "implementation"  # Safe to modify during repair
+    TEST = "test"  # REJECTED: Tests are immutable specifications
+    CONFIGURATION = "configuration"  # REJECTED: Build/project configs
+    GOVERNANCE = "governance"  # REJECTED: Governance, AGENTS.md, charters
+    FRAMEWORK = "framework"  # REJECTED: PROFESSOR-J platform code
+    DEPENDENCY = "dependency"  # REJECTED: Third-party dependencies
+
+
+class MigrationSemantics(str, Enum):
+    """Semantics of game state schema transitions."""
+
+    ADDITIVE = "additive"  # New fields with defaults; 100% forward compatible
+    DESTRUCTIVE = "destructive"  # Removed fields; old data dropped
+    LOSSY = "lossy"  # Reverse v2 -> v1 drops v2-specific fields
+    REVERSIBLE = "reversible"  # Bijective mapping preserving full round-trip
+    INCOMPATIBLE = "incompatible"  # Type conflict requiring explicit conversion
 
 
 class GameWorkflowType(str, Enum):
@@ -88,6 +126,25 @@ class GameKnowledgeCategory(str, Enum):
     INPUT_AND_CONTROL = "input_and_control"
     STORAGE_AND_STATE = "storage_and_state"
     TESTING_AND_REPAIR = "testing_and_repair"
+
+
+@dataclass(frozen=True, slots=True)
+class GameProjectModel:
+    """Structural model of an analyzed game project workspace."""
+
+    project_name: str
+    root_dir: str
+    architecture_pattern: GameArchitecturePattern = GameArchitecturePattern.PURE_CORE_HEADLESS
+    detected_systems: tuple[str, ...] = field(default_factory=tuple)
+    state_models: tuple[str, ...] = field(default_factory=tuple)
+    intent_handlers: tuple[str, ...] = field(default_factory=tuple)
+    events_emitted: tuple[str, ...] = field(default_factory=tuple)
+    test_files: tuple[str, ...] = field(default_factory=tuple)
+    source_files: tuple[str, ...] = field(default_factory=tuple)
+    schema_version: int = 1
+    engine_target: EngineTarget = EngineTarget.PURE_CORE
+    is_pure_core: bool = True
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +246,7 @@ class GameComponentSpec:
     name: str
     system_type: GameSystemType
     description: str
+    category: GameSystemCategory = GameSystemCategory.CORE
     pattern: GameArchitecturePattern = GameArchitecturePattern.PURE_CORE_HEADLESS
     parameters: dict[str, Any] = field(default_factory=dict)
     dependencies: tuple[str, ...] = field(default_factory=tuple)
