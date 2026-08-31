@@ -59,8 +59,12 @@ Layer 5  Artifacts / running systems
   public key `authority/root-key.pub` + signatures in `authority/.signatures/` committed);
   `verify_governance.py` gate FAILS on tampering. `docs/umbrella/RISK-MATRIX.md` adds typed
   graduated-autonomy tiers T0–T4 (autonomy by risk; no self-granted authority).
-- **Phase 2 (pending)** — policy engine (OPA or typed-validator), PROFESSOR-J capability gating
-  (`ToolExecutor`/`SkillRegistry` grant checks), close MCP bypass, immutable audit ledger.
+- **Phase 2 (in progress)** — policy engine: **first increment SHIPPED (app/authority/ policy, PR #61)**
+  — PROFESSOR-J's `ToolExecutor`/`SkillRegistry` registration is now grant-checked
+  (`default_register_policy`: non-blessed registrars cannot self-register DESTRUCTIVE
+  capabilities; no-silent-overwrite for skills; `CapabilityRegistrationError`). Still pending:
+  OPA-or-typed-validator (workspace `scripts/authorize.py` exists), MCP-bypass hardening, and
+  the immutable audit ledger.
 
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
