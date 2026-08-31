@@ -70,6 +70,13 @@ Layer 5  Artifacts / running systems
   - Remaining Phase-2 note: the workspace-level policy engine (OPA-or-typed-validator,
     `scripts/authorize.py` in the workspace) is used for cross-repo grant checks; PROFESSOR-J's
     runtime registration gate is now its own `app/authority` + `@safety_gate`.
+- **Phase 3 done (shared agent/skill pool)** — `authority/agent-pool.yaml` + `authority/allocation.yaml`
+  classify the 8 workspace skills into universal / domain/stem / project/<repo>, allocate per-repo
+  agent roles + max action tier, and enforce STEM isolation. `scripts/route_task.py` now returns the
+  allowed agents/pool category/max tier for a routed repo (PROFESSOR-J: full specialist set at T2;
+  JARVIS frozen: implementer+code-reviewer at T1). Pool files are signed (root-of-trust) and
+  `verify_governance.py` `check_agent_pool()` gates them. PROFESSOR-J is allocated the full specialist
+  set — it is the primary agent that draws from this pool for development work.
 
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
