@@ -59,12 +59,17 @@ Layer 5  Artifacts / running systems
   public key `authority/root-key.pub` + signatures in `authority/.signatures/` committed);
   `verify_governance.py` gate FAILS on tampering. `docs/umbrella/RISK-MATRIX.md` adds typed
   graduated-autonomy tiers T0–T4 (autonomy by risk; no self-granted authority).
-- **Phase 2 (in progress)** — policy engine: **first increment SHIPPED (app/authority/ policy, PR #61)**
-  — PROFESSOR-J's `ToolExecutor`/`SkillRegistry` registration is now grant-checked
-  (`default_register_policy`: non-blessed registrars cannot self-register DESTRUCTIVE
-  capabilities; no-silent-overwrite for skills; `CapabilityRegistrationError`). Still pending:
-  OPA-or-typed-validator (workspace `scripts/authorize.py` exists), MCP-bypass hardening, and
-  the immutable audit ledger.
+- **Phase 2 (code complete on PROFESSOR-J)** — three auth/security increments shipped:
+  - **PR #61** — grant-checked capability registration (`app/authority/policy.py`): non-blessed
+    registrars cannot self-register DESTRUCTIVE capabilities; skills no-silent-overwrite.
+  - **PR #63** — MCP safety-gate hardening: `call_tool()` routes through a wired `SafetyPolicy`
+    and **fails closed** (`SafetyGateError`) if none is set; `MCPTool` carries a `SafetyTier`.
+  - **PR #64** — immutable audit ledger (`app/authority/ledger.py`): SHA-256 hash-chained
+    append-only JSONL; `verify_chain()` detects tampering; `ToolExecutor` records
+    register/register-denied events. (P9)
+  - Remaining Phase-2 note: the workspace-level policy engine (OPA-or-typed-validator,
+    `scripts/authorize.py` in the workspace) is used for cross-repo grant checks; PROFESSOR-J's
+    runtime registration gate is now its own `app/authority` + `@safety_gate`.
 
 **Authority model:** workspace Level-1 invariants (non-overridable) → repository
 Level-2 governance (authoritative inside each repo) → implementation details.
