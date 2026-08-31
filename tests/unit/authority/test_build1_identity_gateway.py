@@ -1,11 +1,12 @@
 """Tests for Build 1: Identity + Gateway enforcement."""
+
 from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 from pathlib import Path
 
 import pytest
@@ -17,19 +18,15 @@ WORKSPACE_ROOT = Path("/home/sajan/Projects")
 # Ensure PROFESSOR-J is in path
 sys.path.insert(0, str(WORKSPACE_ROOT / "PROFESSOR-J"))
 
-from app.authority.gateway import AuthorityGateway
+from app.authority.gateway import (
+    AuthorityGateway,
+)
 from app.authority.principal import (
     Principal,
     get_current_principal,
-    set_current_principal,
     require_principal,
     reset_current_principal,
-)
-from app.authority.gateway import (
-    AuthorityGateway,
-    require_gateway,
-    set_gateway,
-    get_gateway,
+    set_current_principal,
 )
 from app.domain.tool import SafetyTier
 from app.guardrails.policy import SafetyPolicy
@@ -65,9 +62,15 @@ class TestPrincipal:
 
     def test_principal_tier_check(self):
         """Principal tier comparison works correctly."""
-        safe_agent = Principal.create(id="safe", tier=SafetyTier.SAFE, project="P", allocation_ref="P")
-        sensitive_agent = Principal.create(id="sens", tier=SafetyTier.SENSITIVE, project="P", allocation_ref="P")
-        destructive_agent = Principal.create(id="dest", tier=SafetyTier.DESTRUCTIVE, project="P", allocation_ref="P")
+        safe_agent = Principal.create(
+            id="safe", tier=SafetyTier.SAFE, project="P", allocation_ref="P"
+        )
+        sensitive_agent = Principal.create(
+            id="sens", tier=SafetyTier.SENSITIVE, project="P", allocation_ref="P"
+        )
+        destructive_agent = Principal.create(
+            id="dest", tier=SafetyTier.DESTRUCTIVE, project="P", allocation_ref="P"
+        )
 
         # SAFE can only execute SAFE
         assert safe_agent.can_execute_tier(SafetyTier.SAFE)
@@ -90,7 +93,7 @@ class TestPrincipalContext:
 
     def test_context_get_set(self):
         """Principal context can be set and retrieved."""
-        from app.authority.principal import Principal, set_current_principal, get_current_principal, reset_current_principal
+        from app.authority.principal import Principal
         from app.domain.tool import SafetyTier
 
         p = Principal.create(id="test", tier=SafetyTier.SAFE, project="P", allocation_ref="P")
@@ -103,7 +106,6 @@ class TestPrincipalContext:
 
     def test_require_principal_raises_when_none(self):
         """require_principal raises when no principal in context."""
-        from app.authority.principal import require_principal
         from contextvars import ContextVar
 
         # Ensure clean context
@@ -120,9 +122,6 @@ class TestAuthorityGateway:
     @pytest.fixture
     def gateway(self):
         """Create a test gateway with minimal setup."""
-        from app.tools import ToolExecutor
-        from app.guardrails.policy import SafetyPolicy
-        from app.authority.gateway import AuthorityGateway
 
         # Create a tool executor with a simple test tool
         policy = SafetyPolicy(approval_callback=None)
@@ -141,8 +140,6 @@ class TestAuthorityGateway:
 
         # Use a temporary permission manifest for testing
         import yaml
-        import tempfile
-        import shutil
 
         # Create a test permission manifest with test_tool granted to PROFESSOR-J
         perm = {
@@ -151,21 +148,26 @@ class TestAuthorityGateway:
             "principals": {
                 "owner": {"name": "Test"},
                 "platform": {"name": "Test"},
-                "agents": {"authority_grant": False, "can_grant_capabilities": False}
+                "agents": {"authority_grant": False, "can_grant_capabilities": False},
             },
             "invariants": {},
             "grants": {
-                "default": [
-                    {"capability": "test_tool", "risk_cap": 1, "actions": ["execute"]}
-                ]
+                "default": [{"capability": "test_tool", "risk_cap": 1, "actions": ["execute"]}]
             },
             "repo_allocation": {
                 "PROFESSOR-J": {
-                    "capabilities": ["test_tool", "code-exec/sandbox", "skill-registry", "tool-executor", "lhs-knowledge-adapter", "llm-provider-pool"],
+                    "capabilities": [
+                        "test_tool",
+                        "code-exec/sandbox",
+                        "skill-registry",
+                        "tool-executor",
+                        "lhs-knowledge-adapter",
+                        "llm-provider-pool",
+                    ],
                     "profile": "full",
-                    "lifecycle": "active"
+                    "lifecycle": "active",
                 }
-            }
+            },
         }
 
         # Write to temp file
@@ -198,7 +200,7 @@ class TestAuthorityGateway:
 
     def test_gateway_allocation_enforcement(self, gateway):
         """Gateway enforces allocation rules."""
-        from app.authority.principal import Principal, set_current_principal
+        from app.authority.principal import Principal
         from app.domain.tool import SafetyTier
 
         # Create a principal NOT allocated to PROFESSOR-J
@@ -209,18 +211,19 @@ class TestAuthorityGateway:
             allocation_ref="PROFESSOR-J",
         )
 
-        from app.authority.principal import set_current_principal
         set_current_principal(p)
 
         # Should fail - agent not in allocation.yaml for PROFESSOR-J
-        from app.authority.gateway import AllocationError
         with pytest.raises(Exception) as exc_info:
             asyncio.run(gateway.execute("test_tool", {"x": 5}))
-        assert "not allocated" in str(exc_info.value).lower() or "allocation" in str(exc_info.value).lower()
+        assert (
+            "not allocated" in str(exc_info.value).lower()
+            or "allocation" in str(exc_info.value).lower()
+        )
 
     def test_gateway_tier_enforcement(self, gateway):
         """Gateway enforces tier ceiling."""
-        from app.authority.principal import Principal, set_current_principal
+        from app.authority.principal import Principal
         from app.domain.tool import SafetyTier
 
         # Create a principal with SAFE tier
@@ -231,7 +234,6 @@ class TestAuthorityGateway:
             allocation_ref="PROFESSOR-J",
         )
 
-        from app.authority.principal import set_current_principal
         set_current_principal(p)
 
         # test_tool is SAFE tier, researcher has SENSITIVE in allocation (but principal created as SAFE)
@@ -241,8 +243,7 @@ class TestAuthorityGateway:
 
     def test_gateway_safety_gate_enforcement(self, gateway):
         """Gateway enforces safety policy (HITL for DESTRUCTIVE)."""
-        from app.authority.principal import Principal, set_current_principal
-        from app.authority.gateway import TierExceededError
+        from app.authority.principal import Principal
         from app.domain.tool import SafetyTier
 
         # Create principal with SAFE tier
@@ -254,13 +255,13 @@ class TestAuthorityGateway:
         )
 
         from app.authority.principal import set_current_principal
+
         set_current_principal(p)
 
         # Try to execute a DESTRUCTIVE capability (if one exists)
         # We don't have a DESTRUCTIVE test tool registered, so test tier check logic
         # by checking that a SAFE principal cannot execute DESTRUCTIVE
         from app.domain.tool import SafetyTier
-        from app.authority.gateway import TierExceededError
 
         p_safe = Principal.create(id="safe", tier=SafetyTier.SAFE, project="P", allocation_ref="P")
         assert not p_safe.can_execute_tier(SafetyTier.DESTRUCTIVE)
@@ -271,7 +272,6 @@ class TestGatewayAllocationEnforcement:
 
     def test_researcher_allocated_to_professor_j(self):
         """Researcher is allocated to PROFESSOR-J with SENSITIVE tier."""
-        import yaml
         with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
@@ -281,7 +281,6 @@ class TestGatewayAllocationEnforcement:
 
     def test_jarvis_frozen_at_tier_1(self):
         """JARVIS is frozen at tier 1."""
-        import yaml
         with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
@@ -291,7 +290,6 @@ class TestGatewayAllocationEnforcement:
 
     def test_stem_isolation(self):
         """STEM domain skills only for STEM-tagged projects."""
-        import yaml
         with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
