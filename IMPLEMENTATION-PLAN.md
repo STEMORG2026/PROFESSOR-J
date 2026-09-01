@@ -246,6 +246,9 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - Phase 7 foundation: Next.js 15 chat canvas + FastAPI `/api/chat` + `/api/health` (verified end-to-end).
 - Phase 7 streaming: FastAPI `/api/chat/stream` SSE token streaming (provider/router/brain stream
   layers + frontend `ReadableStream` parser; `meta`/`token`/`done` events).
+- JARVIS-parity utility layer: typed `InMemoryAsyncBus` (passive telemetry), `ContextWindowManager`
+  (pairs-based token trimming), and `PromptLoader` (externalized mtime-cached prompts), wired
+  into the composition root.
 - Phase 9a: SQLite DatabaseEngine + mastery/transcript persistence; AppRoot.health().
 
 **Genuinely external-infra / not implemented (do NOT mark done with stubs):**

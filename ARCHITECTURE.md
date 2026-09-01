@@ -234,6 +234,19 @@ graph TD
   to invoke tools; PII stays in execution environment.
 - **`MCPRegistry`:** Tool discovery + caching (`cache_tools_list`); filters per agent/run.
 
+### 3.11. JARVIS-Parity Utility Layer (`app/events/`, `app/context/`, `app/prompt/`)
+- **`InMemoryAsyncBus` (`app/events/`):** Typed, in-memory async pub/sub for *passive*
+  cross-cutting concerns (telemetry, logging, metrics, background jobs, streaming events).
+  Core execution loops call services directly — the bus never sits on the data path.
+  This is the bus referenced in the bottom-right telemetry diagram, now implemented.
+- **`ContextWindowManager` (`app/context/`):** Keeps model inputs within token limits by
+  trimming conversation in user/assistant *pairs* rather than individual messages —
+  preserves exchange coherence and never drops the active user prompt. Token counting
+  uses tiktoken/transformers when available, else a dependency-free word estimate.
+- **`PromptLoader` (`app/prompt/`):** Externalizes prompt templates (`prompts/*.md`) with
+  `{variable}` placeholders, mtime-cached for hot-reload, with required-variable
+  introspection and safe rendering (dependency-free `{name}` substitution).
+
 ### 3.10. Observability Layer (`app/telemetry/`) — Phase 0.5
 - **`OTelInstrumentation`:** OpenTelemetry SDK with semantic conventions (OpenInference):
   spans for `agent`, `tool`, `retrieval`, `guardrail`, `evaluator`, `embedding`, `prompt`.

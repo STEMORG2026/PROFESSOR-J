@@ -9,6 +9,20 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **JARVIS-parity utility layer (`app/events/`, `app/context/`, `app/prompt/`):** closes the
+  gap with JARVIS's cross-cutting infrastructure, benchmarked against SOTA agent stacks:
+  - `app/events/` — `InMemoryAsyncBus` (typed pub/sub) for *passive* telemetry/metrics/
+    streaming events, with typed event contracts (`TelemetryEvent`, `StepExecutionEvent`,
+    `HITLRequestEvent`, `ToolExecutionEvent`). Core loops call services directly (never the
+    data path). Completes the `InMemoryAsyncBus` referenced in the ARCHITECTURE telemetry diagram.
+  - `app/context/` — `ContextWindowManager` trims conversation in user/assistant *pairs*
+    (preserves exchange coherence, never drops the active prompt), with a token counter that
+    prefers tiktoken/transformers and falls back to a dependency-free estimate.
+  - `app/prompt/` — `PromptLoader` externalizes prompts (`prompts/*.md`) with `{variable}`
+    placeholders, mtime-cached for hot-reload, with required-variable introspection and safe
+    dependency-free rendering.
+  - All three are wired into the composition root (`AppRoot`).
+  - 16 new unit tests; full suite green (559 passed).
 - **JARVIS-parity hybrid memory (Phase 4):** the memory layer was upgraded from a thin
   backend seam (+ naive word-overlap search) to a full modular engine matching JARVIS and
   the leading agent-memory frameworks:
