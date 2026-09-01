@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.memory import (
+    ChromaMemoryBackend,
     InMemoryBackend,
     JsonMemoryBackend,
     MemoryService,
@@ -30,6 +31,26 @@ class TestBackends:
         b.add("a", "remember me")
         b2 = JsonMemoryBackend(path)
         assert b2.get("a") is not None
+
+    def test_chroma_backend_add_get_search(self, tmp_path: Path) -> None:
+        path = tmp_path / "chroma_db"
+        b = ChromaMemoryBackend(path, collection_name="test_mem")
+        b.add("a", "force equals mass times acceleration")
+        b.add("b", "animal cells have no cell wall")
+        assert b.get("a") is not None
+        hits = b.search("acceleration force", k=2)
+        assert hits and hits[0].document_id == "a"
+        assert b.count() == 2
+        assert "a" in b
+        assert "b" in b
+
+    def test_chroma_backend_persists(self, tmp_path: Path) -> None:
+        path = tmp_path / "chroma_db"
+        b = ChromaMemoryBackend(path, collection_name="test_persist")
+        b.add("a", "remember me")
+        b2 = ChromaMemoryBackend(path, collection_name="test_persist")
+        assert b2.get("a") is not None
+        assert b2.count() == 1
 
 
 class TestMemoryService:

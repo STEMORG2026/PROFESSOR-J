@@ -11,6 +11,7 @@ from app.models.cloud_providers import (
     OpenRouterProvider,
 )
 from app.models.providers import LLMProvider, MockProvider
+from app.models.real_providers import register_all_providers
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,8 @@ def default_catalog() -> ProviderCatalog:
     catalog.register(MockProvider(name="mock", model="mock-model"))
     # Register cloud providers from environment
     catalog.register_from_env()
+    # Register all available real providers (respects environment variables).
+    register_all_providers(catalog)
     return catalog
 
 

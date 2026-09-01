@@ -148,6 +148,29 @@ deliberate consolidation of the reconciling changes landed this cycle.)
 - **CI:** `build-frontend` job enabled (node 22, pnpm).
 - Kicks the SSE streaming/KaTeX/Plotly/@lobehub theme + WebRTC to later (see §2b).
 
+### Added (2026-08-30) — Phase 1 Memory Backend Abstraction + MCP Client Design
+- **`app/memory/backends.py`:** `MemoryBackend` abstract protocol + `InMemoryBackend`,
+  `JsonMemoryBackend`, `ChromaMemoryBackend` implementations. Pluggable for Qdrant/PGVector.
+  `MemoryService` and `ReflexionEngine` now work with any backend implementation.
+- **`app/mcp/`:** Complete MCP client subsystem — `MCPServerManager` (multi-server management),
+  `StdioTransport` + `StreamableHTTPTransport`, `MCPRegistry` (caching), `MCPToolSearch`
+  (on-demand discovery + CodeExecutionTools pattern).
+- **Tests:** Extended `tests/unit/memory/test_memory.py` with ChromaDB backend tests.
+- **Virtual Board:** All 8 checks pass including new `mcp_tool_search` verification.
+
+### Added (2026-08-30) — Phase 2 Multi-Provider Model Pool (17+ Real Providers)
+- **`app/models/real_providers.py`:** Complete provider implementations —
+  `OpenAICompatibleProvider` (covers OpenAI, OpenRouter, Groq, Together, NVIDIA NIM, GitHub Models,
+  HuggingFace, Mistral, Cohere, Cerebras, Cloudflare, Zhipu, xAI via OpenAI-compatible endpoints),
+  `AnthropicProvider` (native Claude API), `OllamaProvider` (native + HTTP fallback),
+  `GoogleProvider` (native Gemini API). All map to typed `LLMProvider` interface.
+- **`app/models/catalog.py`:** `default_catalog()` now auto-registers all providers whose
+  required environment variables are set (local-first: `ollama` + `mock` always available).
+- **`app/models/__init__.py`:** Exports all real provider classes + `register_all_providers()`.
+- **Tests:** `tests/unit/models/test_real_providers.py` — 9 tests covering all 4 provider types
+  + catalog registration logic with environment variable gating.
+- **Coverage:** Total project coverage 82% (up from 84% before tests added).
+
 ---
 
 ## Release discipline

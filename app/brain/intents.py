@@ -17,10 +17,28 @@ class Intent(str, Enum):
     TOOL_SEARCH = "tool_search"
     MULTI_STEP = "multi_step"
     TUTORIAL = "tutorial"
+    GAME_DEV = "game_dev"
 
 
 # Signal words, lower-cased. Order matters: more-specific intents are tested
 # before general ones.
+_GAMEDEV_HINTS = (
+    "game dev",
+    "gamedev",
+    "game project",
+    "game engine",
+    "rules engine",
+    "board game",
+    "gameplay",
+    "game mechanics",
+    "game component",
+    "turn-based game",
+    "turn based game",
+    "dice mechanics",
+    "player token",
+    "unity game",
+    "godot game",
+)
 _FILE_HINTS = (".txt", ".md", ".py", ".json", ".csv", "file ", "document", "workspace")
 _MULTI_STEP_HINTS = (
     "and then",
@@ -67,6 +85,9 @@ def classify_intent(prompt: str) -> Intent:
     if not prompt or not prompt.strip():
         return Intent.DIRECT_CHAT
     low = prompt.lower().strip()
+
+    if any(h in low for h in _GAMEDEV_HINTS):
+        return Intent.GAME_DEV
 
     if any(h in low for h in _TOOL_HINTS):
         return Intent.TOOL_SEARCH

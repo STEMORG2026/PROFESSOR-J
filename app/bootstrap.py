@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from app.authority.gateway import AuthorityGateway, set_gateway
 from app.authority.principal import Principal
 from app.db import MasteryRepository, SessionRepository, SqliteDatabaseEngine, TranscriptRepository
-from app.domain.tool import SafetyTier
+from app.authority.policy import default_register_policy
+from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
+from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
@@ -45,6 +47,7 @@ class AppRoot:
     tools: ToolExecutor
     knowledge: LHSKnowledgeAdapter | None
     research: ResearchAgent
+    gamedev: GameDevAgent
     policy: SafetyPolicy
     gateway: AuthorityGateway
 
@@ -57,12 +60,14 @@ class AppRoot:
             "tools": self.tools is not None,
             "knowledge": self.knowledge is not None,
             "research": self.research is not None,
+            "gamedev": self.gamedev is not None,
             "ready": all(
                 (
                     self.db is not None,
                     self.sessions is not None,
                     self.memory is not None,
                     self.tools is not None,
+                    self.gamedev is not None,
                 )
             ),
         }
@@ -87,6 +92,7 @@ def build_root(
     memory = MemoryService(memory_backend)
     reflexion = ReflexionEngine(memory_backend)
     research = ResearchAgent(InMemoryBackend())
+    gamedev = GameDevAgent()
 
     # LHS is optional: load if the export file is present, else degrade to no
     # canonical knowledge (the brain still runs on the model pool).
@@ -98,8 +104,18 @@ def build_root(
 
     workspace = WorkspaceManager(workspace_root)
     policy = SafetyPolicy(approval_callback=None)
-    tools = ToolExecutor(policy)
+    # Phase 2: the composition root is the BLESSED registrar — it may provision the standard
+    # toolset (incl. DESTRUCTIVE sandbox tools). Any later, non-blessed registration (agent or
+    # skill self-registration) is denied by the default registration policy.
+    tools = ToolExecutor(
+        policy,
+        register_policy=default_register_policy,
+        blessed_registrar=True,
+    )
     tools.register_sandbox_tools()
+    tools.register_gamedev_tools(gamedev, workspace)
+
+    session_repo = SessionRepository(db)
 
     # Create the AuthorityGateway — the single authoritative execution boundary
     gateway = AuthorityGateway(
@@ -177,6 +193,7 @@ def build_root(
         tools=tools,
         knowledge=knowledge,
         research=research,
+        gamedev=gamedev,
         policy=policy,
         gateway=gateway,
     )

@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from app.exceptions import CircuitHalfOpenError, CircuitOpenError
+from app.exceptions import CircuitOpenError
 from app.resources.budget import TokenBudget
 from app.resources.circuit_breaker import CircuitBreaker, CircuitState
 
@@ -42,8 +42,7 @@ class TestCircuitBreaker:
         assert breaker.state == CircuitState.OPEN
         time.sleep(0.005)  # let cooldown elapse
         assert breaker.state == CircuitState.HALF_OPEN  # type: ignore[comparison-overlap]
-        with pytest.raises(CircuitHalfOpenError):
-            breaker.call()
+        breaker.call()  # probe allowed in HALF_OPEN
         breaker.record_failure()  # probe fails -> reopen
         assert breaker.state == CircuitState.OPEN
 

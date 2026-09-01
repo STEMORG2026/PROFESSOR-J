@@ -67,7 +67,10 @@ class WorkspaceManager:
                 "success": False,
                 "error": f"File too large ({size} > {self.max_bytes} bytes)",
             }
-        return {"success": True, "content": path.read_text(encoding="utf-8")}
+        try:
+            return {"success": True, "content": path.read_text(encoding="utf-8")}
+        except UnicodeDecodeError:
+            return {"success": False, "error": f"Binary or non-UTF-8 file: {relative}"}
 
     def list(self, relative: str = ".") -> dict[str, Any]:
         """List entries under a workspace directory (non-recursive)."""
