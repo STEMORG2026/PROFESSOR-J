@@ -57,6 +57,9 @@ export default function ChatCanvas() {
     original_name: string;
     content_type: string;
     size: number;
+    ingested?: boolean;
+    chunks?: number;
+    source?: string;
   } | null>(null);
 
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
@@ -682,6 +685,14 @@ export default function ChatCanvas() {
                 </p>
                 <p className="text-xs text-slate-500">
                   {attachedFile.content_type} • {(attachedFile.size / 1024).toFixed(1)} KB
+                  {attachedFile.ingested ? (
+                    <span className="text-emerald-400">
+                      {" "}
+                      • ✓ indexed {attachedFile.chunks ?? 0} chunk{attachedFile.chunks === 1 ? "" : "s"}
+                    </span>
+                  ) : (
+                    <span className="text-amber-400/80"> • not indexed</span>
+                  )}
                 </p>
               </div>
               <button
