@@ -9,6 +9,31 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **JARVIS-parity hybrid memory (Phase 4):** the memory layer was upgraded from a thin
+  backend seam (+ naive word-overlap search) to a full modular engine matching JARVIS and
+  the leading agent-memory frameworks:
+  - `app/memory/schema.py` — rich `Memory` dataclass (category/type/behavior/
+    confidence/importance/recency/frequency/source, immutable `created_at` +
+    mutable `updated_at`/`last_used`, version-tolerant `from_dict`).
+  - `app/memory/store.py` — durable `MemoryStore`: atomic temp-file + `os.replace` writes,
+    corruption quarantine, type-validated field updates (immutables blocked).
+  - `app/memory/manager.py` — `MemoryManager`: append/replace/ignore/delete behavior
+    lifecycle + lifecycle callbacks + retrieve pipeline (candidates → rank → touch).
+  - `app/memory/hybrid.py` — `CandidateRetriever` protocol, `KeywordRetriever`, `HybridRetriever`
+    (keyword + optional dense-vector fusion, dedup by id).
+  - `app/memory/ranking.py` — `MemoryRanker` with `RankingWeights`: relevance × importance ×
+    frequency × recency (half-life decay) × confidence.
+  - `app/memory/fact_extractor.py` + `rules.py` — rule-based extraction of identity /
+    preference / skill / learner facts from conversation.
+  - `app/utils/text.py` — shared stop-word keyword extractor (single source of truth).
+  - `MemoryService` retains its learner-namespaced `remember`/`recall`/`forget`/`count`
+    surface and gains a JARVIS-parity façade (`store_memory`/`search_memories`/
+    `extract_facts`/`list_memories`); `ReflexionEngine` lessons now ride the same path.
+  - The original pluggable `MemoryBackend` seam (InMemory/Json/Chroma) remains intact.
+  - 29 new unit tests (schema, keywords, ranking, hybrid, store, manager behaviors, fact
+    extraction, service façade); full suite green (544 passed).
+
+### Added (2026-08)
 - **SSE token streaming chat (Phase 7):** the FastAPI surface now exposes `/api/chat/stream`,
   a `text/event-stream` endpoint that emits `meta` → `token` → `done` events. Streaming is
   threaded through three new layers: `LLMProvider.stream()` (async-generator base fallback +

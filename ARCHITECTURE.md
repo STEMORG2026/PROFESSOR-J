@@ -193,7 +193,15 @@ graph TD
   canonical definitions, prerequisite trees, equations.
 - **`GeneralKnowledgeAdapter`:** Handles non-grounded topics; responses clearly labeled
   ungrounded.
-- **`MemoryService`:** Hybrid ChromaDB dense + BM25 sparse retrieval.
+- **`MemoryService` / `MemoryManager` / `MemoryRanker`:** Learner-namespaced memory with
+  JARVIS parity — rich `Memory` schema (category/type/behavior/confidence/importance/
+  recency/frequency), durable `MemoryStore`, hybrid retrieval (keyword candidates +
+  optional dense vector), weighted ranking (relevance × importance × frequency × recency ×
+  confidence), behavior lifecycle (append/replace/ignore/delete), and rule-based fact
+  extraction from conversation. The original pluggable `MemoryBackend` seam (InMemory/Json/
+  Chroma) remains intact as the swap-in layer.
+- **`ReflexionEngine`:** Distills turn outcomes into durable learner lessons (reinforcement /
+  correction / misconception), stored through the same memory path.
 - **`DatabaseEngine`:** Learner profiles, transcripts, diagnostic scores, mastery levels in
   SQLite (local) / PostgreSQL (production).
 

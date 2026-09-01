@@ -55,7 +55,7 @@ class TestBackends:
 
 class TestMemoryService:
     def test_namespaced_remember_and_recall(self) -> None:
-        svc = MemoryService(InMemoryBackend())
+        svc = MemoryService()
         svc.remember("learner-1", "force equals mass times acceleration")
         svc.remember("learner-2", "animal cells have no cell wall")
         hits = svc.recall("learner-1", "acceleration force")
@@ -64,7 +64,7 @@ class TestMemoryService:
         assert svc.recall("learner-1", "animal cell wall") == []
 
     def test_count_and_forget(self) -> None:
-        svc = MemoryService(InMemoryBackend())
+        svc = MemoryService()
         svc.remember("learner-1", "alpha")
         svc.remember("learner-1", "beta")
         assert svc.count("learner-1") == 2
@@ -72,6 +72,6 @@ class TestMemoryService:
         assert svc.count("learner-1") == 2
 
     def test_remember_empty_text_raises(self) -> None:
-        svc = MemoryService(InMemoryBackend())
+        svc = MemoryService()
         with pytest.raises(MemoryStoreError):
             svc.remember("learner-1", "   ")

@@ -24,7 +24,7 @@ from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
-from app.memory import InMemoryBackend, MemoryService, ReflexionEngine
+from app.memory import InMemoryBackend, MemoryManager, MemoryService, ReflexionEngine
 from app.session import SessionManager
 from app.tools import ToolExecutor
 from app.workspace import WorkspaceManager
@@ -88,9 +88,9 @@ def build_root(
     db = SqliteDatabaseEngine(db_path)
     db.create_schema()
 
-    memory_backend = InMemoryBackend()
-    memory = MemoryService(memory_backend)
-    reflexion = ReflexionEngine(memory_backend)
+    memory_manager = MemoryManager()
+    memory = MemoryService(memory_manager)
+    reflexion = ReflexionEngine(memory_manager)
     research = ResearchAgent(InMemoryBackend())
     gamedev = GameDevAgent()
 

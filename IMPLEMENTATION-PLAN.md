@@ -141,11 +141,15 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       Port of JARVIS session patterns.
 - [x] **WorkspaceManager** (`app/workspace/`): path-escape-safe, size-bounded file operations scoped
       to a learner workspace; dispatch via the tool executor (SAFE vs DESTRUCTIVE).
-- [~] **Hybrid memory** (`app/memory/`): abstract `MemoryBackend` (in-memory + JSON-file) behind a
-      learner-namespaced `MemoryService` for durable cross-session recall; `ReflexionEngine`
-      distills turn outcomes into durable lessons.
-      **ChromaDB dense + BM25 sparse impl and `SkillSynthesizer` are NOT yet done**
-      (the backend seam is in place).
+- [x] **Hybrid memory** (`app/memory/`): JARVIS-parity layer — rich `Memory` schema
+      (category/type/behavior/confidence/importance/recency/frequency), durable `MemoryStore`,
+      `MemoryManager` behavior lifecycle (append/replace/ignore/delete), keyword candidate
+      retrieval + weighted `MemoryRanker` (relevance × importance × frequency × recency ×
+      confidence), rule-based fact extraction, learner-namespaced `MemoryService`, and
+      `ReflexionEngine` lessons. The original pluggable `MemoryBackend` seam (InMemory/Json/
+      Chroma) remains intact.
+      **Dense Chroma vector retrieval (BM25-sparse keyword is done; dense leg optional) and
+      `SkillSynthesizer` are still pending.**
 - [x] **ToolExecutor** (`app/tools/`): single safety choke point — tools register with a
       `SafetyTier` and every call is funneled through the safety policy (injection + PII + HITL for
       DESTRUCTIVE), failing closed on denial. `MCPToolExecutor` for MCP invocation is NOT yet done.
@@ -233,9 +237,10 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - Phase 3: LangGraph brain, ProfessorAgent (Socratic), EvaluatorAgent (rubric), MemorySaver
   checkpointed tutorial loop, simulated-student acceptance test. ResearchAgent/ToolExecutorAgent
   pending.
-- Phase 4: SessionManager, WorkspaceManager, MemoryService + ReflexionEngine, ToolExecutor
-  (safety choke point), bootstrap `build_root()`. ChromaDB/BM25 dense+sparse, SkillSynthesizer,
-  MCP pending.
+- Phase 4: SessionManager, WorkspaceManager, MemoryService + ReflexionEngine + JARVIS-parity
+  hybrid-memory layer (rich schema, MemoryStore, MemoryManager lifecycle, keyword retrieval,
+  weighted MemoryRanker, fact extraction), ToolExecutor (safety choke point), bootstrap
+  `build_root()`. Dense vector + SkillSynthesizer pending.
 - Phase 5 foundation: in-process CodeSandbox (timeout/memory-capped) + MathSolver (SymPy).
 - Phase 6 foundation: PDF text extraction + chunk/index + page-exact citations.
 - Phase 7 foundation: Next.js 15 chat canvas + FastAPI `/api/chat` + `/api/health` (verified end-to-end).
@@ -246,7 +251,7 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 **Genuinely external-infra / not implemented (do NOT mark done with stubs):**
 - Docker + gVisor sandbox containment, cgroups quotas (Phase 5 hardening).
 - llama.cpp / Ollama local inference bundle and quantization (Phase 5).
-- ChromaDB dense + BM25 sparse retrieval; Qdrant/PGVector (Phase 4/6).
+- ChromaDB **dense** vector retrieval; Qdrant/PGVector (Phase 4/6) — sparse keyword retrieval is done, dense embeddings pending.
 - PaddleOCR scanned-PDF OCR; table/formula extraction; bounding-box citations (Phase 6).
 - PostgreSQL + Alembic migrations; distributed bus (Phase 9).
 - FastAPI WebRTC signaling + auth; KaTeX/Plotly canvas; @lobehub theme (Phase 7); WebRTC voice (Phase 8).
