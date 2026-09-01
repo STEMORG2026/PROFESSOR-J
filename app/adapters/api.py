@@ -267,6 +267,18 @@ def _make_provider_for(
             api_key=api_key or DEFAULT_API_KEY,
         )
 
+    if pid == "bluesmind":
+        # OpenAI-compatible Bluesmind endpoint; the key is read server-side
+        # from the repo .env unless the client supplies one explicitly.
+        settings = get_settings()
+        url = (base_url or settings.bluesmind_base_url).rstrip("/")
+        return OpenAICompatProvider(
+            name="bluesmind",
+            model=model or "kimi-k2.5",
+            base_url=url,
+            api_key=api_key or settings.bluesmind_api_key,
+        )
+
     # Fallback: treat as openai_compat with the provider id as a label
     logger.warning("Unknown provider_id=%r; treating as OpenAI-compatible", pid)
     url = (base_url or "https://api.openai.com/v1").rstrip("/")

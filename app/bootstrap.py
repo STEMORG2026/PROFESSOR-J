@@ -105,6 +105,8 @@ def build_root(
 
     session_repo = SessionRepository(db)
 
+    session_repo = SessionRepository(db)
+
     return AppRoot(
         sessions=SessionManager(),
         memory=memory,

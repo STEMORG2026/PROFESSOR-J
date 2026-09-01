@@ -163,6 +163,8 @@ class PiperLocalProvider(TTSProvider):
         logger.info(f"Downloading voice {voice_id} from {model_url}")
 
         try:
+            urllib.request.urlretrieve(model_url, model_path)
+            urllib.request.urlretrieve(config_url, config_path)
             urllib.request.urlretrieve(model_url, model_path)  # nosec B310: scheme validated to https above
             urllib.request.urlretrieve(config_url, config_path)  # nosec B310: scheme validated to https above
             logger.info(f"Voice {voice_id} downloaded successfully")
