@@ -1,99 +1,132 @@
-"""Tests for MCP Registry."""
+"""Tests for app.mcp.registry — registry, on-demand search, code-tool adapter."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import Any
 
-from app.mcp.manager import MCPServerConfig, MCPTool
-from app.mcp.registry import MCPRegistry
+import pytest
+
+from app.mcp import MCPResource, MCPTool
+from app.mcp.registry import (
+    CodeExecutionTools,
+    MCPRegistry,
+    MCPServerManager,
+    MCPToolSearch,
+)
+
+
+def _tool(name: str, server: str = "svc", desc: str = "desc") -> MCPTool:
+    return MCPTool(
+        name=name,
+        description=desc,
+        input_schema={"type": "object"},
+        server_id=server,
+    )
+
+
+class FakeManager:
+    """A minimal stand-in for MCPClientManager with a fixed tool/resource set."""
+
+    def __init__(self, tools: list[MCPTool], resources: list[MCPResource]) -> None:
+        self.tools = tools
+        self.resources = resources
+        self.connect_calls = 0
+        self.disconnect_calls = 0
+        self.call_log: list[tuple[str, str, dict[str, Any]]] = []
+
+    def list_tools(self) -> list[MCPTool]:
+        return list(self.tools)
+
+    def list_resources(self) -> list[MCPResource]:
+        return list(self.resources)
+
+    async def connect_all(self) -> dict[str, bool]:
+        self.connect_calls += 1
+        return {t.server_id: True for t in self.tools}
+
+    async def disconnect_all(self) -> None:
+        self.disconnect_calls += 1
+
+    async def call_tool(
+        self, server_id: str, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
+        self.call_log.append((server_id, tool_name, arguments))
+        return {"ok": True}
 
 
 class TestMCPRegistry:
-    def test_register_server(self) -> None:
-        registry = MCPRegistry()
-        config = MCPServerConfig(name="server1", transport_type="stdio", command=["echo"])
-        registry.register_server(config)
-        assert registry.get_server_config("server1") == config
+    def test_cache_tools_list_caches_and_filters(self) -> None:
+        manager = FakeManager(
+            [_tool("read_file", "fs"), _tool("write_file", "fs"), _tool("memo", "mem")],
+            [],
+        )
+        registry = MCPRegistry(manager)
+        assert {t.name for t in registry.cache_tools_list()} == {
+            "read_file",
+            "write_file",
+            "memo",
+        }
+        # Second call is served from cache (no re-list from the manager).
+        registry.cache_tools_list()
+        fs_tools = registry.tools_by_server("fs")
+        assert {t.name for t in fs_tools} == {"read_file", "write_file"}
+        assert registry.resources_by_server("fs") == []
+        registry.invalidate_tools()
 
-    def test_list_server_configs(self) -> None:
-        registry = MCPRegistry()
-        config1 = MCPServerConfig(name="server1", transport_type="stdio", command=["echo"])
-        config2 = MCPServerConfig(name="server2", transport_type="http", url="http://localhost")
-        registry.register_server(config1)
-        registry.register_server(config2)
-        configs = registry.list_server_configs()
-        assert len(configs) == 2
+    def test_resources_by_server(self) -> None:
+        res = MCPResource(
+            uri="mem://k", name="k", description=None, mime_type=None, server_id="mem"
+        )
+        registry = MCPRegistry(FakeManager([], [res]))
+        assert [r.uri for r in registry.resources_by_server("mem")] == ["mem://k"]
+        assert registry.resources_by_server("fs") == []
 
-    def test_remove_server(self) -> None:
-        registry = MCPRegistry()
-        config = MCPServerConfig(name="server1", transport_type="stdio", command=["echo"])
-        registry.register_server(config)
-        assert registry.remove_server("server1") is True
-        assert registry.get_server_config("server1") is None
-        assert registry.remove_server("nonexistent") is False
 
-    def test_cache_tools(self) -> None:
-        registry = MCPRegistry()
-        tools = [
-            MCPTool("tool1", "desc1", {}, "server1"),
-            MCPTool("tool2", "desc2", {}, "server1"),
-        ]
-        registry.cache_tools("server1", tools)
-        cached = registry.get_cached_tools("server1")
-        assert len(cached) == 2
-        assert all(t.server_name == "server1" for t in cached)
+class TestMCPToolSearch:
+    def test_search_and_lazy_schema(self) -> None:
+        registry = MCPRegistry(
+            FakeManager(
+                [_tool("read_file", "fs", "Read files from disk"), _tool("list_dir", "fs")],
+                [],
+            )
+        )
+        search = MCPToolSearch(registry)
+        hits = search.search("read", "fs")
+        assert [t.name for t in hits] == ["read_file"]
+        schema = search.tool_schema("fs", "read_file")
+        assert schema == {"type": "object"}
+        # Unknown tool raises.
+        with pytest.raises(KeyError):
+            search.tool_schema("fs", "missing")
 
-    def test_cache_tools_list(self) -> None:
-        registry = MCPRegistry()
-        registry.cache_tools_list("server1", ["tool1", "tool2"])
-        assert registry.has_cached_tools("server1") is True
-        assert registry._server_tools["server1"] == ["tool1", "tool2"]
+    def test_compiled_list_is_compact(self) -> None:
+        registry = MCPRegistry(FakeManager([_tool("a", "fs", "A tool")], []))
+        search = MCPToolSearch(registry)
+        view = search.compiled_list("fs")
+        assert view == [{"server_id": "fs", "name": "a", "description": "A tool"}]
+        assert "input_schema" not in view[0]
 
-    def test_get_all_cached_tools(self) -> None:
-        registry = MCPRegistry()
-        tools = [
-            MCPTool("tool1", "desc1", {}, "server1"),
-            MCPTool("tool2", "desc2", {}, "server2"),
-        ]
-        registry.cache_tools("server1", [tools[0]])
-        registry.cache_tools("server2", [tools[1]])
-        all_tools = registry.get_all_cached_tools()
-        assert len(all_tools) == 2
 
-    def test_clear_cache_server(self) -> None:
-        registry = MCPRegistry()
-        tools = [MCPTool("tool1", "desc1", {}, "server1")]
-        registry.cache_tools("server1", tools)
-        registry.clear_cache("server1")
-        assert registry.has_cached_tools("server1") is False
-        assert registry.get_cached_tools("server1") == []
+class TestCodeExecutionTools:
+    async def test_call_by_dotted_name(self) -> None:
+        manager = FakeManager([_tool("read_file", "fs")], [])
+        code = CodeExecutionTools(manager)
+        out = await code.call("fs.read_file", path="/tmp/x")
+        assert out == {"ok": True}
+        assert manager.call_log == [("fs", "read_file", {"path": "/tmp/x"})]
+        with pytest.raises(ValueError):
+            code.resolve("not-dotted")
 
-    def test_clear_cache_all(self) -> None:
-        registry = MCPRegistry()
-        tools = [MCPTool("tool1", "desc1", {}, "server1")]
-        registry.cache_tools("server1", tools)
-        registry.clear_cache()
-        assert registry.get_all_cached_tools() == []
-        assert registry._server_tools == {}
 
-    def test_save_load(self, tmp_path: Path) -> None:
-        cache_path = tmp_path / "mcp_registry.json"
-        registry = MCPRegistry(cache_path)
-        config = MCPServerConfig(name="server1", transport_type="stdio", command=["echo"])
-        registry.register_server(config)
-        tools = [MCPTool("tool1", "desc1", {"type": "object"}, "server1")]
-        registry.cache_tools("server1", tools)
-        registry.save()
-
-        # Create new registry and load
-        registry2 = MCPRegistry(cache_path)
-        loaded = registry2.load()
-        assert loaded is True
-        assert registry2.get_server_config("server1") is not None
-        assert len(registry2.get_all_cached_tools()) == 1
-
-    def test_load_nonexistent(self, tmp_path: Path) -> None:
-        cache_path = tmp_path / "nonexistent.json"
-        registry = MCPRegistry(cache_path)
-        loaded = registry.load()
-        assert loaded is False
+class TestMCPServerManager:
+    async def test_facade_plumbs_registry_and_code(self) -> None:
+        manager = FakeManager([_tool("read_file", "fs")], [])
+        sm = MCPServerManager(manager)
+        assert sm.cache_tools_list()[0].name == "read_file"
+        assert sm.search.search("read", "fs")[0].name == "read_file"
+        out = await sm.code.call("fs.read_file")
+        assert out == {"ok": True}
+        results = await sm.connect_all()
+        assert results["fs"] is True
+        await sm.disconnect_all()
+        assert manager.disconnect_calls == 1

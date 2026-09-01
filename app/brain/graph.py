@@ -124,10 +124,13 @@ async def synthesize_node(state: BrainState, router: ModelRouter) -> dict[str, A
     """Produce a response via the model router; record which provider served it."""
     prompt = state.get("prompt", "")
     intent = state.get("intent", Intent.DIRECT_CHAT) or Intent.DIRECT_CHAT
+    system_prompt = state.get("system_prompt")
+    if not isinstance(system_prompt, str):
+        system_prompt = "You are PROFESSOR-J, a general-purpose AI operating system."
     messages = [
         LLMMessage(
             role="system",
-            content="You are PROFESSOR-J, a general-purpose AI operating system.",
+            content=system_prompt,
         ),
         LLMMessage(
             role="user",

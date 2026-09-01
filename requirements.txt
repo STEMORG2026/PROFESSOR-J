@@ -46,6 +46,10 @@ httpx>=0.28.1
 fastapi>=0.141.1
 uvicorn[standard]>=0.52.4
 
+# Voice (TTS/STT) — used by app/voice
+faster-whisper==1.2.1
+piper-tts==1.7.0
+openai>=3.0.0
 # Local inference
 ollama>=0.6.0
 

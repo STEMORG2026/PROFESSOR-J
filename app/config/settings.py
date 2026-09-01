@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,14 +49,56 @@ class Settings(BaseSettings):
     lhs_export_path: Path = Path("LearningHubSTEM/exports/knowledge.json")
 
     # ── LLM Providers ────────────────────────────────────────────────
-    openai_api_key: str | None = None
-    anthropic_api_key: str | None = None
-    google_api_key: str | None = None
-    groq_api_key: str | None = None
-    cerebras_api_key: str | None = None
-    openrouter_api_key: str | None = None
+    # Each key accepts the bare env name (workspace practice, e.g. the keys
+    # migrated from JARVIS's .env) as well as the PROFESSOR_-prefixed variant.
+    openai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENAI_API_KEY", "PROFESSOR_OPENAI_API_KEY"),
+    )
+    anthropic_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "PROFESSOR_ANTHROPIC_API_KEY"),
+    )
+    google_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GOOGLE_API_KEY", "PROFESSOR_GOOGLE_API_KEY"),
+    )
+    groq_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GROQ_API_KEY", "PROFESSOR_GROQ_API_KEY"),
+    )
+    cerebras_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("CEREBRAS_API_KEY", "PROFESSOR_CEREBRAS_API_KEY"),
+    )
+    openrouter_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENROUTER_API_KEY", "PROFESSOR_OPENROUTER_API_KEY"),
+    )
+    # New provider keys
+    nvidia_nim_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("NVIDIA_NIM_API_KEY", "PROFESSOR_NVIDIA_NIM_API_KEY"),
+    )
+    google_ai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("GOOGLE_AI_API_KEY", "PROFESSOR_GOOGLE_AI_API_KEY"),
+    )
     ollama_base_url: str = "http://localhost:11434"
     llamacpp_base_url: str = "http://localhost:8080"
+
+    # ── Singularity (OpenAI-compatible) ──────────────────────────────
+    # The workspace's primary LLM endpoint. The key lives in the repo's
+    # gitignored `.env` as SINGULARITY_API_KEY (workspace practice); a
+    # PROFESSOR_-prefixed override is also accepted.
+    singularity_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SINGULARITY_API_KEY", "PROFESSOR_SINGULARITY_API_KEY"),
+    )
+    singularity_base_url: str = Field(
+        default="https://api.singularityapi.dev/v1",
+        validation_alias=AliasChoices("SINGULARITY_BASE_URL", "PROFESSOR_SINGULARITY_BASE_URL"),
+    )
 
     # ── Vector Store ─────────────────────────────────────────────────
     chroma_host: str = "localhost"
@@ -98,10 +140,55 @@ class Settings(BaseSettings):
         return v
 
 
+# ── Provider env names → Settings field names ─────────────────────────
+# These are read from the repo-root .env *first* (source of truth), so the
+# ambient shell environment cannot shadow them with a different key.
+_PROVIDER_ENV_KEYS: dict[str, str] = {
+    "OPENAI_API_KEY": "openai_api_key",
+    "ANTHROPIC_API_KEY": "anthropic_api_key",
+    "GOOGLE_API_KEY": "google_api_key",
+    "GROQ_API_KEY": "groq_api_key",
+    "CEREBRAS_API_KEY": "cerebras_api_key",
+    "OPENROUTER_API_KEY": "openrouter_api_key",
+    "NVIDIA_NIM_API_KEY": "nvidia_nim_api_key",
+    "GOOGLE_AI_API_KEY": "google_ai_api_key",
+    "SINGULARITY_API_KEY": "singularity_api_key",
+    "SINGULARITY_BASE_URL": "singularity_base_url",
+}
+
+
+def _repo_env() -> dict[str, str]:
+    """Load the repo-root ``.env`` file.
+
+    Workspace practice keeps secrets in the repo's gitignored ``.env``; the
+    shell may export a *different* key (e.g. the global SINGULARITY_API_KEY in
+    ~/.bashrc intended for other tools), which must not shadow the repo's own.
+    """
+    from dotenv import dotenv_values
+
+    dotenv_path = Path(__file__).resolve().parents[2] / ".env"
+    raw: dict[str, str | None] = dotenv_values(str(dotenv_path))
+    return {k: v for k, v in raw.items() if v is not None}
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached settings instance for dependency injection."""
-    return Settings()
+    """Cached settings instance.
+
+    The repo ``.env`` wins over the process environment for provider
+    credentials: load the normal settings (defaults + ``PROFESSOR_``-prefixed
+    env surface + ``.env`` aliases), then force the repo ``.env`` values on
+    top, so an unrelated shell export (e.g. ~/.bashrc) cannot shadow the
+    repo's own keys.
+    """
+    settings = Settings()
+    repo = _repo_env()
+    overrides: dict[str, str] = {
+        field: repo[env_name]
+        for env_name, field in _PROVIDER_ENV_KEYS.items()
+        if repo.get(env_name) is not None
+    }
+    return settings.model_copy(update=overrides)
 
 
 # ── Startup Validation ───────────────────────────────────────────────

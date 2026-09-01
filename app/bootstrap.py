@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from app.db import MasteryRepository, SessionRepository, SqliteDatabaseEngine, TranscriptRepository
 from app.authority.policy import default_register_policy
 from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
 from app.gamedev import GameDevAgent
@@ -35,6 +36,7 @@ class AppRoot:
     db: SqliteDatabaseEngine
     mastery: MasteryRepository
     transcripts: TranscriptRepository
+    session_repo: SessionRepository
     workspace: WorkspaceManager
     tools: ToolExecutor
     knowledge: LHSKnowledgeAdapter | None
@@ -101,6 +103,8 @@ def build_root(
     tools.register_sandbox_tools()
     tools.register_gamedev_tools(gamedev, workspace)
 
+    session_repo = SessionRepository(db)
+
     return AppRoot(
         sessions=SessionManager(),
         memory=memory,
@@ -108,6 +112,7 @@ def build_root(
         db=db,
         mastery=MasteryRepository(db),
         transcripts=TranscriptRepository(db),
+        session_repo=session_repo,
         workspace=workspace,
         tools=tools,
         knowledge=knowledge,

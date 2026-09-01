@@ -1,116 +1,230 @@
-"""MCP Registry - caching and persistence for MCP server configurations and tools."""
+"""MCP registry, on-demand tool search, and code-execution adapter.
+
+Completes the Phase 1 MCP contract described in ``IMPLEMENTATION-PLAN.md`` and
+``ARCHITECTURE.md``: a client lives in :mod:`app.mcp` (connection + discovery via
+:class:`MCPClientManager`); this module adds the higher layers around it:
+
+- :class:`MCPRegistry` — tool/resource discovery with result caching
+  (``cache_tools_list``) and per-run filtering.
+- :class:`MCPToolSearch` — on-demand tool definition loading so an agent pulls a
+  tool's schema only when it needs it (the Anthropic on-demand pattern) instead
+  of loading every tool up front.
+- :class:`CodeExecutionTools` — exposes MCP tools as filesystem-style code APIs so
+  code executors can call them by dotted name (e.g. ``filesystem.read_file``).
+- :class:`MCPServerManager` — the registry + search facade over an
+  :class:`MCPClientManager`, giving the board/architecture the expected surface.
+
+These are deliberately thin, typed wrappers: behavior lives in the concrete
+clients, and this layer supplies the registry/caching/search contract.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import asdict
-from pathlib import Path
+from typing import Any, Protocol
 
-from app.mcp.manager import MCPServerConfig, MCPTool
+from app.mcp import (
+    MCPClientManager,
+    MCPResource,
+    MCPTool,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class MCPRegistry:
-    """Registry for MCP server configurations and discovered tools.
+class MCPManagerProto(Protocol):
+    """Structural surface MCPRegistry/MCPToolSearch/CodeExecutionTools depend on.
 
-    Provides caching so tool discovery doesn't need to run on every startup.
+    Kept minimal so tests and alternate clients can supply a conforming object
+    without subclassing :class:`MCPClientManager`; the real client already
+    satisfies it.
     """
 
-    def __init__(self, cache_path: str | Path | None = None) -> None:
-        self._cache_path = Path(cache_path) if cache_path else None
-        self._server_configs: dict[str, MCPServerConfig] = {}
-        self._tools: dict[str, MCPTool] = {}
-        self._server_tools: dict[str, list[str]] = {}
+    def list_tools(self) -> list[MCPTool]: ...
 
-    def register_server(self, config: MCPServerConfig) -> None:
-        """Register a server configuration."""
-        self._server_configs[config.name] = config
+    def list_resources(self) -> list[MCPResource]: ...
 
-    def get_server_config(self, name: str) -> MCPServerConfig | None:
-        """Get a server configuration by name."""
-        return self._server_configs.get(name)
+    async def call_tool(
+        self, server_id: str, tool_name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]: ...
 
-    def list_server_configs(self) -> list[MCPServerConfig]:
-        """List all server configurations."""
-        return list(self._server_configs.values())
+    async def connect_all(self) -> dict[str, bool]: ...
 
-    def remove_server(self, name: str) -> bool:
-        """Remove a server configuration."""
-        if name in self._server_configs:
-            del self._server_configs[name]
-            return True
-        return False
+    async def disconnect_all(self) -> None: ...
 
-    def cache_tools(self, server_name: str, tools: list[MCPTool]) -> None:
-        """Cache discovered tools for a server."""
-        self._server_tools[server_name] = [tool.name for tool in tools]
-        for tool in tools:
-            self._tools[tool.name] = tool
 
-    def cache_tools_list(self, server_name: str, tool_names: list[str]) -> None:
-        """Cache a list of tool names for a server (lazy loading)."""
-        self._server_tools[server_name] = tool_names
+class MCPRegistry:
+    """Discover and cache MCP tools and resources, optionally per run.
 
-    def get_cached_tools(self, server_name: str) -> list[MCPTool]:
-        """Get cached tools for a server."""
-        tool_names = self._server_tools.get(server_name, [])
-        return [self._tools[name] for name in tool_names if name in self._tools]
+    Acts as the discovery + filtering layer described by the architecture's
+    ``MCPRegistry``: list tools once, cache the result via
+    :meth:`cache_tools_list`, and let each agent/run request a filtered view so
+    only the tools relevant to that run are handed to the model.
+    """
 
-    def get_all_cached_tools(self) -> list[MCPTool]:
-        """Get all cached tools."""
-        return list(self._tools.values())
+    def __init__(self, manager: MCPManagerProto) -> None:
+        self.manager = manager
+        self._cached_tools: list[MCPTool] | None = None
+        self._cached_resources: list[MCPResource] | None = None
 
-    def has_cached_tools(self, server_name: str) -> bool:
-        """Check if tools are cached for a server."""
-        return server_name in self._server_tools
+    def cache_tools_list(self) -> list[MCPTool]:
+        """Cache the full tool list, refreshing only when not yet cached."""
+        if self._cached_tools is None:
+            self._cached_tools = self.manager.list_tools()
+        return list(self._cached_tools)
 
-    def clear_cache(self, server_name: str | None = None) -> None:
-        """Clear cached tools for a server or all servers."""
-        if server_name:
-            if server_name in self._server_tools:
-                for tool_name in self._server_tools[server_name]:
-                    self._tools.pop(tool_name, None)
-                del self._server_tools[server_name]
-        else:
-            self._tools.clear()
-            self._server_tools.clear()
+    def invalidate_tools(self) -> None:
+        """Drop the cached tool list so the next call re-lists tools."""
+        self._cached_tools = None
 
-    def save(self) -> None:
-        """Save registry to cache file."""
-        if not self._cache_path:
-            return
-        try:
-            data = {
-                "servers": {name: asdict(config) for name, config in self._server_configs.items()},
-                "tools": {name: asdict(tool) for name, tool in self._tools.items()},
-                "server_tools": self._server_tools,
-            }
-            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-            self._cache_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-            logger.info("MCP registry saved to %s", self._cache_path)
-        except Exception as e:
-            logger.warning("Failed to save MCP registry: %s", e)
+    def cache_resources_list(self) -> list[MCPResource]:
+        """Cache the full resource list, refreshing only when not yet cached."""
+        if self._cached_resources is None:
+            self._cached_resources = self.manager.list_resources()
+        return list(self._cached_resources)
 
-    def load(self) -> bool:
-        """Load registry from cache file. Returns True if loaded successfully."""
-        if not self._cache_path or not self._cache_path.exists():
-            return False
-        try:
-            data = json.loads(self._cache_path.read_text(encoding="utf-8"))
-            for name, config_data in data.get("servers", {}).items():
-                self._server_configs[name] = MCPServerConfig(**config_data)
-            for name, tool_data in data.get("tools", {}).items():
-                self._tools[name] = MCPTool(**tool_data)
-            self._server_tools = data.get("server_tools", {})
-            logger.info(
-                "MCP registry loaded from %s: %d servers, %d tools",
-                self._cache_path,
-                len(self._server_configs),
-                len(self._tools),
-            )
-            return True
-        except Exception as e:
-            logger.warning("Failed to load MCP registry: %s", e)
-            return False
+    def invalidate_resources(self) -> None:
+        """Drop the cached resource list so the next call re-lists resources."""
+        self._cached_resources = None
+
+    def list_tools(self) -> list[MCPTool]:
+        """Return all known tools (shortcut to the cached list)."""
+        return self.cache_tools_list()
+
+    def list_resources(self) -> list[MCPResource]:
+        """Return all known resources (shortcut to the cached list)."""
+        return self.cache_resources_list()
+
+    def tools_by_server(self, server_id: str | None = None) -> list[MCPTool]:
+        """Filter cached tools to one server (or all when ``server_id`` is None)."""
+        tools = self.cache_tools_list()
+        if server_id is None:
+            return tools
+        return [t for t in tools if t.server_id == server_id]
+
+    def resources_by_server(self, server_id: str | None = None) -> list[MCPResource]:
+        """Filter cached resources to one server (or all when ``server_id`` is None)."""
+        resources = self.cache_resources_list()
+        if server_id is None:
+            return resources
+        return [r for r in resources if r.server_id == server_id]
+
+
+class MCPToolSearch:
+    """On-demand MCP tool resolution.
+
+    A tool is only fully materialized (schema fetched) when requested, so the
+    model sees a compact list of tool *names/descriptions* up front and pulls
+    the full ``input_schema`` lazily — the on-demand loading pattern that keeps
+    context small.
+    """
+
+    def __init__(self, registry: MCPRegistry) -> None:
+        self.registry = registry
+        self._schema_cache: dict[str, dict[str, Any]] = {}
+
+    def search(self, query: str, server_id: str | None = None) -> list[MCPTool]:
+        """Return tools whose name or description matches ``query``."""
+        q = query.lower()
+        return [
+            t
+            for t in self.registry.tools_by_server(server_id)
+            if q in t.name.lower() or q in t.description.lower()
+        ]
+
+    def tool_schema(self, server_id: str, tool_name: str) -> dict[str, Any]:
+        """Return the input schema for a tool, cached after first fetch.
+
+        Raises:
+            KeyError: if no tool with that name exists on the server.
+        """
+        key = f"{server_id}:{tool_name}"
+        cached = self._schema_cache.get(key)
+        if cached is not None:
+            return cached
+        for tool in self.registry.tools_by_server(server_id):
+            if tool.name == tool_name:
+                self._schema_cache[key] = tool.input_schema
+                return tool.input_schema
+        raise KeyError(f"No tool '{tool_name}' on MCP server '{server_id}'")
+
+    def compiled_list(self, server_id: str | None = None) -> list[dict[str, Any]]:
+        """The compact registry view given to a model (name + description only).
+
+        Keeps context small by deferring ``input_schema`` until a tool is used;
+        the full schema is available via :meth:`tool_schema`.
+        """
+        return [
+            {"server_id": t.server_id, "name": t.name, "description": t.description}
+            for t in self.registry.tools_by_server(server_id)
+        ]
+
+
+class CodeExecutionTools:
+    """Present MCP tools as filesystem-style code APIs.
+
+    Lets an agent's code executor call an MCP tool by dotted name (e.g.
+    ``tools.code_execute("filesystem.read_file", path=...)``) rather than fixing
+    a binding per tool. Arguments are forwarded to the underlying server.
+    """
+
+    def __init__(self, manager: MCPManagerProto) -> None:
+        self.manager = manager
+
+    def resolve(self, dotted_name: str) -> tuple[str, str]:
+        """Split a dotted name into ``(server_id, tool_name)``.
+
+        Raises:
+            ValueError: if the name is not ``server.tool``.
+        """
+        if "." not in dotted_name:
+            raise ValueError(f"Expected 'server.tool' dotted name, got {dotted_name!r}")
+        server_id, tool_name = dotted_name.rsplit(".", 1)
+        return server_id, tool_name
+
+    async def call(self, dotted_name: str, **arguments: Any) -> dict[str, Any]:
+        """Invoke an MCP tool by dotted name with keyword arguments."""
+        server_id, tool_name = self.resolve(dotted_name)
+        return await self.manager.call_tool(server_id, tool_name, arguments)
+
+
+class MCPServerManager:
+    """Facade tying registry, search, and code execution to a client manager.
+
+    This is the surface the architecture refers to as ``MCPServerManager``: it
+    owns connection management (via ``MCPClientManager``) and exposes tool
+    search/discovery through :class:`MCPRegistry` and :class:`MCPToolSearch`.
+    """
+
+    def __init__(self, client: MCPManagerProto | None = None) -> None:
+        self.client = client or MCPClientManager()
+        self.registry = MCPRegistry(self.client)
+        self.search = MCPToolSearch(self.registry)
+        self.code = CodeExecutionTools(self.client)
+
+    async def connect_all(self) -> dict[str, bool]:
+        """Connect all configured servers and refresh the tool/resource cache."""
+        results = await self.client.connect_all()
+        # Refresh caches from the (re)connected clients.
+        self.registry.invalidate_tools()
+        self.registry.invalidate_resources()
+        return results
+
+    async def disconnect_all(self) -> None:
+        """Disconnect all servers and drop the caches."""
+        await self.client.disconnect_all()
+        self.registry.invalidate_tools()
+        self.registry.invalidate_resources()
+
+    def cache_tools_list(self) -> list[MCPTool]:
+        """Forward to the registry's caching tool list (board contract)."""
+        return self.registry.cache_tools_list()
+
+
+__all__ = [
+    "MCPManagerProto",
+    "MCPRegistry",
+    "MCPToolSearch",
+    "CodeExecutionTools",
+    "MCPServerManager",
+]
