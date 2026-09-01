@@ -29,7 +29,7 @@ chromadb>=1.5.9
 qdrant-client>=1.19.0
 
 # Document Processing / PDF
-pymupdf>=1.24.0
+pymupdf>=1.28.2
 paddleocr>=3.7.0
 
 # Voice (Phase 8)
