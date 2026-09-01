@@ -37,7 +37,7 @@ faster-whisper>=1.0.0
 piper-tts>=1.2.0
 
 # Math / Visualization
-sympy>=1.13
+sympy>=1.14.0
 plotly>=7.0.0
 
 # Database / Persistence
