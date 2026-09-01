@@ -9,6 +9,15 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **Document ingestion pipeline API (Phase 6):** the Phase 6 extract→chunk→index→cite
+  pipeline (which existed only as a library) is now wired end-to-end.
+  - `POST /api/ingest` — upload a PDF; saves + ingests through `ResearchAgent`, returns the
+    chunk count and source label for citation queries.
+  - `POST /api/chat/upload` — now ingests an uploaded PDF and injects page-exact retrieved
+    chunks (with `(title, p.N)` citations) into the prompt so the model answers from the document.
+  - Frontend `FileUpload` routes PDFs through `/api/ingest`; `ChatCanvas` shows a
+    "✓ indexed N chunks" status on the attachment chip.
+  - 4 new API tests; full suite green (563 passed).
 - **KaTeX equations + Plotly charts (Phase 7 webapp):** message content now renders rich
   STEM output instead of plain text. `MessageContent.tsx` parses inline `$...$` and block
   `$$...$$` LaTeX (rendered with `katex`, errors fall back to raw text) and

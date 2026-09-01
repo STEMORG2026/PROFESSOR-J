@@ -183,6 +183,11 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 ### Phase 6: Knowledge, Research & PDF Ingestion Pipeline
 - [x] Implement `ResearchAgent` for academic paper processing (`app/knowledge/research.py`:
       extract -> chunk -> index -> cited synthesis; deterministic, ungrounded when no match).
+- [x] **Ingestion API wiring**: `POST /api/ingest` accepts an uploaded PDF, runs extract →
+      chunk → index through `ResearchAgent`, and returns the chunk count + source. The
+      frontend routes PDF uploads through it. `POST /api/chat/upload` now ingests PDFs and
+      injects page-exact retrieved chunks (with citations) into the prompt so the model can
+      answer from the document.
 - [~] Implement PDF text extraction (`app/knowledge/pdf.py` via PyMuPDF; page-level provenance).
       **Table/formula extraction and PaddleOCR for scanned PDFs are NOT yet done.**
 - [ ] Set up `ChromaVectorStore` wrapper and BM25 retriever in `app/memory/` (Phase 4 `MemoryBackend`

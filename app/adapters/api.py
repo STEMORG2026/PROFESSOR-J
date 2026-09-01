@@ -671,6 +671,55 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
             "file": file_info,
         }
 
+    @app.post("/api/ingest")
+    async def ingest_file(
+        file: UploadFile = File(...),
+        source: str | None = Form(None),
+    ) -> dict[str, Any]:
+        """Ingest an uploaded document into the retrieval index.
+
+        Saves the file, then runs the Phase 6 extraction → chunking → indexing
+        pipeline (:class:`~app.knowledge.research.ResearchAgent`), returning the
+        number of chunks indexed plus the source id for later citation queries.
+        Supports PDFs today (PyMuPDF); other types are rejected with a 415.
+        """
+        import os
+        import uuid
+
+        file_ext = os.path.splitext(file.filename or "")[1].lower()
+        if file_ext != ".pdf":
+            raise HTTPException(status_code=415, detail="Only PDF ingestion is supported")
+
+        upload_dir = "data/uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        stored_name = f"{uuid.uuid4().hex}{file_ext}"
+        file_path = os.path.join(upload_dir, stored_name)
+
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # The research agent uses the source label as the citation "file" name.
+        source_label = source or (file.filename or stored_name)
+        try:
+            chunk_count = app_root.research.ingest_pdf(file_path, source=source_label)
+        except Exception as exc:  # noqa: BLE001 - surface a clean 400 for bad files
+            logger.warning("ingest failed for %s: %s", source_label, exc)
+            raise HTTPException(status_code=400, detail=f"Ingestion failed: {exc}") from exc
+
+        return {
+            "status": "ingested",
+            "source": source_label,
+            "chunks": chunk_count,
+            "file": {
+                "original_name": file.filename,
+                "stored_name": stored_name,
+                "path": file_path,
+                "size": len(content),
+                "content_type": file.content_type,
+            },
+        }
+
     @app.post("/api/chat/upload")
     async def chat_with_upload(
         prompt: str = Form(""),
@@ -680,11 +729,17 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
         system_prompt: str | None = Form(None),
         file: UploadFile | None = File(None),
     ) -> ChatResponse:
-        """Chat endpoint that accepts an optional file upload."""
+        """Chat endpoint that accepts an optional file upload.
+
+        If the uploaded file is a PDF, it is ingested into the retrieval index
+        and the most relevant page-exact chunks (with citations) are injected
+        into the prompt context so the model can answer from the document.
+        """
         import os
         import uuid
 
         file_info = None
+        citations_ctx = ""
         if file:
             # Save uploaded file
             upload_dir = "data/uploads"
@@ -705,13 +760,34 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                 "content_type": file.content_type,
             }
 
-        # Build prompt with file context
-        full_prompt = prompt
+            # Ingest PDFs and retrieve grounded context for the prompt.
+            if file_ext.lower() == ".pdf":
+                try:
+                    source_label = file.filename or stored_name
+                    app_root.research.ingest_pdf(file_path, source=source_label)
+                    found = app_root.research.citations.retrieve(prompt, k=4)
+                    if found:
+                        citations_ctx = "\n\n".join(
+                            f"[{i + 1}] {c.snippet} — ({c.title}, p.{c.page})"
+                            for i, c in enumerate(found)
+                        )
+                except Exception:  # noqa: BLE001 - non-fatal; fall back to filename-only context
+                    logger.warning("chat/upload ingest failed for %s", file.filename, exc_info=True)
+
+        # Build prompt with file + grounded citation context
+        parts: list[str] = []
         if file_info:
-            full_prompt = (
+            parts.append(
                 f"[File attached: {file_info['original_name']} "
-                f"({file_info['content_type']}, {file_info['size']} bytes)]\n{prompt}"
+                f"({file_info['content_type']}, {file_info['size']} bytes)]"
             )
+        if citations_ctx:
+            parts.append(
+                "Use the following content retrieved from the attached document "
+                "to answer, citing page numbers in square brackets:\n" + citations_ctx
+            )
+        parts.append(prompt)
+        full_prompt = "\n".join(parts)
 
         # Use existing chat logic
         req = ChatRequest(

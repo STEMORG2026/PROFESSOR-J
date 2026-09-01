@@ -8,6 +8,10 @@ type UploadedFile = {
   path: string;
   size: number;
   content_type: string;
+  // Populated when the file was ingested (indexed) for retrieval.
+  ingested?: boolean;
+  chunks?: number;
+  source?: string;
 };
 
 export function FileUpload({
@@ -52,7 +56,12 @@ export function FileUpload({
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
+      // PDFs go through /api/ingest so the document is actually indexed for
+      // retrieval (returns chunk count); other types use the save-only /api/upload.
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const endpoint = isPdf ? "/api/ingest" : "/api/upload";
+
+      const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
       });
@@ -63,8 +72,18 @@ export function FileUpload({
       }
 
       const data = await res.json();
-      if (data.file) {
-        onFileUpload(data.file);
+      // /api/ingest -> {status, source, chunks, file:{...}}; /api/upload -> {status, file:{...}}.
+      const fileData = data.file ?? null;
+      const payload: UploadedFile | null = fileData
+        ? {
+            ...fileData,
+            ...(data.chunks !== undefined ? { ingested: true, chunks: data.chunks as number, source: (data.source as string) ?? fileData.original_name } : {}),
+          }
+        : null;
+      if (payload) {
+        onFileUpload(payload);
+      } else {
+        throw new Error("Upload returned no file payload");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
