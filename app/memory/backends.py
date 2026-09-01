@@ -88,6 +88,10 @@ class MemoryBackend(ABC):
     def keys(self) -> list[str]:
         """List stored document ids (for namespace lookups)."""
 
+    @abstractmethod
+    def clear(self) -> None:
+        """Remove all documents from the backend."""
+
     def __contains__(self, document_id: str) -> bool:
         """Check if a document exists."""
         return self.get(document_id) is not None
@@ -130,6 +134,9 @@ class InMemoryBackend(MemoryBackend):
 
     def keys(self) -> list[str]:
         return list(self._items.keys())
+
+    def clear(self) -> None:
+        self._items.clear()
 
 
 class JsonMemoryBackend(MemoryBackend):
@@ -190,6 +197,10 @@ class JsonMemoryBackend(MemoryBackend):
 
     def keys(self) -> list[str]:
         return list(self._items.keys())
+
+    def clear(self) -> None:
+        self._items.clear()
+        self._flush()
 
 
 class ChromaMemoryBackend(MemoryBackend):
@@ -276,6 +287,12 @@ class ChromaMemoryBackend(MemoryBackend):
     def keys(self) -> list[str]:
         result = self._collection.get()
         return result["ids"] if result["ids"] else []
+
+    def clear(self) -> None:
+        existing = self._collection.get()
+        ids = existing["ids"]
+        if ids:
+            self._collection.delete(ids=ids)
 
 
 __all__ = [

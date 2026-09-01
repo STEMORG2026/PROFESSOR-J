@@ -6,14 +6,14 @@ from pathlib import Path
 
 from app.bootstrap import build_root
 from app.domain.learner import EvaluationResult
-from app.memory import InMemoryBackend, ReflexionEngine
+from app.memory import MemoryManager, ReflexionEngine
 
 FIXTURE = Path(__file__).resolve().parents[2] / "fixtures" / "lhs_knowledge_fixture.json"
 
 
 class TestReflexionEngine:
     def test_misconception_reflection(self) -> None:
-        engine = ReflexionEngine(InMemoryBackend())
+        engine = ReflexionEngine(MemoryManager())
         r = engine.reflect(
             "l1", "lhs:phys.force", "incorrect", detected_misconception="heavier_falls_faster"
         )
@@ -21,17 +21,17 @@ class TestReflexionEngine:
         assert "heavier_falls_faster" in r.summary
 
     def test_correct_reflection(self) -> None:
-        engine = ReflexionEngine(InMemoryBackend())
+        engine = ReflexionEngine(MemoryManager())
         r = engine.reflect("l1", "lhs:phys.force", EvaluationResult.CORRECT)
         assert r.kind == "reinforcement"
 
     def test_incorrect_reflection(self) -> None:
-        engine = ReflexionEngine(InMemoryBackend())
+        engine = ReflexionEngine(MemoryManager())
         r = engine.reflect("l1", "lhs:phys.force", "incorrect")
         assert r.kind == "correction"
 
     def test_lessons_namespaced_per_learner(self) -> None:
-        engine = ReflexionEngine(InMemoryBackend())
+        engine = ReflexionEngine(MemoryManager())
         engine.reflect("l1", "c", "incorrect")
         engine.reflect("l2", "c", EvaluationResult.CORRECT)
         lessons = engine.lessons("l1")
