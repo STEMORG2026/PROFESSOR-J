@@ -4,6 +4,10 @@ Assembles the observable subsystems (session, memory, reflexion, db, tools,
 knowledge, brain) off :class:`~app.config.settings.Settings` so the rest of the
 code depends on constructed services, not on global state. This is the single
 place to see what a running professor instance holds.
+
+The composition root is the TRUST ROOT for Principal creation. It creates
+Principals at agent construction time and passes them as capabilities. Agents
+cannot create Principals; they only receive them as capabilities.
 """
 
 from __future__ import annotations
@@ -11,6 +15,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from app.authority.gateway import AuthorityGateway, set_gateway
+from app.authority.principal import Principal
 from app.db import MasteryRepository, SessionRepository, SqliteDatabaseEngine, TranscriptRepository
 from app.authority.policy import default_register_policy
 from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
@@ -43,6 +49,7 @@ class AppRoot:
     research: ResearchAgent
     gamedev: GameDevAgent
     policy: SafetyPolicy
+    gateway: AuthorityGateway
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -72,7 +79,12 @@ def build_root(
     lhs_export: str = "LearningHubSTEM/exports/knowledge.json",
     workspace_root: str = "data/workspace",
 ) -> AppRoot:
-    """Build and wire the application singletons (SQLite/in-memory defaults)."""
+    """Build and wire the application singletons (SQLite/in-memory defaults).
+
+    The composition root creates Principals for each agent type and wires them
+    into the AuthorityGateway. Agents receive their Principal as a capability;
+    they cannot create Principals themselves.
+    """
     db = SqliteDatabaseEngine(db_path)
     db.create_schema()
 
@@ -105,6 +117,68 @@ def build_root(
 
     session_repo = SessionRepository(db)
 
+    # Create the AuthorityGateway — the single authoritative execution boundary
+    gateway = AuthorityGateway(
+        tool_executor=tools,
+        safety_policy=policy,
+        allocation_path="authority/allocation.yaml",
+        permission_manifest_path="authority/permission-manifest.yaml",
+        audit_log_path="data/ledger/gateway_audit.jsonl",
+    )
+    set_gateway(gateway)
+
+    # COMPOSITION ROOT: Create Principals for each agent type.
+    # These are the ONLY places Principals are created (trust root).
+    # Agents receive their Principal as a capability; they cannot create Principals.
+    _researcher_principal = Principal.create(
+        id="researcher",
+        tier=SafetyTier.SENSITIVE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _architect_principal = Principal.create(
+        id="architect",
+        tier=SafetyTier.SENSITIVE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _implementer_principal = Principal.create(
+        id="implementer",
+        tier=SafetyTier.SENSITIVE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _tester_principal = Principal.create(
+        id="tester",
+        tier=SafetyTier.SAFE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _security_reviewer_principal = Principal.create(
+        id="security-reviewer",
+        tier=SafetyTier.SENSITIVE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _code_reviewer_principal = Principal.create(
+        id="code-reviewer",
+        tier=SafetyTier.SAFE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _docs_reviewer_principal = Principal.create(
+        id="docs-reviewer",
+        tier=SafetyTier.SAFE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+    _ci_reviewer_principal = Principal.create(
+        id="ci-reviewer",
+        tier=SafetyTier.SAFE,
+        project="PROFESSOR-J",
+        allocation_ref="PROFESSOR-J",
+    )
+
     session_repo = SessionRepository(db)
 
     return AppRoot(
@@ -121,6 +195,7 @@ def build_root(
         research=research,
         gamedev=gamedev,
         policy=policy,
+        gateway=gateway,
     )
 
 
