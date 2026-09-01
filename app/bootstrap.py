@@ -16,10 +16,10 @@ import logging
 from dataclasses import dataclass
 
 from app.authority.gateway import AuthorityGateway, set_gateway
+from app.authority.policy import default_register_policy
 from app.authority.principal import Principal
 from app.db import MasteryRepository, SessionRepository, SqliteDatabaseEngine, TranscriptRepository
-from app.authority.policy import default_register_policy
-from app.db import MasteryRepository, SqliteDatabaseEngine, TranscriptRepository
+from app.domain.tool import SafetyTier
 from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent

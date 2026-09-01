@@ -9,6 +9,7 @@ when every provider is unavailable.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from app.exceptions import (
@@ -125,6 +126,71 @@ class ModelRouter:
         except Exception as e:
             # Map transport/HTTP failures onto a typed, retryable error.
             raise ProviderUnavailableError(provider=provider.name, message=str(e)) from e
+
+    async def stream(
+        self,
+        messages: list[LLMMessage],
+        *,
+        preferred: str | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream completion deltas, failing over across healthy providers.
+
+        Mirrors :meth:`generate` semantics (circuit breakers, budgets, ordered
+        failover) but yields content deltas instead of a single result. On
+        retryable failure the generator fails over to the next healthy provider;
+        if every provider is exhausted it raises
+        :class:`NoHealthyProvidersError` to the consumer.
+        """
+        ordered = self._ordered_names(preferred)
+        last_error: Exception | None = None
+        tried: list[str] = []
+
+        for name in ordered:
+            provider = self.catalog.get(name)
+            if provider is None:
+                continue
+            breaker = self._breaker(name)
+            budget = self._budget(name)
+            try:
+                breaker.call()
+            except CircuitOpenError as e:
+                logger.info("Skipping %s: circuit open", name)
+                last_error = e
+                tried.append(name)
+                continue
+            if not budget.try_acquire():
+                logger.info("Skipping %s: budget exhausted", name)
+                last_error = ProviderRateLimitError(provider=name, retry_after=1)
+                tried.append(name)
+                continue
+            try:
+                async for chunk in provider.stream(messages, **kwargs):
+                    yield chunk
+                breaker.record_success()
+                return
+            except (
+                ProviderRateLimitError,
+                ProviderTimeoutError,
+                ProviderUnavailableError,
+            ) as e:
+                breaker.record_failure()
+                logger.warning("Provider %s stream failed (%s); failing over", name, e.code)
+                last_error = e
+                tried.append(name)
+            except ProviderAuthError as e:
+                logger.error("Provider %s auth failed; skipping", name)
+                last_error = e
+                tried.append(name)
+            except Exception as e:  # pragma: no cover - defensive
+                breaker.record_failure()
+                logger.warning("Provider %s stream errored (%s); failing over", name, e)
+                last_error = e
+                tried.append(name)
+            finally:
+                budget.release()
+
+        raise NoHealthyProvidersError(providers=tried, cause=last_error)
 
     def _ordered_names(self, preferred: str | None) -> list[str]:
         names = self.catalog.names()

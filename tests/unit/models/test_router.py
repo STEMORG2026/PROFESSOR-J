@@ -11,6 +11,7 @@ from app.exceptions import (
     ProviderAuthError,
     ProviderRateLimitError,
     ProviderTimeoutError,
+    ProviderUnavailableError,
 )
 from app.models.catalog import ProviderCatalog
 from app.models.providers import LLMMessage, LLMProvider, LLMResult, MockProvider
@@ -120,3 +121,53 @@ async def test_opening_breaker_then_failover_on_later_requests() -> None:
     # flaky has failed enough to open its breaker (threshold default 5? no ->
     # configured default 5, so it may not be open yet). Assert failover still works.
     assert router._breaker("flaky")._failure_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_stream_yields_mock_deltas() -> None:
+    """Router.stream() aggregates MockProvider's incremental word chunks."""
+    router = ModelRouter(ProviderCatalog([MockProvider(name="mock", model="m")]))
+    chunks: list[str] = []
+    async for delta in router.stream(_msgs("hello world")):
+        chunks.append(delta)
+    assert chunks  # non-empty
+    joined = "".join(chunks)
+    assert joined.startswith("[mock:")
+
+
+@pytest.mark.asyncio
+async def test_stream_prefers_provider() -> None:
+    router = ModelRouter(ProviderCatalog([MockProvider(name="a"), MockProvider(name="b")]))
+    chunks: list[str] = []
+    async for delta in router.stream(_msgs(), preferred="b"):
+        chunks.append(delta)
+    assert "[mock:b]" in "".join(chunks)
+
+
+@pytest.mark.asyncio
+async def test_stream_uses_base_complete_fallback_when_no_native_stream() -> None:
+    """A provider without a stream override still streams via the complete() fallback."""
+
+    class NonStreaming(LLMProvider):
+        name = "ns"
+        model = "ns"
+
+        async def complete(self, messages: list[LLMMessage], **kwargs: Any) -> LLMResult:
+            return LLMResult(text="fallback-text", provider=self.name, model=self.model)
+
+    router = ModelRouter(ProviderCatalog([NonStreaming()]))
+    chunks: list[str] = []
+    async for delta in router.stream(_msgs()):
+        chunks.append(delta)
+    assert "".join(chunks) == "fallback-text"
+
+
+@pytest.mark.asyncio
+async def test_stream_raises_when_all_providers_fail() -> None:
+    flaky = FlakyProvider("flaky", ProviderUnavailableError(provider="flaky", message="down"))
+    router = ModelRouter(ProviderCatalog([flaky]))
+    collected: list[str] = []
+    with pytest.raises(NoHealthyProvidersError):
+        async for delta in router.stream(_msgs()):
+            collected.append(delta)
+    assert collected == []

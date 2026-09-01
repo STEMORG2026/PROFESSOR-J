@@ -265,7 +265,7 @@ export default function ChatCanvas() {
         body.system_prompt = effectiveSystemPrompt;
       }
 
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -275,18 +275,105 @@ export default function ChatCanvas() {
         const b = await res.text();
         throw new Error(`API ${res.status}: ${b.slice(0, 120)}`);
       }
-      const data = await res.json();
+      if (!res.body) throw new Error("Streaming response has no body");
 
+      // Placeholder assistant message that we fill incrementally as tokens arrive.
       const assistantMsg: ChatMessage = {
         role: "assistant",
-        content: data.response,
-        intent: data.intent,
-        provider: data.provider,
-        sessionId: data.session_id,
+        content: "",
+        sessionId: currentSessionId ?? undefined,
       };
-      const newMsgs = [...messagesToResend, assistantMsg];
-      setMessages(newMsgs);
-      await saveMessages(newMsgs);
+      let streamedMsgs = [...messagesToResend, assistantMsg];
+      setMessages(streamedMsgs);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let metaProvider: string | undefined;
+      let metaIntent: string | undefined;
+      let eventName = "";
+      let eventData = "";
+      let frameError: string | undefined;
+
+      const applyDelta = (delta: string) => {
+        streamedMsgs = streamedMsgs.map((m, i) =>
+          i === streamedMsgs.length - 1 ? { ...m, content: m.content + delta } : m,
+        );
+        setMessages(streamedMsgs);
+      };
+      // Dispatch a complete SSE frame (event name + data).
+      const dispatchFrame = () => {
+        const data = eventData.trim();
+        if (eventName === "meta" && data) {
+          try {
+            const meta = JSON.parse(data) as { provider?: string; intent?: string };
+            if (meta.provider) metaProvider = meta.provider;
+            if (meta.intent) metaIntent = meta.intent;
+          } catch {
+            /* ignore malformed meta */
+          }
+        } else if (eventName === "token" && data) {
+          try {
+            const parsed = JSON.parse(data) as { content?: unknown };
+            if (typeof parsed.content === "string" && parsed.content) {
+              applyDelta(parsed.content);
+            }
+          } catch {
+            /* ignore malformed token */
+          }
+        } else if (eventName === "error" && data) {
+          try {
+            const parsed = JSON.parse(data) as { message?: unknown };
+            frameError =
+              typeof parsed.message === "string"
+                ? parsed.message
+                : "Upstream stream error";
+          } catch {
+            frameError = "Upstream stream error";
+          }
+        } else if (eventName === "done") {
+          // end of stream — no action needed
+        }
+        eventName = "";
+        eventData = "";
+      };
+
+      // Streaming SSE parser: read chunks, split on blank lines (frame boundaries).
+      const readLoop = async () => {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let newlineIdx: number;
+          while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, newlineIdx).replace(/\r$/, "");
+            buffer = buffer.slice(newlineIdx + 1);
+            if (line === "") {
+              // blank line = end of an SSE frame
+              dispatchFrame();
+            } else if (line.startsWith("event:")) {
+              eventName = line.slice(6).trim();
+            } else if (line.startsWith("data:")) {
+              eventData += (eventData ? "\n" : "") + line.slice(5);
+            }
+            // ignore comments and other SSE fields
+          }
+        }
+        // flush the final frame (may lack a trailing blank line)
+        if (eventName || eventData) dispatchFrame();
+      };
+      await readLoop();
+
+      if (frameError) throw new Error(frameError);
+
+      // Finalize the assistant message with provider/intent metadata.
+      const finalMsgs = streamedMsgs.map((m, i) =>
+        i === streamedMsgs.length - 1
+          ? { ...m, provider: metaProvider, intent: metaIntent }
+          : m,
+      );
+      setMessages(finalMsgs);
+      await saveMessages(finalMsgs);
     } catch (err) {
       const ex = err as Error;
       setError(

@@ -190,13 +190,16 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 ### Phase 7: Next.js 15 Interactive Canvas UI
 - [x] Scaffold `frontend/` with Next.js 15 App Router, React 19, Tailwind (dark holographic chat
       canvas; FastAPI backend in `app/adapters/api.py`; enabled the CI `build-frontend` job).
-      **A custom `@lobehub/ui` theme, KaTeX, Plotly, and SSE streaming are NOT yet done.**
+      **A custom `@lobehub/ui` theme, KaTeX, and Plotly are NOT yet done; SSE token streaming IS done.**
 - [ ] Integrate `@lobehub/ui` dark holographic theme.
 - [ ] Implement KaTeX equation renderer and Plotly chart canvas.
-- [ ] Implement SSE token streaming chat with line buffering.
+- [x] Implement SSE token streaming chat with line buffering (FastAPI `StreamingResponse`
+      SSE `text/event-stream`; provider + router + brain stream layers; frontend
+      `ReadableStream`/`TextDecoder` SSE parser; `meta`/`token`/`done` events; abort via
+      AbortController; node-level unit + API tests).
 - **Acceptance Criteria:** Live streaming tokens render with instantaneous KaTeX
-      (NOT met — streaming/KaTeX pending; a working non-streaming chat canvas is implemented and
-      verified end-to-end against the backend).
+      (PARTIALLY met — tokens stream live and the chat canvas is verified end-to-end;
+      KaTeX rendering remains pending).
 
 ### Phase 8: WebRTC Real-Time Voice Classroom
 - [ ] Implement WebRTC audio transport and signaling in `app/adapters/voice/`.
@@ -236,6 +239,8 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - Phase 5 foundation: in-process CodeSandbox (timeout/memory-capped) + MathSolver (SymPy).
 - Phase 6 foundation: PDF text extraction + chunk/index + page-exact citations.
 - Phase 7 foundation: Next.js 15 chat canvas + FastAPI `/api/chat` + `/api/health` (verified end-to-end).
+- Phase 7 streaming: FastAPI `/api/chat/stream` SSE token streaming (provider/router/brain stream
+  layers + frontend `ReadableStream` parser; `meta`/`token`/`done` events).
 - Phase 9a: SQLite DatabaseEngine + mastery/transcript persistence; AppRoot.health().
 
 **Genuinely external-infra / not implemented (do NOT mark done with stubs):**
@@ -244,7 +249,7 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - ChromaDB dense + BM25 sparse retrieval; Qdrant/PGVector (Phase 4/6).
 - PaddleOCR scanned-PDF OCR; table/formula extraction; bounding-box citations (Phase 6).
 - PostgreSQL + Alembic migrations; distributed bus (Phase 9).
-- FastAPI SSE/WebRTC signaling + auth; KaTeX/Plotly canvas; @lobehub theme (Phase 7); WebRTC voice (Phase 8).
+- FastAPI WebRTC signaling + auth; KaTeX/Plotly canvas; @lobehub theme (Phase 7); WebRTC voice (Phase 8).
 - Production hardening, Langfuse observability ops, prompt management, automated deploy (Phase 9b).
 
 These items depend on external infrastructure, real-time transport, or deployment targets not

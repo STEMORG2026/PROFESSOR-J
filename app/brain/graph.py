@@ -13,6 +13,7 @@ through the safety gate and checkpointing.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -190,3 +191,26 @@ class CognitiveBrain:
             "provider": out.get("provider_used", ""),
             "plan_steps": len(out.get("plan", ExecutionPlan()).steps),
         }
+
+    async def stream_response(
+        self, prompt: str, system_prompt: str | None = None
+    ) -> AsyncIterator[str]:
+        """Yield assistant token deltas for a single prompt.
+
+        Runs intent classification deterministically (mirroring the LangGraph
+        ``classify`` node) and then streams the synthesis from the router's
+        provider pool, so callers see tokens incrementally.
+        """
+        intent = classify_intent(prompt) or Intent.DIRECT_CHAT
+        if not isinstance(system_prompt, str):
+            system_prompt = "You are PROFESSOR-J, a general-purpose AI operating system."
+        messages = [
+            LLMMessage(role="system", content=system_prompt),
+            LLMMessage(
+                role="user",
+                content=f"[intent={intent.value}]\n{prompt}",
+            ),
+        ]
+        async for chunk in self.router.stream(messages):
+            yield chunk
+        return
