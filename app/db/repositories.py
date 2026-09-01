@@ -244,7 +244,7 @@ class SessionRepository:
         params.append(utc_now().isoformat())
         params.append(session_id)
         self.engine.execute(
-            f"UPDATE sessions SET {', '.join(fields)} WHERE session_id = ?",
+            f"UPDATE sessions SET {', '.join(fields)} WHERE session_id = ?",  # nosec B608: fixed allowlist, bound params
             tuple(params),
         )
 
@@ -334,7 +334,7 @@ class SessionRepository:
         params.append(utc_now().isoformat())
         params.append(conversation_id)
         self.engine.execute(
-            f"UPDATE conversations SET {', '.join(fields)} WHERE conversation_id = ?",
+            f"UPDATE conversations SET {', '.join(fields)} WHERE conversation_id = ?",  # nosec B608: fixed allowlist, bound params
             tuple(params),
         )
 
@@ -425,7 +425,7 @@ class SessionRepository:
         params.append(utc_now().isoformat())
         params.append(persona_id)
         self.engine.execute(
-            f"UPDATE personas SET {', '.join(fields)} WHERE persona_id = ?",
+            f"UPDATE personas SET {', '.join(fields)} WHERE persona_id = ?",  # nosec B608: fixed allowlist, bound params
             tuple(params),
         )
 

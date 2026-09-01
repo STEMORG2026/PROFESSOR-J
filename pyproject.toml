@@ -25,6 +25,7 @@ asyncio_mode = "auto"
 line-length = 100
 target-version = "py311"
 src = ["app", "tests", "scripts"]
+force-exclude = true
 
 [tool.ruff.lint]
 # E/F/W core, I (isort), UP (pyupgrade), B (bugbear), C4 (comprehensions),

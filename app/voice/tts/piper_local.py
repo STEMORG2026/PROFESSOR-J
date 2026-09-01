@@ -150,6 +150,13 @@ class PiperLocalProvider(TTSProvider):
         model_url = f"{base_url}/{voice_id}.onnx"
         config_url = f"{base_url}/{voice_id}.onnx.json"
 
+        # Only allow https downloads (HUGGINGFACE_VOICE_BASE is a fixed https
+        # endpoint); reject any other scheme so urlretrieve can't touch file:
+        # or custom schemes.
+        for url in (model_url, config_url):
+            if not url.startswith("https://"):
+                raise ValueError(f"Refusing to download voice from non-https URL: {url}")
+
         model_path = self._voice_model_path(voice_id)
         config_path = self._voice_config_path(voice_id)
 
@@ -158,6 +165,8 @@ class PiperLocalProvider(TTSProvider):
         try:
             urllib.request.urlretrieve(model_url, model_path)
             urllib.request.urlretrieve(config_url, config_path)
+            urllib.request.urlretrieve(model_url, model_path)  # nosec B310: scheme validated to https above
+            urllib.request.urlretrieve(config_url, config_path)  # nosec B310: scheme validated to https above
             logger.info(f"Voice {voice_id} downloaded successfully")
         except Exception as e:
             logger.error(f"Failed to download voice {voice_id}: {e}")

@@ -243,6 +243,22 @@ class PIIRedactionError(GuardrailError):
     """Raised when PII redaction fails."""
 
 
+class CapabilityRegistrationError(GuardrailError):
+    """Raised when a capability (tool/skill) registration is denied by policy.
+
+    Phase 2 grant-checked registration: an agent/skill may not self-register a capability
+    the registration policy does not bless (e.g. DESTRUCTIVE from a non-blessed registrar).
+    """
+
+    def __init__(self, capability: str, reason: str) -> None:
+        super().__init__(
+            f"capability registration denied: {capability} ({reason})",
+            code="CAPABILITY_REGISTRATION_DENIED",
+        )
+        self.capability = capability
+        self.reason = reason
+
+
 # ── Sandbox & Tool Execution ──────────────────────────────────────
 
 

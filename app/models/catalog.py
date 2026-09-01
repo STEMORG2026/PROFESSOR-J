@@ -10,7 +10,8 @@ from app.models.cloud_providers import (
     NVIDIANIMProvider,
     OpenRouterProvider,
 )
-from app.models.providers import LLMProvider, MockProvider, OpenAICompatProvider
+from app.models.providers import LLMProvider, MockProvider
+from app.models.real_providers import register_all_providers
 
 logger = logging.getLogger(__name__)
 
@@ -84,21 +85,6 @@ class ProviderCatalog:
             )
             count += 1
 
-        # Bluesmind (OpenAI-compatible)
-        from app.config.settings import get_settings
-
-        s = get_settings()
-        if s.bluesmind_api_key:
-            self.register(
-                OpenAICompatProvider(
-                    name="bluesmind",
-                    model="kimi-k2.5",
-                    base_url=s.bluesmind_base_url,
-                    api_key=s.bluesmind_api_key,
-                )
-            )
-            count += 1
-
         return count
 
 
@@ -109,6 +95,8 @@ def default_catalog() -> ProviderCatalog:
     catalog.register(MockProvider(name="mock", model="mock-model"))
     # Register cloud providers from environment
     catalog.register_from_env()
+    # Register all available real providers (respects environment variables).
+    register_all_providers(catalog)
     return catalog
 
 

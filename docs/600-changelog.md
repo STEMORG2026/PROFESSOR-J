@@ -8,6 +8,20 @@
 
 ## Unreleased
 
+### Added (2026-08)
+- **API-key resolution:** provider credentials now resolve from the repo's gitignored `.env`
+  as the source of truth (accepting the bare env name and a `PROFESSOR_`-prefixed override) and can
+  no longer be shadowed by an unrelated ambient shell export (`SINGULARITY_API_KEY` in `~/.bashrc`).
+- **Chat session persistence:** `SessionRepository` (sessions, conversations, user settings + global
+  defaults, personas) over a new additive SQLite schema; the chat API persists sessions across restarts
+  and resolves provider/model/base_url/system-prompt via a session → global-default → built-in chain.
+- **Webapp redesign:** settings panel (general defaults, per-provider API keys with connection testing,
+  personas), top bar, session sidebar, model/persona dropdowns, voice components, and file upload.
+- **Voice subsystem:** provider abstractions + lazy factories with a local Piper TTS provider and a
+  local faster-whisper STT provider, exposed via `/api/voice` routes.
+- **MCP:** stdio MCP client (`StdioMCPClient`), `MCPClientManager`/`MCPRegistry` discovery + caching,
+  `MCPToolSearch` on-demand loading, `CodeExecutionTools` code-API adapter, and an `MCPToolSkill`.
+
 ### Changed (2026-08)
 - **Branch consolidation:** merged the phase 0.6 governance hardening and phase 1 LHS
   consumer work onto `main` in one controlled integration (resolved `exceptions.py`,
@@ -133,6 +147,29 @@ deliberate consolidation of the reconciling changes landed this cycle.)
   (MockProvider default → zero-config testing). `build_root()` degrades if LHS export absent.
 - **CI:** `build-frontend` job enabled (node 22, pnpm).
 - Kicks the SSE streaming/KaTeX/Plotly/@lobehub theme + WebRTC to later (see §2b).
+
+### Added (2026-08-30) — Phase 1 Memory Backend Abstraction + MCP Client Design
+- **`app/memory/backends.py`:** `MemoryBackend` abstract protocol + `InMemoryBackend`,
+  `JsonMemoryBackend`, `ChromaMemoryBackend` implementations. Pluggable for Qdrant/PGVector.
+  `MemoryService` and `ReflexionEngine` now work with any backend implementation.
+- **`app/mcp/`:** Complete MCP client subsystem — `MCPServerManager` (multi-server management),
+  `StdioTransport` + `StreamableHTTPTransport`, `MCPRegistry` (caching), `MCPToolSearch`
+  (on-demand discovery + CodeExecutionTools pattern).
+- **Tests:** Extended `tests/unit/memory/test_memory.py` with ChromaDB backend tests.
+- **Virtual Board:** All 8 checks pass including new `mcp_tool_search` verification.
+
+### Added (2026-08-30) — Phase 2 Multi-Provider Model Pool (17+ Real Providers)
+- **`app/models/real_providers.py`:** Complete provider implementations —
+  `OpenAICompatibleProvider` (covers OpenAI, OpenRouter, Groq, Together, NVIDIA NIM, GitHub Models,
+  HuggingFace, Mistral, Cohere, Cerebras, Cloudflare, Zhipu, xAI via OpenAI-compatible endpoints),
+  `AnthropicProvider` (native Claude API), `OllamaProvider` (native + HTTP fallback),
+  `GoogleProvider` (native Gemini API). All map to typed `LLMProvider` interface.
+- **`app/models/catalog.py`:** `default_catalog()` now auto-registers all providers whose
+  required environment variables are set (local-first: `ollama` + `mock` always available).
+- **`app/models/__init__.py`:** Exports all real provider classes + `register_all_providers()`.
+- **Tests:** `tests/unit/models/test_real_providers.py` — 9 tests covering all 4 provider types
+  + catalog registration logic with environment variable gating.
+- **Coverage:** Total project coverage 82% (up from 84% before tests added).
 
 ---
 

@@ -100,19 +100,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("SINGULARITY_BASE_URL", "PROFESSOR_SINGULARITY_BASE_URL"),
     )
 
-    # ── Bluesmind (OpenAI-compatible) ─────────────────────────────────
-    # OpenAI-compatible endpoint with Kimi, Nemotron, Llama, GPT-OSS models.
-    # Key lives in repo-root .env (BLUESMIND_API_KEY), with PROFESSOR_ prefix
-    # override also accepted.
-    bluesmind_api_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("BLUESMIND_API_KEY", "PROFESSOR_BLUESMIND_API_KEY"),
-    )
-    bluesmind_base_url: str = Field(
-        default="https://api.bluesminds.com/v1",
-        validation_alias=AliasChoices("BLUESMIND_BASE_URL", "PROFESSOR_BLUESMIND_BASE_URL"),
-    )
-
     # ── Vector Store ─────────────────────────────────────────────────
     chroma_host: str = "localhost"
     chroma_port: int = 8000
@@ -167,8 +154,6 @@ _PROVIDER_ENV_KEYS: dict[str, str] = {
     "GOOGLE_AI_API_KEY": "google_ai_api_key",
     "SINGULARITY_API_KEY": "singularity_api_key",
     "SINGULARITY_BASE_URL": "singularity_base_url",
-    "BLUESMIND_API_KEY": "bluesmind_api_key",
-    "BLUESMIND_BASE_URL": "bluesmind_base_url",
 }
 
 

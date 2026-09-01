@@ -40,6 +40,50 @@ SCHEMA: tuple[str, ...] = (
         created_at  TEXT NOT NULL
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS sessions (
+        session_id     TEXT PRIMARY KEY,
+        learner_id     TEXT NOT NULL,
+        title          TEXT,
+        status         TEXT NOT NULL DEFAULT 'active',
+        system_prompt  TEXT,
+        provider       TEXT,
+        model          TEXT,
+        api_keys       TEXT,  -- JSON
+        base_url       TEXT,
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL,
+        last_activity_at TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS conversations (
+        conversation_id  TEXT PRIMARY KEY,
+        session_id       TEXT NOT NULL,
+        title            TEXT,
+        messages         TEXT NOT NULL,  -- JSON array
+        created_at       TEXT NOT NULL,
+        updated_at       TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS user_settings (
+        key          TEXT PRIMARY KEY,
+        value        TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS personas (
+        persona_id      TEXT PRIMARY KEY,
+        name            TEXT NOT NULL,
+        description     TEXT,
+        system_prompt   TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    )
+    """,
 )
 
 

@@ -52,6 +52,53 @@ def _steps_for(intent: Intent, prompt: str) -> list[ExecutionStep]:
                 title="Synthesize a grounded explanation",
             ),
         ]
+    if intent == Intent.GAME_DEV:
+        return [
+            ExecutionStep(
+                step_id="spec-planning",
+                title="Formulate Game Project Specification",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_plan",
+                    args={"prompt": prompt},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Plan game architecture and component requirements",
+                ),
+            ),
+            ExecutionStep(
+                step_id="scaffold-generation",
+                title="Scaffold Game Engine & Core Rules",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_scaffold",
+                    args={"prompt": prompt},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Generate game project structure and pure rule contracts",
+                ),
+            ),
+            ExecutionStep(
+                step_id="architecture-validation",
+                title="Validate Game Architecture & Domain Purity",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_validate",
+                    args={},
+                    safety_tier=SafetyTier.SAFE,
+                    description="Validate engine boundary isolation and determinism",
+                ),
+            ),
+            ExecutionStep(
+                step_id="headless-verification",
+                title="Execute Headless Rule Verification in Isolated Sandbox",
+                tool_call=ToolCallRequest(
+                    tool="gamedev_verify",
+                    args={},
+                    safety_tier=SafetyTier.DESTRUCTIVE,
+                    description="Execute headless game tests in isolated sandbox",
+                ),
+            ),
+            ExecutionStep(
+                step_id="synthesize",
+                title="Synthesize Game Dev Delivery Summary",
+            ),
+        ]
     if intent == Intent.FILE_QUERY:
         return [ExecutionStep(step_id="access-workspace", title="Access workspace file")]
     if intent == Intent.TOOL_SEARCH:
@@ -77,10 +124,13 @@ async def synthesize_node(state: BrainState, router: ModelRouter) -> dict[str, A
     """Produce a response via the model router; record which provider served it."""
     prompt = state.get("prompt", "")
     intent = state.get("intent", Intent.DIRECT_CHAT) or Intent.DIRECT_CHAT
+    system_prompt = state.get("system_prompt")
+    if not isinstance(system_prompt, str):
+        system_prompt = "You are PROFESSOR-J, a general-purpose AI operating system."
     messages = [
         LLMMessage(
             role="system",
-            content="You are PROFESSOR-J, a general-purpose AI operating system.",
+            content=system_prompt,
         ),
         LLMMessage(
             role="user",

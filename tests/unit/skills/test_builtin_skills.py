@@ -36,10 +36,14 @@ def test_register_builtin_skills_registers_six(registry: SkillRegistry) -> None:
     from app.skills.builtin import register_builtin_skills
 
     count = register_builtin_skills(registry)
-    assert count == 6
+    assert count == 9  # Original 6 + 3 new project automation skills
     assert registry.get("filesystem") is not None
     assert registry.get("lhstem_knowledge") is not None
     assert registry.get("memory") is not None
+    # New skills
+    assert registry.get("project_build") is not None
+    assert registry.get("git_extended") is not None
+    assert registry.get("file_template") is not None
 
 
 class TestLHSTEMSkill:
