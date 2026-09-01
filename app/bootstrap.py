@@ -18,13 +18,16 @@ from dataclasses import dataclass
 from app.authority.gateway import AuthorityGateway, set_gateway
 from app.authority.policy import default_register_policy
 from app.authority.principal import Principal
+from app.context import ContextWindowManager
 from app.db import MasteryRepository, SessionRepository, SqliteDatabaseEngine, TranscriptRepository
 from app.domain.tool import SafetyTier
+from app.events import InMemoryAsyncBus
 from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
 from app.memory import InMemoryBackend, MemoryManager, MemoryService, ReflexionEngine
+from app.prompt import PromptLoader
 from app.session import SessionManager
 from app.tools import ToolExecutor
 from app.workspace import WorkspaceManager
@@ -50,6 +53,9 @@ class AppRoot:
     gamedev: GameDevAgent
     policy: SafetyPolicy
     gateway: AuthorityGateway
+    event_bus: InMemoryAsyncBus
+    context_window: ContextWindowManager
+    prompt_loader: PromptLoader
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -181,6 +187,12 @@ def build_root(
 
     session_repo = SessionRepository(db)
 
+    event_bus = InMemoryAsyncBus()
+    # Passive telemetry + utilities (JARVIS parity); wired in so future call sites
+    # can publish events / trim context / load externalized prompts.
+    context_window = ContextWindowManager()
+    prompt_loader = PromptLoader()
+
     return AppRoot(
         sessions=SessionManager(),
         memory=memory,
@@ -196,6 +208,9 @@ def build_root(
         gamedev=gamedev,
         policy=policy,
         gateway=gateway,
+        event_bus=event_bus,
+        context_window=context_window,
+        prompt_loader=prompt_loader,
     )
 
 
