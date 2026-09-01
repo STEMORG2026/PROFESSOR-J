@@ -1,6 +1,6 @@
 # CONSTITUTION — PROFESSOR-J
 
-**Version:** 0.1.0
+**Version:** 0.1.0 (Constitution adoption draft)
 **Status:** Draft for adoption
 **Owner:** Sajan (Principal Architect)
 **Applies To:** All packages, apps, and the repository root
