@@ -7,6 +7,7 @@ learner, giving the brain a persistent cross-session memory.
 """
 
 from app.memory.backends import (
+    ChromaMemoryBackend,
     InMemoryBackend,
     JsonMemoryBackend,
     MemoryBackend,
@@ -19,6 +20,7 @@ __all__ = [
     "MemoryBackend",
     "InMemoryBackend",
     "JsonMemoryBackend",
+    "ChromaMemoryBackend",
     "MemoryBackendError",
     "MemoryService",
     "MemoryStoreError",

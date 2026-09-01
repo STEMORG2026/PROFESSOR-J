@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 
-from app.exceptions import CircuitHalfOpenError, CircuitOpenError
+from app.exceptions import CircuitOpenError
 
 
 class CircuitState(str, Enum):
@@ -38,12 +38,14 @@ class CircuitBreaker:
         return self._state
 
     def call(self) -> None:
-        """Called before a request. Raises if the circuit is not accepting."""
+        """Called before a request. Raises if the circuit is not accepting.
+
+        HALF_OPEN allows a single probe — the breaker remains half-open until
+        record_success or record_failure determines the outcome.
+        """
         state = self.state
         if state == CircuitState.OPEN:
             raise CircuitOpenError(provider=self.name, opened_at=self._opened_at or time.time())
-        if state == CircuitState.HALF_OPEN:
-            raise CircuitHalfOpenError(f"Circuit HALF_OPEN for '{self.name}' (probing recovery)")
 
     def record_success(self) -> None:
         if self._state == CircuitState.HALF_OPEN:
