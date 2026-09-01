@@ -13,11 +13,15 @@ to ``MockProvider``), making the API immediately testable in local dev and CI.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.bootstrap import AppRoot, build_root
@@ -203,6 +207,64 @@ class HealthResponse(BaseModel):
 _root: AppRoot | None = None
 
 
+def _resolve_chat_params(app_root: AppRoot, req: ChatRequest) -> dict[str, Any]:
+    """Resolve (provider, model, base_url, api_key, system_prompt) for a chat.
+
+    Precedence: the request's explicit fields, then the session's stored
+    values, then global defaults, then built-in defaults. Shared by the
+    blocking ``/api/chat`` and streaming ``/api/chat/stream`` endpoints so the
+    two surfaces resolve identical model configs.
+    """
+    import json
+
+    system_prompt = req.system_prompt
+    provider = req.provider
+    model = req.model
+    base_url = req.base_url
+    api_key = req.api_key
+
+    if req.session_id:
+        session = app_root.session_repo.get_session(req.session_id)
+        if session:
+            system_prompt = (
+                system_prompt
+                or session.get("system_prompt")
+                or app_root.session_repo.get_default("system_prompt")
+            )
+            provider = (
+                provider
+                or session.get("provider")
+                or app_root.session_repo.get_default("provider")
+                or DEFAULT_PROVIDER
+            )
+            model = (
+                model
+                or session.get("model")
+                or app_root.session_repo.get_default("model")
+                or DEFAULT_MODEL
+            )
+            base_url = (
+                base_url
+                or session.get("base_url")
+                or app_root.session_repo.get_default("base_url")
+                or DEFAULT_BASE_URL
+            )
+            if not api_key and session.get("api_keys"):
+                try:
+                    keys = json.loads(session["api_keys"])
+                    api_key = api_key or next(iter(keys.values()), None)
+                except (TypeError, ValueError):
+                    pass
+
+    return {
+        "system_prompt": system_prompt,
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+        "api_key": api_key,
+    }
+
+
 def _get_root() -> AppRoot:
     global _root
     if _root is None:
@@ -369,62 +431,19 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
 
     @app.post("/api/chat", response_model=ChatResponse)
     async def chat(req: ChatRequest) -> ChatResponse:
-        # If session_id provided but no system_prompt, try to get from session
-        system_prompt = req.system_prompt
-        provider = req.provider
-        model = req.model
-        base_url = req.base_url
-        api_key = req.api_key
-
-        if req.session_id:
-            session = app_root.session_repo.get_session(req.session_id)
-            if session:
-                # Check session first, then global defaults, then built-ins
-                system_prompt = (
-                    system_prompt
-                    or session.get("system_prompt")
-                    or app_root.session_repo.get_default("system_prompt")
-                )
-                provider = (
-                    provider
-                    or session.get("provider")
-                    or app_root.session_repo.get_default("provider")
-                    or DEFAULT_PROVIDER
-                )
-                model = (
-                    model
-                    or session.get("model")
-                    or app_root.session_repo.get_default("model")
-                    or DEFAULT_MODEL
-                )
-                base_url = (
-                    base_url
-                    or session.get("base_url")
-                    or app_root.session_repo.get_default("base_url")
-                    or DEFAULT_BASE_URL
-                )
-                if not api_key and session.get("api_keys"):
-                    import json
-
-                    try:
-                        api_keys = json.loads(session["api_keys"])
-                        # Get the first available API key
-                        api_key = api_key or next(iter(api_keys.values()), None)
-                    except (TypeError, ValueError):
-                        pass
-
+        params = _resolve_chat_params(app_root, req)
         active_brain = _build_brain_for(
             req,
-            system_prompt=system_prompt,
-            provider=provider,
-            model=model,
-            base_url=base_url,
-            api_key=api_key,
+            system_prompt=params["system_prompt"],
+            provider=params["provider"],
+            model=params["model"],
+            base_url=params["base_url"],
+            api_key=params["api_key"],
         )
         out = await active_brain.graph.ainvoke(
             {
                 "prompt": req.prompt,
-                "system_prompt": system_prompt,
+                "system_prompt": params["system_prompt"],
             }
         )
         return ChatResponse(
@@ -433,6 +452,58 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
             provider=str(out.get("provider_used", "unknown")),
             plan_steps=len(out.get("plan", ExecutionPlan()).steps),
             session_id=req.session_id,
+        )
+
+    @app.post("/api/chat/stream")
+    async def chat_stream(req: ChatRequest) -> StreamingResponse:
+        """Stream the assistant reply as Server-Sent Events (SSE).
+
+        Emits a ``meta`` event (provider/resolved config) before any token, then a
+        series of ``token`` events with incremental content deltas, then a ``done``
+        event. A ``meta.error`` event is emitted if the brain cannot start a stream
+        (e.g. no healthy provider).
+        """
+        params = _resolve_chat_params(app_root, req)
+        active_brain = _build_brain_for(
+            req,
+            system_prompt=params["system_prompt"],
+            provider=params["provider"],
+            model=params["model"],
+            base_url=params["base_url"],
+            api_key=params["api_key"],
+        )
+
+        async def _event() -> AsyncIterator[str]:
+            # meta first so the client can show provider/status before tokens land
+            meta_payload = json.dumps(
+                {
+                    "provider": params["provider"] or "unknown",
+                    "model": params["model"] or "unknown",
+                }
+            )
+            yield f"event: meta\ndata: {meta_payload}\n\n"
+            try:
+                async for delta in active_brain.stream_response(
+                    req.prompt, system_prompt=params["system_prompt"]
+                ):
+                    if not isinstance(delta, str):
+                        continue
+                    yield f"event: token\ndata: {json.dumps({'content': delta})}\n\n"
+                    await asyncio.sleep(0)
+            except Exception as exc:  # surface upstream failures to the client
+                logger.exception("chat stream failed")
+                yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
+                return
+            yield f"event: done\ndata: {json.dumps({'session_id': req.session_id})}\n\n"
+
+        return StreamingResponse(
+            _event(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
         )
 
     # Session endpoints

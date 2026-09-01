@@ -8,6 +8,20 @@
 
 ## Unreleased
 
+### Added (2026-09)
+- **SSE token streaming chat (Phase 7):** the FastAPI surface now exposes `/api/chat/stream`,
+  a `text/event-stream` endpoint that emits `meta` → `token` → `done` events. Streaming is
+  threaded through three new layers: `LLMProvider.stream()` (async-generator base fallback +
+  word-chunked `MockProvider` + native OpenAI-compatible `stream: true` `httpx` handling),
+  `ModelRouter.stream()` (identical circuit-breaker/budget/failover semantics to `generate`),
+  and `CognitiveBrain.stream_response()`. The frontend chat canvas consumes the stream via
+  `fetch` + `ReadableStream`/`TextDecoder` with an SSE line parser, rendering tokens
+  incrementally and carrying provider/intent metadata through to the final message. Aborting
+  works via the existing `AbortController`.
+- **Composition-root fix:** `app/bootstrap.py` gained the missing `SafetyTier` import (and a
+  duplicate `app.db` import was removed), which previously crashed `build_root()` and blocked
+  collection of the adapters/api test suite.
+
 ### Added (2026-08)
 - **Authority enforcement (Phase 6):** trustworthy Principal identity
   (`app/authority/principal.py`), single AuthorityGateway choke point

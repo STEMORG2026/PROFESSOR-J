@@ -8,8 +8,11 @@ fallback; :class:`OpenAICompatProvider` targets any OpenAI-compatible
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -52,6 +55,18 @@ class LLMProvider(ABC):
         """Complete a chat-style conversation and return the assistant response."""
         raise NotImplementedError
 
+    async def stream(self, messages: list[LLMMessage], **kwargs: Any) -> AsyncIterator[str]:
+        """Yield assistant token deltas as an async stream.
+
+        Base behaviour is a single-token fallback using :meth:`complete` wrapped as
+        an async generator, so providers that don't implement native streaming still
+        work through a streaming consumer. Providers with native stream support should
+        override this to yield real incremental tokens.
+        """
+        result = await self.complete(messages, **kwargs)
+        yield result.text
+        return
+
     def __repr__(self) -> str:  # pragma: no cover
         return f"{type(self).__name__}(name={self.name!r}, model={self.model!r})"
 
@@ -78,6 +93,16 @@ class MockProvider(LLMProvider):
             total_tokens=16,
             metadata={"mock": True},
         )
+
+    async def stream(self, messages: list[LLMMessage], **kwargs: Any) -> AsyncIterator[str]:
+        """Yield the mock response word-by-word (deterministic, for tests/UX)."""
+        text = (await self.complete(messages, **kwargs)).text
+        words = text.split(" ")
+        for i, w in enumerate(words):
+            yield w + (" " if i < len(words) - 1 else "")
+            # tiny back-pressure-free yield keeps the loop async-schedulable
+            await asyncio.sleep(0)
+        return
 
 
 class OpenAICompatProvider(LLMProvider):
@@ -128,3 +153,42 @@ class OpenAICompatProvider(LLMProvider):
             completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", 0),
         )
+
+    async def stream(self, messages: list[LLMMessage], **kwargs: Any) -> AsyncIterator[str]:
+        """Stream tokens from an OpenAI-compatible `stream: true` completion.
+
+        Yields content deltas as they arrive.
+        """
+        import httpx
+
+        url = f"{self.base_url}/chat/completions"
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        params = dict(kwargs.get("params", {}))
+        params["stream"] = True
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": m.role, "content": m.content} for m in messages],
+            **params,
+        }
+        async with (
+            httpx.AsyncClient(timeout=self.timeout_seconds) as client,
+            client.stream("POST", url, json=payload, headers=headers) as resp,
+        ):
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                if not line or not line.startswith("data:"):
+                    continue
+                data_str = line[5:].strip()
+                if data_str == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                delta = chunk["choices"][0].get("delta", {})
+                content = delta.get("content")
+                if content:
+                    yield content
+        return
