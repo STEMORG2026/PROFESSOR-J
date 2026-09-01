@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { VoiceInputButton, MessageTTSButton } from "@/components/VoiceComponents";
 import FileUpload from "@/components/FileUpload";
+import MessageContent from "@/components/MessageContent";
 import SessionSidebar from "@/components/SessionSidebar";
 import TopBar from "@/components/TopBar";
 import { PROVIDERS } from "@/components/ProviderSelector";
@@ -611,7 +612,9 @@ export default function ChatCanvas() {
                   </div>
                 ) : (
                   <>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
+                    <div className="whitespace-pre-wrap break-words">
+                      <MessageContent content={m.content} />
+                    </div>
                     {m.role === "assistant" && (m.intent || m.provider) && (
                       <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
                         {m.intent && (

@@ -194,16 +194,18 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 ### Phase 7: Next.js 15 Interactive Canvas UI
 - [x] Scaffold `frontend/` with Next.js 15 App Router, React 19, Tailwind (dark holographic chat
       canvas; FastAPI backend in `app/adapters/api.py`; enabled the CI `build-frontend` job).
-      **A custom `@lobehub/ui` theme, KaTeX, and Plotly are NOT yet done; SSE token streaming IS done.**
+      **A custom `@lobehub/ui` theme is NOT yet done; KaTeX + Plotly + SSE streaming ARE done.**
 - [ ] Integrate `@lobehub/ui` dark holographic theme.
-- [ ] Implement KaTeX equation renderer and Plotly chart canvas.
+- [x] Implement KaTeX equation renderer and Plotly chart canvas (`MessageContent.tsx` parses
+      `$...$` / `$$...$$` via `katex`, and ```` ```plotly {json} ``` ```` via `react-plotly.js`;
+      `PlotlyChart.tsx` dynamic-imported for code-splitting).
 - [x] Implement SSE token streaming chat with line buffering (FastAPI `StreamingResponse`
       SSE `text/event-stream`; provider + router + brain stream layers; frontend
       `ReadableStream`/`TextDecoder` SSE parser; `meta`/`token`/`done` events; abort via
       AbortController; node-level unit + API tests).
 - **Acceptance Criteria:** Live streaming tokens render with instantaneous KaTeX
-      (PARTIALLY met — tokens stream live and the chat canvas is verified end-to-end;
-      KaTeX rendering remains pending).
+      (MET — tokens stream live, KaTeX equations and Plotly charts render interactively;
+      only the `@lobehub/ui` cosmetic theme remains).
 
 ### Phase 8: WebRTC Real-Time Voice Classroom
 - [ ] Implement WebRTC audio transport and signaling in `app/adapters/voice/`.
@@ -257,7 +259,7 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - ChromaDB **dense** vector retrieval; Qdrant/PGVector (Phase 4/6) — sparse keyword retrieval is done, dense embeddings pending.
 - PaddleOCR scanned-PDF OCR; table/formula extraction; bounding-box citations (Phase 6).
 - PostgreSQL + Alembic migrations; distributed bus (Phase 9).
-- FastAPI WebRTC signaling + auth; KaTeX/Plotly canvas; @lobehub theme (Phase 7); WebRTC voice (Phase 8).
+- FastAPI WebRTC signaling + auth; @lobehub theme (Phase 7 cosmetic only; KaTeX/Plotly/SSE done); WebRTC voice (Phase 8).
 - Production hardening, Langfuse observability ops, prompt management, automated deploy (Phase 9b).
 
 These items depend on external infrastructure, real-time transport, or deployment targets not
