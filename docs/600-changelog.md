@@ -9,6 +9,13 @@
 ## Unreleased
 
 ### Added (2026-08)
+- **Authority enforcement (Phase 6):** trustworthy Principal identity
+  (`app/authority/principal.py`), single AuthorityGateway choke point
+  (`app/authority/gateway.py`) enforcing Principal → project → allocation →
+  tier → capability → safety → provenance → audit, composition-root wiring
+  (`app/bootstrap.py`), provenance-chain rules (AI/untrusted sources require
+  human for privileged mutations), and 29 black-box adversarial tests
+  (`tests/unit/authority/`). Governance foundation frozen.
 - **API-key resolution:** provider credentials now resolve from the repo's gitignored `.env`
   as the source of truth (accepting the bare env name and a `PROFESSOR_`-prefixed override) and can
   no longer be shadowed by an unrelated ambient shell export (`SINGULARITY_API_KEY` in `~/.bashrc`).
