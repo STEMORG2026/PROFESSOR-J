@@ -2,5 +2,6 @@
 # Allow post-install build scripts we depend on (sharp for image optimization,
 # unrs-resolver for ESLint's import resolver).
 allowBuilds:
+  es5-ext: false
   sharp: true
   unrs-resolver: true

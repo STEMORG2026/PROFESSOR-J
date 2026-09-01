@@ -9,6 +9,13 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **KaTeX equations + Plotly charts (Phase 7 webapp):** message content now renders rich
+  STEM output instead of plain text. `MessageContent.tsx` parses inline `$...$` and block
+  `$$...$$` LaTeX (rendered with `katex`, errors fall back to raw text) and
+  ` ```plotly {json} ``` ` fenced blocks into interactive plots (`PlotlyChart.tsx` via
+  `react-plotly.js`, dynamic-imported so plotly.js stays out of the critical path).
+  Wired into the chat canvas; `katex` + `plotly.js` + `react-plotly.js` added.
+  Phase 7 acceptance criteria now MET (only the cosmetic `@lobehub/ui` theme remains).
 - **JARVIS-parity utility layer (`app/events/`, `app/context/`, `app/prompt/`):** closes the
   gap with JARVIS's cross-cutting infrastructure, benchmarked against SOTA agent stacks:
   - `app/events/` — `InMemoryAsyncBus` (typed pub/sub) for *passive* telemetry/metrics/
