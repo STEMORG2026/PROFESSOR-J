@@ -60,4 +60,4 @@ pytest-cov==7.1.0
 hypothesis==6.165.10
 mypy==1.14.1
 pre-commit==4.0.1
-ruff==0.6.9
+ruff==0.16.5
