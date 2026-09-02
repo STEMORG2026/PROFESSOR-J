@@ -9,6 +9,12 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **Plotly chart-generator tool (Phase 5):** `ChartGenerator`
+  (`app/tools/charts.py`) builds deterministic, side-effect-free Plotly figure
+  specs for line/scatter/bar/pie/histogram. Registered as the SAFE-tier
+  `make_chart` tool; `plotly_json` output renders natively in the webapp's
+  ` ```plotly {json} ``` ` block (completing the model→chart loop opened by PR
+  #78). 10 new unit tests.
 - **Document ingestion pipeline API (Phase 6):** the Phase 6 extract→chunk→index→cite
   pipeline (which existed only as a library) is now wired end-to-end.
   - `POST /api/ingest` — upload a PDF; saves + ingests through `ResearchAgent`, returns the
