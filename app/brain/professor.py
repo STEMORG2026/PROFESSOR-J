@@ -10,7 +10,7 @@ tutoring dialogue by combining the pedagogical domain models
 Guiding invariants (from ARCHITECTURE-ESSENTIALS.md):
 
 * **Grounded over generative** — when the target concept has a human-reviewed,
-  canonical LearningHubSTEM definition we ground the Socratic scaffold in it and
+  canonical STEMMA definition we ground the Socratic scaffold in it and
   report ``grounded=True``. Otherwise the response is explicitly labeled
   ungrounded (``grounded=False``).
 * **Prerequisite gating** — we will not present new material until the learner

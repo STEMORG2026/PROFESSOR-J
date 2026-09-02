@@ -11,7 +11,7 @@ from app.domain.time import utc_now
 
 
 class ReviewStatus(str, Enum):
-    """Review status of a canonical entity (mirrors LearningHubSTEM)."""
+    """Review status of a canonical entity (mirrors STEMMA)."""
 
     DRAFT = "draft"
     REVIEWED = "reviewed"
@@ -33,7 +33,7 @@ class Provenance:
     """Provenance information for a concept."""
 
     ai_drafted: bool = True
-    source: str = "LearningHubSTEM"
+    source: str = "STEMMA"
     generated_at: datetime = field(default_factory=utc_now)
     human_reviewed: bool = False
     reviewer: str | None = None
@@ -69,7 +69,7 @@ class ConceptEntity:
     Canonical STEM concept entity with full provenance and relationships.
 
     Immutable, serializable, zero external dependencies.
-    Maps to LearningHubSTEM export schema.
+    Maps to STEMMA export schema.
     """
 
     # Identity
@@ -139,5 +139,5 @@ class ConceptEntity:
             "unit": self.unit,
             "status": self.status.value,
             "reviewed": self.provenance.human_reviewed,
-            "provenance": "LearningHubSTEM",
+            "provenance": "STEMMA",
         }

@@ -45,7 +45,7 @@ def _steps_for(intent: Intent, prompt: str) -> list[ExecutionStep]:
                     tool="lhstem_knowledge",
                     args={"operation": "search", "query": prompt},
                     safety_tier=SafetyTier.SAFE,
-                    description="Query canonical LearningHubSTEM knowledge",
+                    description="Query canonical STEMMA knowledge",
                 ),
             ),
             ExecutionStep(
