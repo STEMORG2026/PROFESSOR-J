@@ -109,17 +109,19 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 - [x] **LangGraph Integration** (`app/brain/`): `StateGraph` (TypedDict `BrainState`) with nodes
       for intent classification → plan construction → synthesis, conditional flow.
       **Checkpointing (pause/resume) implemented via `MemorySaver`** (thread_id = learner
-      id, `app/brain/tutorial.py`); streaming is not yet implemented.
-- [~] **CognitiveBrain**: LangGraph node composition — intent classification → plan generation
-      → synthesis via the model router. Guarded execution (safety gate) and streaming are future work.
+      id, `app/brain/tutorial.py`); streaming is implemented (SSE, PR #74).
+- [x] **CognitiveBrain**: LangGraph node composition — intent classification → plan generation
+      → synthesis via the model router, with SSE token streaming (PR #74). Guarded execution
+      (safety gate) is future work.
 - [x] **ProfessorAgent** (`app/brain/professor.py`): Tutoring modes (Socratic Mentor, Expository
       Lecture, Exam Drill, Research Advisor); rule-based misconception diagnosis (MisconceptionType
       catalog); prerequisite readiness gating; grounded-vs-ungrounded responses via LHS knowledge.
 - [x] **EvaluatorAgent** (`app/brain/evaluator.py`): deterministic rubric evaluation (numeric
       tolerance + accepted-principle terms); diagnostic assessment; mastery tracking via
       `LearnerState`. SymPy step verification is Phase 5 work.
-- [ ] **ResearchAgent**: PDF ingestion → chunking → embedding → retrieval → cited synthesis;
-      integrates with MCP for external search.
+- [x] **ResearchAgent**: PDF ingestion → chunking → retrieval → cited synthesis
+      (`app/knowledge/research.py` + `ingest.py`); exposed via `POST /api/ingest` (Phase 6).
+      MCP external search integration is optional/future.
 - [ ] **ToolExecutorAgent**: Sandbox dispatch; `@safety_gate` enforcement; MCP tool invocation
       via `MCPServerManager`; result synthesis.
 - [x] **Simulated Student Test**: Newton's 2nd Law pass — agent guides without revealing answer
@@ -154,8 +156,9 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       `SafetyTier` and every call is funneled through the safety policy (injection + PII + HITL for
       DESTRUCTIVE), failing closed on denial. `MCPToolExecutor` for MCP invocation is NOT yet done.
 - [ ] Enable general-purpose chat/file/workspace assistance (non-education paths).
-- [ ] **MCP Integration Complete**: `MCPServerManager` fully implemented with stdio +
-      Streamable HTTP; `MCPToolSearch` on-demand loading; `CodeExecutionTools` pattern.
+- [~] **MCP Integration Complete**: `MCPServerManager` (stdio + Streamable HTTP) + `MCPToolSearch`
+      (on-demand) + `MCPToolExecutor`/`CodeExecutionTools` implemented in `app/mcp/`; **wiring
+      into the composition root / bootstrap is the pending part** (PR #80).
 - **Acceptance Criteria:** ≥ 90% of JARVIS capabilities operational; MCP tools invokable
       from agents; checkpointing + Langfuse traces visible for all operations.
 
