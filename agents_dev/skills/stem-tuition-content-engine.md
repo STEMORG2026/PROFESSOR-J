@@ -55,7 +55,19 @@ Use whenever asked to:
 | `packages/content-engine/src/blueprint.ts` | `Blueprint`, `planFromRequest`, `resolveFormats` |
 | `packages/content-engine/src/verification.ts` | `evaluateGates`, deterministic validators, `INTENT_ESSENCE_VERIFIER`, `routeRepair`/`repairOrders` |
 | `packages/content-engine/src/pipeline.ts` | **`produce()`** — the request-driven pipeline runner (Blueprint → generate → verify → repair → publish/hold/reject) |
-| `packages/content-engine/tests/` | 48 tests (23 core + 25 stress), all passing |
+| `packages/content-engine/tests/` | 49 tests (23 core + 25 stress + 1 engine-gate), all passing |
+
+## Engine-gated narration (the single content path)
+
+STEM-TUITION narration runs **through the engine**, not a manual loop. Each batch has an
+`engine-gate-batchN.test.ts` that imports the batch's artifacts and, for every one, builds a
+`ContentRequest` (`format: 'narrative-lesson'`, `requiredConcepts: [conceptId]`), calls
+`produce()` with a `generate` callback returning that artifact, and **asserts `action ===
+'publish'`**. This drives the narrative-lesson format's `validate` + `coverage` hooks — the
+deterministic schema + coverage hard gates — so a narrative that loses a required section or is
+keyed to the wrong concept is rejected. To author content: add the narrative to the batch, add
+(extend) the engine-gate test, bump the integration floor, wire into `getNarratives()`. See
+`agents_dev/stem-tuition/workflow.md`.
 
 ## Running the engine (`produce`, migration N4)
 
