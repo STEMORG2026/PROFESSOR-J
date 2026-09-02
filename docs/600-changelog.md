@@ -9,6 +9,13 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **MCP subsystem unblocked (Phase 4):** restored the legacy stdio/SSE MCP protocol/client
+  layer as `app/mcp/client.py` (`StdioMCPClient`, `SSEClient`, `MCPClientManager`, `MCPToolSkill`,
+  `create_mcp_manager_from_config`) recovered from git history, and wire the current
+  `app.mcp.manager` layer into the composition root (`bootstrap.AppRoot.mcp`, dormant by default,
+  safety-gated). Fixed the `app/mcp` circular import, unblocking `tests/unit/mcp/` +
+  `tests/unit/skills/` collection (previously part of the CI baseline). The two MCP layers keep
+  distinct domain models by design (`server_id` vs `server_name`); unification is a future decision.
 - **Plotly chart-generator tool (Phase 5):** `ChartGenerator`
   (`app/tools/charts.py`) builds deterministic, side-effect-free Plotly figure
   specs for line/scatter/bar/pie/histogram. Registered as the SAFE-tier

@@ -23,11 +23,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Protocol
 
-from app.mcp import (
-    MCPClientManager,
-    MCPResource,
-    MCPTool,
-)
+from app.mcp.client import MCPClientManager, MCPResource, MCPTool
 
 logger = logging.getLogger(__name__)
 

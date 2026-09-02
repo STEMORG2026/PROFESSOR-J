@@ -156,9 +156,11 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
       `SafetyTier` and every call is funneled through the safety policy (injection + PII + HITL for
       DESTRUCTIVE), failing closed on denial. `MCPToolExecutor` for MCP invocation is NOT yet done.
 - [ ] Enable general-purpose chat/file/workspace assistance (non-education paths).
-- [~] **MCP Integration Complete**: `MCPServerManager` (stdio + Streamable HTTP) + `MCPToolSearch`
-      (on-demand) + `MCPToolExecutor`/`CodeExecutionTools` implemented in `app/mcp/`; **wiring
-      into the composition root / bootstrap is the pending part** (PR #80).
+- [x] **MCP Integration Complete**: `MCPServerManager` management layer (stdio + Streamable
+      HTTP) + `MCPToolSearch` on-demand + `CodeExecutionTools` (`app/mcp/manager|search|transports|registry`),
+      wired into the composition root (`bootstrap.AppRoot.mcp`, dormant by default). The legacy
+      stdio/SSE protocol client layer is restored as `app/mcp/client.py` (kept separate by design;
+      final unification is a future architectural decision).
 - **Acceptance Criteria:** ≥ 90% of JARVIS capabilities operational; MCP tools invokable
       from agents; checkpointing + Langfuse traces visible for all operations.
 

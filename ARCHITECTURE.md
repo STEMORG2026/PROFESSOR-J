@@ -226,13 +226,32 @@ graph TD
 - **`PromptInjectionDetector`:** Heuristic + embedding-based detection on all string args.
 - **`PIIRedactor`:** Tokenization of sensitive data before model context; detokenization on return.
 
-### 3.9. MCP Client Layer (`app/mcp/`) — Phase 1
-- **`MCPServerManager`:** Manages stdio and Streamable HTTP transports; connection pooling;
-  health checks; automatic reconnection.
-- **`MCPToolSearch`:** On-demand tool definition loading; reduces context by 98%+ (Anthropic pattern).
-- **`CodeExecutionTools`:** Presents MCP tools as filesystem code APIs; agent writes Python
-  to invoke tools; PII stays in execution environment.
-- **`MCPRegistry`:** Tool discovery + caching (`cache_tools_list`); filters per agent/run.
+### 3.9. MCP Layer (`app/mcp/`) — Phase 1
+The MCP subsystem **deliberately hosts two separate implementations** with distinct,
+currently-incompatible domain models. Their coexistence is intentional (MCP architecture
+decision 2026-09) — each responsibility has a clear owner, existing capability is preserved,
+and dependency directions are explicit. They are **not** interchangeable:
+
+1. **`app.mcp.manager`** — the **current MCP management/configuration layer**
+   (`MCPServerManager`, `MCPServerConfig.transport_type`/`headers`, `MCPTool.server_name`).
+   Wired into the composition root (`bootstrap.AppRoot.mcp`), dormant by default (no servers
+   registered), fail-closed: every external tool call is routed through the same `SafetyPolicy`
+   as other tools. Import via the submodule: `from app.mcp.manager import MCPServerManager`.
+
+2. **`app.mcp.client`** — the restored **MCP protocol/client layer**
+   (`StdioMCPClient`, `SSEClient`, `MCPClientManager`, `MCPToolSkill`,
+   `create_mcp_manager_from_config`; `MCPTool.server_id`, `MCPServerConfig.transport`).
+   Recovered from git history (`bd48641`) to preserve its tested behavior; exported from the
+   package namespace (`from app.mcp import ...`) to satisfy existing imports. Kept available as
+   a standalone protocol/client capability.
+
+Supporting manager-layer modules: `app.mcp.search` (`MCPToolSearch` on-demand loading),
+`app.mcp.transports` (`StdioTransport`/`StreamableHTTPTransport`), `app.mcp.registry`
+(`MCPRegistry` discovery+caching, `CodeExecutionTools`, and a registry-level facade).
+
+**Do NOT treat `app.mcp.MCPTool` and `app.mcp.manager.MCPTool` as the same model** — they have
+different field semantics (`server_id` vs `server_name`, `transport` vs `transport_type`).
+A shared canonical model is a separate future architectural decision, not this phase.
 
 ### 3.11. JARVIS-Parity Utility Layer (`app/events/`, `app/context/`, `app/prompt/`)
 - **`InMemoryAsyncBus` (`app/events/`):** Typed, in-memory async pub/sub for *passive*
