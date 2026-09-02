@@ -27,12 +27,15 @@
 
 ## Current state (progress snapshot)
 
-- **Physics concepts: 47 of 79 narrated** (narrative-lesson format), live and deployed.
-  Previous batch: waves/optics/thermo/modern (`radioactivity`, `atomic-structure`, …).
-- **Remaining unnarrated physics** for Grade-12 completeness: mechanics (`projectile-motion`,
-  `gravitation`, `gravitational-acceleration`), thermo deeper (`temperature`, `change-of-state`),
-  modern/nuclear (`nuclear-fission`, `nuclear-fusion`, `energy-sources`, `electromagnetic-spectrum`),
-  plus `measurement`, `physical-quantity`, `vector`/`scalar`, `motion`, `weight`, … — see
+- **Physics concepts: 57 of 79 narrated** (narrative-lesson format), live and deployed.
+  Batch-7 (merged PR #33, `a9e68d9`) added `vector`, `scalar`, `projectile-motion`,
+  `gravitation`, `gravitational-acceleration`, `weight`, `temperature`, `thermal-energy`,
+  `change-of-state`, `electromagnetic-spectrum`. Integration floor: 57.
+- **Remaining unnarrated physics** for Grade-12 completeness: mechanics (`motion`, `speed`,
+  `measurement`, `physical-quantity`, `distance`/`displacement`, `graphical-analysis`,
+  `mechanical-advantage`, `energy-loss`, `our-environment`, `application-of-mechanics`, …),
+  modern/nuclear (`nuclear-fission`, `nuclear-fusion`, `energy-sources`,
+  `nuclear-reactor`/related), plus `electron`, `current`, `resistance`, `circuit`, … — see
   `docs/architecture/content-production-engine-v2.md` and the batch queues.
 - **Content-engine seam (N1–N3)** merged: `ContentRequest`/`Blueprint`/`FormatSpec`/hard-gate
   verification are pure contracts with no LLM runner wired yet.
