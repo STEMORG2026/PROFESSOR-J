@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # ── Data Directories ─────────────────────────────────────────────
     data_dir: Path = Path("data")
     prompts_dir: Path = Path("prompts")
-    exports_dir: Path = Path("LearningHubSTEM/exports")
+    exports_dir: Path = Path("STEMMA/exports")
 
     # ── Database ─────────────────────────────────────────────────────
     database_url: str | None = Field(
@@ -45,8 +45,8 @@ class Settings(BaseSettings):
     )
     sqlite_path: Path = Path("data/professor.db")
 
-    # ── LearningHubSTEM ──────────────────────────────────────────────
-    lhs_export_path: Path = Path("LearningHubSTEM/exports/knowledge.json")
+    # ── STEMMA ──────────────────────────────────────────────
+    lhs_export_path: Path = Path("STEMMA/exports/knowledge.json")
 
     # ── LLM Providers ────────────────────────────────────────────────
     # Each key accepts the bare env name (workspace practice, e.g. the keys

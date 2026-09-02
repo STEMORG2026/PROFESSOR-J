@@ -294,8 +294,8 @@ class TestGatewayAllocationEnforcement:
             alloc = yaml.safe_load(f)
 
         stem_tagged = alloc["isolation"]["domain_skills_require_tag"]["domain/stem"]
-        assert "LearningHubSTEM" in stem_tagged
-        assert "STEM-TUITION" in stem_tagged
+        assert "STEMMA" in stem_tagged
+        assert "LearningHub" in stem_tagged
         assert "PROFESSOR-J" in stem_tagged
 
 

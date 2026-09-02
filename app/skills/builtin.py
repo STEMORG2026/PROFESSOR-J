@@ -333,16 +333,16 @@ class CodeExecutionSkill(Skill[dict[str, Any]]):
         )
 
 
-# ── LearningHubSTEM Skill ──────────────────────────────────────────
+# ── STEMMA Skill ──────────────────────────────────────────
 
 
 class LHSTEMSkill(Skill[dict[str, Any]]):
-    """Access LearningHubSTEM canonical knowledge via consumer adapter."""
+    """Access STEMMA canonical knowledge via consumer adapter."""
 
     def _default_metadata(self) -> SkillMetadata:
         return SkillMetadata(
             name="lhstem_knowledge",
-            description="Query LearningHubSTEM canonical concepts, equations, prerequisites",
+            description="Query STEMMA canonical concepts, equations, prerequisites",
             version="1.0.0",
             category="knowledge",
             tags=["lhstem", "stem", "physics", "grounding", "canonical"],
