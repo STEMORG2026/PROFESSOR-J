@@ -132,6 +132,41 @@ class ToolExecutor:
             for t in self._tools.values()
         ]
 
+    def register_mcp_tools(self, manager: Any) -> None:
+        """Expose MCP-discovered tools through this executor.
+
+        Each MCP tool is registered as a wrapper that calls the MCP server
+        manager. Routing through :meth:`execute` means every MCP call also
+        passes the executor's safety gate (defense in depth — the MCP manager
+        additionally fails closed if it has no policy of its own).
+        """
+        for tool in manager.list_tools():
+            self._register_mcp_tool(tool, manager)
+
+    def _register_mcp_tool(self, tool: Any, manager: Any) -> None:
+        from app.domain.tool import SafetyTier as _Tier
+
+        tier = getattr(tool, "tier", None) or _Tier.SENSITIVE
+        description = getattr(tool, "description", "") or (
+            f"MCP tool '{getattr(tool, 'name', '?')}'"
+        )
+        name = getattr(tool, "name", None)
+        if not name or self.has_tool(name):
+            return
+
+        async def _call(**kwargs: Any) -> dict[str, Any]:
+            try:
+                result = await manager.call_tool(name, kwargs)
+            except Exception as exc:  # noqa: BLE001 - surface as tool failure
+                return {"success": False, "error": str(exc), "tool": name}
+            if isinstance(result, dict):
+                result.setdefault("success", True)
+                return result
+            return {"success": True, "result": result, "tool": name}
+
+        self.register_fn(name, _call, tier=tier, description=description)
+        logger.info("Registered MCP tool into executor: %s (tier=%s)", name, tier.value)
+
     def register_sandbox_tools(
         self,
         sandbox: CodeSandbox | None = None,
@@ -174,6 +209,30 @@ class ToolExecutor:
             mth.calculus,
             tier=SafetyTier.SAFE,
             description="Differentiate or integrate an expression",
+        )
+
+    def register_chart_tools(self) -> None:
+        """Wire the Plotly figure-generator tool (Phase 5).
+
+        ``make_chart`` is SAFE: it validates structured args and returns a
+        Plotly figure spec (``plotly_json``) that the webapp's `` ```plotly ``` ``
+        renderer draws natively. No file writes, no code execution.
+        """
+        from app.tools.charts import ChartGenerator
+
+        gen = ChartGenerator()
+
+        def _make_chart(chart_type: str, **kwargs: Any) -> dict[str, Any]:
+            return gen.build(chart_type, **kwargs)
+
+        self.register_fn(
+            "make_chart",
+            _make_chart,
+            tier=SafetyTier.SAFE,
+            description=(
+                "Build a Plotly chart spec (line, scatter, bar, pie, histogram). "
+                "Args: chart_type + x/y/labels/values/title/x_label/y_label."
+            ),
         )
 
     def register_gamedev_tools(

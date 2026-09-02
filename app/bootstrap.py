@@ -120,6 +120,7 @@ def build_root(
     )
     tools.register_sandbox_tools()
     tools.register_gamedev_tools(gamedev, workspace)
+    tools.register_chart_tools()
 
     session_repo = SessionRepository(db)
 
