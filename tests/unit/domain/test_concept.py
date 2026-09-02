@@ -18,7 +18,7 @@ class TestProvenance:
         prov = Provenance()
         assert prov.ai_drafted is True
         assert prov.human_reviewed is False
-        assert prov.source == "LearningHubSTEM"
+        assert prov.source == "STEMMA"
 
     def test_with_human_review(self):
         prov = Provenance()
@@ -148,7 +148,7 @@ class TestConceptEntity:
         assert citation["unit"] == "Newton (N)"
         assert citation["status"] == "draft"
         assert citation["reviewed"] is False
-        assert citation["provenance"] == "LearningHubSTEM"
+        assert citation["provenance"] == "STEMMA"
 
     def test_is_grounded(self):
         concept = ConceptEntity(

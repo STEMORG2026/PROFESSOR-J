@@ -1,4 +1,4 @@
-"""Knowledge subsystem — LearningHubSTEM adapter + Phase 6 research pipeline.
+"""Knowledge subsystem — STEMMA adapter + Phase 6 research pipeline.
 
 Exposes the canonical-knowledge adapter (LHS), plus the research/PDF ingestion
 and citation pipeline (extract -> chunk -> index -> cited retrieval).

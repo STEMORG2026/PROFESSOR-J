@@ -84,7 +84,7 @@ class AppRoot:
 def build_root(
     *,
     db_path: str = "data/professor.db",
-    lhs_export: str = "LearningHubSTEM/exports/knowledge.json",
+    lhs_export: str = "STEMMA/exports/knowledge.json",
     workspace_root: str = "data/workspace",
 ) -> AppRoot:
     """Build and wire the application singletons (SQLite/in-memory defaults).

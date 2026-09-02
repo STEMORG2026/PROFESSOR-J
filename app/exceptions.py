@@ -142,7 +142,7 @@ class KnowledgeError(ProfessorError):
 
 
 class LHSAdapterError(KnowledgeError):
-    """Raised when LearningHubSTEM adapter fails."""
+    """Raised when STEMMA adapter fails."""
 
 
 class LHSSchemaDriftError(LHSAdapterError):

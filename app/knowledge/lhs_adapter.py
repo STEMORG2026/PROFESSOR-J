@@ -1,4 +1,4 @@
-"""LearningHubSTEM Consumer Adapter — Zero-drift consumer of LHS knowledge exports."""
+"""STEMMA Consumer Adapter — Zero-drift consumer of LHS knowledge exports."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ class LHSExportMeta:
 
 class LHSKnowledgeAdapter:
     """
-    Consumer adapter for LearningHubSTEM knowledge exports.
+    Consumer adapter for STEMMA knowledge exports.
 
     Reads `exports/knowledge.json`, validates schema version, and provides
     typed access to canonical concept entities with prerequisite traversal.
@@ -52,7 +52,7 @@ class LHSKnowledgeAdapter:
         }
     )
 
-    def __init__(self, export_path: str | Path = "LearningHubSTEM/exports/knowledge.json"):
+    def __init__(self, export_path: str | Path = "STEMMA/exports/knowledge.json"):
         self.export_path = Path(export_path)
         self._cache: dict[str, ConceptEntity] = {}
         self._prerequisite_cache: dict[str, tuple[str, ...]] = {}
@@ -150,7 +150,7 @@ class LHSKnowledgeAdapter:
         prov_data = data.get("provenance", {})
         provenance = Provenance(
             ai_drafted=prov_data.get("ai_drafted", True),
-            source="LearningHubSTEM",
+            source="STEMMA",
             human_reviewed=prov_data.get("human_reviewed", False),
             reviewer=prov_data.get("reviewer"),
         )
@@ -313,7 +313,7 @@ class GeneralKnowledgeAdapter:
             "grounded": False,
             "source": "general_knowledge",
             "warning": (
-                "This information is not grounded in LearningHubSTEM canonical "
+                "This information is not grounded in STEMMA canonical "
                 "sources. Verify independently."
             ),
         }
@@ -323,7 +323,7 @@ class GeneralKnowledgeAdapter:
 
 
 def create_knowledge_adapters(
-    lhs_export_path: str | Path = "LearningHubSTEM/exports/knowledge.json",
+    lhs_export_path: str | Path = "STEMMA/exports/knowledge.json",
 ) -> tuple[LHSKnowledgeAdapter, GeneralKnowledgeAdapter]:
     """
     Factory function to create both knowledge adapters.

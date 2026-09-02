@@ -7,11 +7,11 @@ Two tiers of testing:
    and relationships of that fixture, so parsing logic is fully reproducible
    and CI-portable.
 
-2. **Structural contract test** runs against the real LearningHubSTEM export
+2. **Structural contract test** runs against the real STEMMA export
    when it is present on the machine, and is skipped otherwise. It validates
    only structural invariants that must always hold (required fields, count
    agreement, unique IDs, resolvable prerequisite targets) — never volatile
-   entity counts, which legitimately change as LearningHubSTEM grows.
+   entity counts, which legitimately change as STEMMA grows.
 """
 
 from __future__ import annotations
@@ -39,10 +39,11 @@ FIXTURE_COUNTS = {
 
 
 def _find_real_export() -> Path | None:
-    """Locate the real LearningHubSTEM export if present on this machine."""
-    # Relative to the workspace layout (repo root's parent is the ecosystem root).
+    """Locate the real STEMMA export if present on this machine."""
+    # Relative to the workspace layout: parents[4] is the ecosystem root (parent of this repo),
+    # which contains the STEMMA/ repo as a sibling.
     candidates = [
-        Path(__file__).resolve().parents[2] / "LearningHubSTEM" / "exports" / "knowledge.json",
+        Path(__file__).resolve().parents[4] / "STEMMA" / "exports" / "knowledge.json",
     ]
     for path in candidates:
         if path.is_file():
@@ -160,7 +161,7 @@ class TestLHSSchemaContract:
 
     def test_real_export_structure(self, real_export_path: Path | None) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip("Real STEMMA export not present; skipping contract test.")
         adapter = LHSKnowledgeAdapter(real_export_path)
         assert adapter.meta is not None
         # Required top-level contract fields must be present (verified by adapter load).
@@ -168,14 +169,14 @@ class TestLHSSchemaContract:
 
     def test_real_export_ids_unique(self, real_export_path: Path | None) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip("Real STEMMA export not present; skipping contract test.")
         adapter = LHSKnowledgeAdapter(real_export_path)
         ids = [c.id for c in adapter.get_all_concepts()]
         assert len(ids) == len(set(ids)), "Entity IDs must be unique in the export"
 
     def test_real_export_prerequisites_resolve(self, real_export_path: Path | None) -> None:
         if real_export_path is None:
-            pytest.skip("Real LearningHubSTEM export not present; skipping contract test.")
+            pytest.skip("Real STEMMA export not present; skipping contract test.")
         adapter = LHSKnowledgeAdapter(real_export_path)
         available = {c.id for c in adapter.get_all_concepts()}
         dangling: set[str] = set()
