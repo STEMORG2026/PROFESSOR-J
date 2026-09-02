@@ -211,6 +211,30 @@ class ToolExecutor:
             description="Differentiate or integrate an expression",
         )
 
+    def register_chart_tools(self) -> None:
+        """Wire the Plotly figure-generator tool (Phase 5).
+
+        ``make_chart`` is SAFE: it validates structured args and returns a
+        Plotly figure spec (``plotly_json``) that the webapp's `` ```plotly ``` ``
+        renderer draws natively. No file writes, no code execution.
+        """
+        from app.tools.charts import ChartGenerator
+
+        gen = ChartGenerator()
+
+        def _make_chart(chart_type: str, **kwargs: Any) -> dict[str, Any]:
+            return gen.build(chart_type, **kwargs)
+
+        self.register_fn(
+            "make_chart",
+            _make_chart,
+            tier=SafetyTier.SAFE,
+            description=(
+                "Build a Plotly chart spec (line, scatter, bar, pie, histogram). "
+                "Args: chart_type + x/y/labels/values/title/x_label/y_label."
+            ),
+        )
+
     def register_gamedev_tools(
         self,
         gamedev: GameDevAgent,
