@@ -33,6 +33,10 @@ Use whenever asked to:
    Never "invent" a grade/format the request did not supply.
 2. **Formats are declarative.** A new format = a `FormatSpec` registered in `FormatRegistry`
    (+ a `FormatGenerator` + `FormatValidator`). No `if story / if textbook` branches in core.
+   Each spec may declare deterministic `coverage(payload)` and `validate(payload)` hooks so
+   coverage + schema gates are format-agnostic (narrative → `conceptId`; quiz → question
+   concept links + question shape; no hook → generic required-component presence). A format
+   is never a free pass.
 3. **Hard-gate publication.** `evaluateGates` requires EVERY gate PASS. A single FAIL blocks
    publication no matter the other scores. Scores are diagnostic only.
 4. **Intent/essence is separate from facts.** `INTENT_ESSENCE_VERIFIER` checks "did the artifact
@@ -51,7 +55,7 @@ Use whenever asked to:
 | `packages/content-engine/src/blueprint.ts` | `Blueprint`, `planFromRequest`, `resolveFormats` |
 | `packages/content-engine/src/verification.ts` | `evaluateGates`, deterministic validators, `INTENT_ESSENCE_VERIFIER`, `routeRepair`/`repairOrders` |
 | `packages/content-engine/src/pipeline.ts` | **`produce()`** — the request-driven pipeline runner (Blueprint → generate → verify → repair → publish/hold/reject) |
-| `packages/content-engine/tests/` | 23 tests, all passing |
+| `packages/content-engine/tests/` | 48 tests (23 core + 25 stress), all passing |
 
 ## Running the engine (`produce`, migration N4)
 
@@ -90,15 +94,38 @@ registry.register({
   generationGuidance: ['…'],
 });
 ```
-No core change. Then add a `FormatGenerator` (LLM) and run the deterministic
-`FormatValidator` + hard-gate verifiers.
+No core change. Add a `FormatGenerator` (LLM) and, to keep deterministic gates honest, the
+optional declarative hooks — `coverage(payload)` (which concept ids the artifact covers) and
+`validate(payload)` (deterministic schema findings; else a required-component check applies):
+
+```ts
+registry.register({
+  id: 'lab-script',
+  name: 'Laboratory activity',
+  components: [{ id: 'aim', kind: 'text', required: true }],
+  validation: { rules: ['components.aim must be non-empty'], semanticCriteria: [] },
+  outputSchema: 'LabScript',
+  coverage: (p) => (p.conceptId ? [String(p.conceptId)] : []),
+  validate: (p) => (p.aim ? [] : ['aim required']),
+});
+```
 
 ## Verification
 
 - `cd STEM-TUITION && pnpm --filter=@stem-tuition/content-engine typecheck`
-- `pnpm --filter=@stem-tuition/content-engine test` (23 pass; add tests for any new format/runner path)
+- `pnpm --filter=@stem-tuition/content-engine test` (48 pass: 23 core + 25 stress; add tests for any new format/runner path)
+- `pnpm --filter=@stem-tuition/content-engine test:coverage` (≈98% lines)
 - `pnpm verify-governance` exits 0 (incl. `lint:registry` — new packages need
   `ARCHITECTURE.toml` and `.phase.json` registration).
+
+## Stress suite
+
+`packages/content-engine/tests/engine-stress.test.ts` (25 tests) adversarially exercises the
+production engine: the architecture review §O 12 radically-different requests, boundary /
+invalid inputs, repair-loop exhaustion (bounded, exact, never infinite), malformed artifacts
+caught deterministically, deterministic-vs-LLM gate separation (a deterministic FAIL can never
+be masked), and custom declarative formats driving the core end to end. Add a case here when
+you change the pipeline or a format's coverage/validate logic.
 
 ## References
 
