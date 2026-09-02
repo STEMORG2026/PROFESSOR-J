@@ -9,6 +9,17 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **STEM-TUITION narration now runs under the engine — workflow codified:** refreshed
+  `agents_dev/stem-tuition/workflow.md` and `current-state.md` so the recorded process
+  mandates the content-engine as the **single** path for narration: every batch-8+ narrative is
+  a `narrative-lesson` artifact routed through `produce()` (ContentRequest → Blueprint →
+  generate → deterministic schema + coverage hard gates → semantic verify → publish) and must
+  publish, enforced by a per-batch **engine-gate test**
+  (`packages/content-engine/tests/engine-gate-batchN.test.ts`). Batch-8 landed in STEM-TUITION
+  (PR #36, merged `90f1788`): `motion`, `displacement`, `distance`, `speed`, `measurement`,
+  `physical-quantity`, `time`, `unit`; narrated-physics floor 57 → 65. Content-engine tests now
+  include the engine-gate test alongside 23 core + 25 stress (49 total). PROFESSOR-J knows
+  narration is engine-gated, never a side-channel manual loop.
 - **STEM-TUITION content engine now complete (N1–N6) — record kept current:** refreshed the
   content-engine skill, the `agents_dev/stem-tuition/current-state.md` brief, and the ops-doc
   seam to reflect that STEM-TUITION's content-production engine is finished — the request-driven
