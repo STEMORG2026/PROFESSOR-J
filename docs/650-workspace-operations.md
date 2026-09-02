@@ -159,6 +159,27 @@ To work across the umbrella with the same rigor Hermes applies to this workspace
 - deepseek-harness: `cd deepseek-harness && pnpm run test && pnpm run typecheck`
 - ProjectTemplates: `python3 ProjectTemplates/kernel/tpl.py check`
 
+### STEM-TUITION content-production seam (for PROFESSOR-J development)
+
+STEM-TUITION produces its learning content via a **request-driven content-production engine**
+(architecture v2) plus a **narrative-batching loop**. This is recurring work PROFESSOR-J is
+expected to continue, so the capabilities and state are captured so it "knows what's going on."
+
+- **Dedicated work folder:** `agents_dev/stem-tuition/` — `current-state.md` (live progress:
+  canonically-grounded narrative count, remaining physics queue, environment constraints) and
+  `workflow.md` (the exact batch loop: ground → author → wire → test-floor bump →
+  `pnpm verify-governance` → `pnpm docs:sync` → branch → PR → merge on CI-green → deploy verify).
+- **Skills:** `agents_dev/skills/stem-tuition-content-developer.md` and
+  `agents_dev/skills/stem-tuition-content-engine.md` encode the reusable capability definitions
+  (loadable into `SkillRegistry`; `data:` block mirrors `SkillMetadata`).
+- **Where things live (authoritative, in STEM-TUITION):** canonical knowledge in
+  `apps/shell/src/data/knowledge.json`; authored `NarrativeContent` in
+  `apps/shell/src/data/narratives-batch1..6.ts`; engine seam in `packages/content-engine/`
+  (`ContentRequest` / `FormatSpec` / hard-gate verification / intent-essence); engine review +
+  ADR in `docs/architecture/content-production-engine-v2.md` and `docs/adr/016-content-engine.md`.
+- **Status note:** 47 of 79 physics concepts narrated; the content-engine seam (N1–N3) is
+  merged with no LLM runner wired yet (open migration N4–N6); see `current-state.md`.
+
 ---
 
 ## 6. Known environment constraints (as of 2026-08-31)

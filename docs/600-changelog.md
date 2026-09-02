@@ -9,6 +9,14 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **STEM-TUITION content-production skills + working seam:** added
+  `agents_dev/skills/stem-tuition-content-developer.md` and
+  `agents_dev/skills/stem-tuition-content-engine.md` (loadable capability definitions with a
+  `data:` block mirroring `SkillMetadata`), a dedicated working folder
+  `agents_dev/stem-tuition/` (`current-state.md` + `workflow.md` + skills README), and a
+  STEM-TUITION content-production subsection in `docs/650-workspace-operations.md` — so
+  PROFESSOR-J knows the current development state (47/79 physics narrated, content-engine v2
+  seam merged) and can continue the narrative-batching loop without re-deriving the process.
 - **MCP subsystem unblocked (Phase 4):** restored the legacy stdio/SSE MCP protocol/client
   layer as `app/mcp/client.py` (`StdioMCPClient`, `SSEClient`, `MCPClientManager`, `MCPToolSkill`,
   `create_mcp_manager_from_config`) recovered from git history, and wire the current
