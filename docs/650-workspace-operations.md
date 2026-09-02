@@ -174,11 +174,14 @@ expected to continue, so the capabilities and state are captured so it "knows wh
   (loadable into `SkillRegistry`; `data:` block mirrors `SkillMetadata`).
 - **Where things live (authoritative, in STEM-TUITION):** canonical knowledge in
   `apps/shell/src/data/knowledge.json`; authored `NarrativeContent` in
-  `apps/shell/src/data/narratives-batch1..6.ts`; engine seam in `packages/content-engine/`
-  (`ContentRequest` / `FormatSpec` / hard-gate verification / intent-essence); engine review +
-  ADR in `docs/architecture/content-production-engine-v2.md` and `docs/adr/016-content-engine.md`.
-- **Status note:** 47 of 79 physics concepts narrated; the content-engine seam (N1–N3) is
-  merged with no LLM runner wired yet (open migration N4–N6); see `current-state.md`.
+  `apps/shell/src/data/narratives-batch1..7.ts`; the complete content engine in
+  `packages/content-engine/` (request model / `FormatSpec` + `quiz` / hard-gate verification /
+  intent-essence / `produce()` pipeline runner); engine review + ADR in
+  `docs/architecture/content-production-engine-v2.md` and `docs/adr/016-content-engine.md`.
+- **Status note:** 57 of 79 physics concepts narrated; the content engine is **complete (N1–N6)**
+  — the seam plus the request-driven `produce()` runner and additive formats are merged, with a
+  production workflow/litellm runner attachment remaining (ADR-016). v1 narration playbook and
+  `scripts/narrate/` are deprecated. See `current-state.md`.
 
 ---
 

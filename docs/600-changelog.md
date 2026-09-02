@@ -9,6 +9,14 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **STEM-TUITION content engine now complete (N1–N6) — record kept current:** refreshed the
+  content-engine skill, the `agents_dev/stem-tuition/current-state.md` brief, and the ops-doc
+  seam to reflect that STEM-TUITION's content-production engine is finished — the request-driven
+  `produce()` pipeline runner (Blueprint → generate → verify → targeted repair → publish) with
+  injected LLM seams, plus a second `quiz` FormatSpec, landed in `packages/content-engine/`
+  (ADR-016 N4–N6). v1 narration playbook + `scripts/narrate/` deprecated; 57/79 physics narrated.
+  So PROFESSOR-J knows the engine is complete and a production workflow/litellm runner attachment
+  is the next step.
 - **STEM-TUITION content-production skills + working seam:** added
   `agents_dev/skills/stem-tuition-content-developer.md` and
   `agents_dev/skills/stem-tuition-content-engine.md` (loadable capability definitions with a

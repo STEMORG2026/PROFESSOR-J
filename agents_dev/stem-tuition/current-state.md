@@ -37,8 +37,13 @@
   modern/nuclear (`nuclear-fission`, `nuclear-fusion`, `energy-sources`,
   `nuclear-reactor`/related), plus `electron`, `current`, `resistance`, `circuit`, … — see
   `docs/architecture/content-production-engine-v2.md` and the batch queues.
-- **Content-engine seam (N1–N3)** merged: `ContentRequest`/`Blueprint`/`FormatSpec`/hard-gate
-  verification are pure contracts with no LLM runner wired yet.
+- **Content engine COMPLETE (N1–N6)** merged in `packages/content-engine/`: the seam
+  (`ContentRequest`/`Blueprint`/`FormatSpec`/hard-gate verification) **plus** the request-driven
+  pipeline runner `produce()` (Blueprint → generate → verify → repair → publish/hold/reject;
+  LLM-agnostic via injected `FormatGenerator`/`SemanticVerifier` callbacks) **plus** a second
+  non-narrative `quiz` FormatSpec. The v1 narration playbook is deprecated (reference for the
+  `narrative-lesson` format only); `scripts/narrate/` is deprecated. A production
+  workflow/litellm runner attachment over these seams is the remaining step (ADR-016 N4-next).
 - **Environment constraint:** the multi-agent pipeline (`workflow tool agent()`,
   `subagent`) returns `null` in this harness — PROFESSOR-J currently authors narratives
   **directly to the rubric** rather than via parallel agents. Re-probe before assuming

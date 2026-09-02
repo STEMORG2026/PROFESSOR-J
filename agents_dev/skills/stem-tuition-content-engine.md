@@ -47,10 +47,35 @@ Use whenever asked to:
 | File | Content |
 |---|---|
 | `packages/content-engine/src/request.ts` | `ContentRequest` (optional-heavy) |
-| `packages/content-engine/src/formats.ts` | `FormatSpec`, `FormatRegistry`, `narrative-lesson`, `Artifact` |
+| `packages/content-engine/src/formats.ts` | `FormatSpec`, `FormatRegistry`, `narrative-lesson` + `quiz`, `Artifact` |
 | `packages/content-engine/src/blueprint.ts` | `Blueprint`, `planFromRequest`, `resolveFormats` |
 | `packages/content-engine/src/verification.ts` | `evaluateGates`, deterministic validators, `INTENT_ESSENCE_VERIFIER`, `routeRepair`/`repairOrders` |
-| `packages/content-engine/tests/` | 17 tests (99% lines covered) |
+| `packages/content-engine/src/pipeline.ts` | **`produce()`** — the request-driven pipeline runner (Blueprint → generate → verify → repair → publish/hold/reject) |
+| `packages/content-engine/tests/` | 23 tests, all passing |
+
+## Running the engine (`produce`, migration N4)
+
+The engine is `LLM-agnostic`: `FormatGenerator` and `SemanticVerifier` are injected
+callbacks, so `produce()` runs testably without a network, and a real runner
+(workflow/litellm/…) supplies those callbacks:
+
+```ts
+import { FormatRegistry, produce } from '@stem-tuition/content-engine';
+
+const decision = await produce(
+  request,                                   // ContentRequest (topic + intent minimum)
+  { registry: new FormatRegistry(),          // narrative-lesson + quiz by default
+    callbacks: { generate, verify },         // injected LLM seams
+    maxRepairRounds: 2 },
+  context,                                   // KnowledgeContext (canonical LHS grounding)
+);
+// decision.action: 'publish' | 'hold' | 'reject', with blueprint, artifact, report.
+```
+
+The runner applies deterministic gates (coverage, schema) natively and semantic gates
+(factual, lhs-fidelity, pedagogical, format, intent-essence) via the injected verifier,
+then routes failures to targeted repair (`repairOrders`). Only a truly wrong plan forces
+whole-artifact regeneration.
 
 ## To add a new format
 
@@ -71,13 +96,13 @@ No core change. Then add a `FormatGenerator` (LLM) and run the deterministic
 ## Verification
 
 - `cd STEM-TUITION && pnpm --filter=@stem-tuition/content-engine typecheck`
-- `pnpm --filter=@stem-tuition/content-engine test` (all pass)
+- `pnpm --filter=@stem-tuition/content-engine test` (23 pass; add tests for any new format/runner path)
 - `pnpm verify-governance` exits 0 (incl. `lint:registry` — new packages need
   `ARCHITECTURE.toml` and `.phase.json` registration).
 
 ## References
 
 - Full review: `docs/architecture/content-production-engine-v2.md` (in STEM-TUITION)
-- Decision: `docs/ADR/016-content-engine.md` (in STEM-TUITION)
-- Migration plan N4–N6 (still open): wire an LLM runner; add a second non-narrative
-  FormatSpec; demote the v1 narration playbook.
+- Decision: `docs/ADR/016-content-engine.md` (in STEM-TUITION; migration N4–N6 landed 2026-09-02)
+- v1 narration playbook is now **deprecated** and is only a reference for the
+  `narrative-lesson` format; `scripts/narrate/` is deprecated (superseded by `produce()`).
