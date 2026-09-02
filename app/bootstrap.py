@@ -26,6 +26,7 @@ from app.gamedev import GameDevAgent
 from app.guardrails.policy import SafetyPolicy
 from app.knowledge import ResearchAgent
 from app.knowledge.lhs_adapter import LHSKnowledgeAdapter
+from app.mcp.manager import MCPServerManager
 from app.memory import InMemoryBackend, MemoryManager, MemoryService, ReflexionEngine
 from app.prompt import PromptLoader
 from app.session import SessionManager
@@ -56,6 +57,7 @@ class AppRoot:
     event_bus: InMemoryAsyncBus
     context_window: ContextWindowManager
     prompt_loader: PromptLoader
+    mcp: MCPServerManager
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -194,6 +196,11 @@ def build_root(
     context_window = ContextWindowManager()
     prompt_loader = PromptLoader()
 
+    # Phase 4: MCP management layer (current app.mcp.manager). Dormant by default
+    # (no servers registered) but available via 'mcp' for server registration + tool
+    # execution; every call is gated by the same policy as other tools.
+    mcp = MCPServerManager(policy=policy)
+
     return AppRoot(
         sessions=SessionManager(),
         memory=memory,
@@ -212,6 +219,7 @@ def build_root(
         event_bus=event_bus,
         context_window=context_window,
         prompt_loader=prompt_loader,
+        mcp=mcp,
     )
 
 
