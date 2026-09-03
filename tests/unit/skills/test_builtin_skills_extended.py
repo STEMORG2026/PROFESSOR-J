@@ -31,8 +31,9 @@ from app.skills.registry import SkillRegistry
 class TestRegistryExtended:
     """Registry wiring for the project-automation skills."""
 
-    def test_builtin_skills_has_nine(self) -> None:
-        assert len(BUILTIN_SKILLS) == 9
+    def test_builtin_skills_has_fifteen(self) -> None:
+        # Original 6 + 3 project automation + 6 ecosystem development agent = 15
+        assert len(BUILTIN_SKILLS) == 15
         for name in (
             "filesystem",
             "git",
@@ -43,6 +44,12 @@ class TestRegistryExtended:
             "project_build",
             "git_extended",
             "file_template",
+            "grounded_citations",
+            "arxiv",
+            "workspace_synthesis",
+            "github_auth",
+            "github_code_review",
+            "github_pr_workflow",
         ):
             assert name in BUILTIN_SKILLS
 
@@ -55,10 +62,17 @@ class TestRegistryExtended:
     def test_register_builtin_skills_extends(self, tmp_path: Path) -> None:
         registry = SkillRegistry(skills_dir=tmp_path / "skills")
         count = register_builtin_skills(registry)
-        assert count == 9
+        assert count == 15
         assert registry.get("project_build") is not None
         assert registry.get("git_extended") is not None
         assert registry.get("file_template") is not None
+        # Ecosystem development agent skills
+        assert registry.get("grounded_citations") is not None
+        assert registry.get("arxiv") is not None
+        assert registry.get("workspace_synthesis") is not None
+        assert registry.get("github_auth") is not None
+        assert registry.get("github_code_review") is not None
+        assert registry.get("github_pr_workflow") is not None
 
     @pytest.mark.parametrize(
         "name,cls",

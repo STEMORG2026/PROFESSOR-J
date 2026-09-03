@@ -36,14 +36,22 @@ def test_register_builtin_skills_registers_six(registry: SkillRegistry) -> None:
     from app.skills.builtin import register_builtin_skills
 
     count = register_builtin_skills(registry)
-    assert count == 9  # Original 6 + 3 new project automation skills
+    # Original 6 + 3 project automation + 6 ecosystem development agent skills = 15
+    assert count == 15
     assert registry.get("filesystem") is not None
     assert registry.get("lhstem_knowledge") is not None
     assert registry.get("memory") is not None
-    # New skills
+    # Project automation skills
     assert registry.get("project_build") is not None
     assert registry.get("git_extended") is not None
     assert registry.get("file_template") is not None
+    # Ecosystem development agent skills (NEW)
+    assert registry.get("grounded_citations") is not None
+    assert registry.get("arxiv") is not None
+    assert registry.get("workspace_synthesis") is not None
+    assert registry.get("github_auth") is not None
+    assert registry.get("github_code_review") is not None
+    assert registry.get("github_pr_workflow") is not None
 
 
 class TestLHSTEMSkill:

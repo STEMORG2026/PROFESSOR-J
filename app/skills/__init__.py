@@ -4,12 +4,21 @@ from __future__ import annotations
 
 from app.skills.base import Skill, SkillError, SkillMetadata, SkillResult
 from app.skills.builtin import (
+    ArxivSkill,
     CodeExecutionSkill,
     FilesystemSkill,
+    GitExtendedSkill,
+    GitHubAuthSkill,
+    GitHubCodeReviewSkill,
+    GitHubPRWorkflowSkill,
     GitSkill,
+    GroundedCitationsSkill,
     LHSTEMSkill,
+    MCPSkill,
     MemorySkill,
+    ProjectBuildSkill,
     WebSearchSkill,
+    WorkspaceSynthesisSkill,
     create_builtin_skills,
     register_builtin_skills,
 )
@@ -28,6 +37,16 @@ __all__ = [
     "CodeExecutionSkill",
     "LHSTEMSkill",
     "MemorySkill",
+    "ProjectBuildSkill",
+    "GitExtendedSkill",
+    "FileTemplateSkill",
+    "MCPSkill",
+    "GroundedCitationsSkill",
+    "ArxivSkill",
+    "WorkspaceSynthesisSkill",
+    "GitHubAuthSkill",
+    "GitHubCodeReviewSkill",
+    "GitHubPRWorkflowSkill",
     "create_builtin_skills",
     "register_builtin_skills",
 ]

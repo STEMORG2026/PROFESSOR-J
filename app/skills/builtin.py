@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import subprocess  # nosec B404 - used only by the git skill with explicit list args (no shell)
+import urllib.request
+import urllib.parse
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +16,121 @@ from app.skills.base import Skill, SkillMetadata, SkillResult
 from app.skills.registry import SkillRegistry
 
 logger = logging.getLogger(__name__)
+
+# ── Citation Ledger (for grounded-citations skill) ───────────────────
+
+class CitationLedger:
+    """Simple in-memory citation ledger for grounded-citations skill.
+    
+    Maps URLs to stable numeric IDs. Persists to disk for session continuity.
+    """
+    
+    def __init__(self, ledger_path: Path | None = None):
+        self.ledger_path = ledger_path or Path("data/citations/ledger.json")
+        self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        self._url_to_id: dict[str, int] = {}
+        self._id_to_url: dict[int, str] = {}
+        self._id_to_title: dict[int, str] = {}
+        self._next_id = 1
+        self._load()
+    
+    def _load(self) -> None:
+        if self.ledger_path.exists():
+            try:
+                data = json.loads(self.ledger_path.read_text())
+                self._url_to_id = {k: int(v) for k, v in data.get("url_to_id", {}).items()}
+                self._id_to_url = {int(k): v for k, v in data.get("id_to_url", {}).items()}
+                self._id_to_title = {int(k): v for k, v in data.get("id_to_title", {}).items()}
+                self._next_id = data.get("next_id", len(self._url_to_id) + 1)
+            except Exception as e:
+                logger.warning("Failed to load citation ledger: %s", e)
+    
+    def _save(self) -> None:
+        try:
+            data = {
+                "url_to_id": self._url_to_id,
+                "id_to_url": {str(k): v for k, v in self._id_to_url.items()},
+                "id_to_title": {str(k): v for k, v in self._id_to_title.items()},
+                "next_id": self._next_id,
+            }
+            self.ledger_path.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            logger.warning("Failed to save citation ledger: %s", e)
+    
+    def add(self, url: str, title: str = "") -> int:
+        """Add a URL to the ledger, return its stable ID."""
+        normalized = self._normalize_url(url)
+        if normalized in self._url_to_id:
+            return self._url_to_id[normalized]
+        cid = self._next_id
+        self._url_to_id[normalized] = cid
+        self._id_to_url[cid] = url
+        self._id_to_title[cid] = title or url
+        self._next_id += 1
+        self._save()
+        return cid
+    
+    def _normalize_url(self, url: str) -> str:
+        """Normalize URL for stable IDs."""
+        try:
+            parsed = urllib.parse.urlparse(url)
+            # Remove fragment, normalize path
+            normalized = urllib.parse.urlunparse((
+                parsed.scheme.lower(),
+                parsed.netloc.lower(),
+                parsed.path.rstrip("/"),
+                parsed.params,
+                parsed.query,
+                ""  # no fragment
+            ))
+            return normalized
+        except Exception:
+            return url
+    
+    def get_id(self, url: str) -> int:
+        """Get citation ID for URL, creating if not exists."""
+        normalized = self._normalize_url(url)
+        if normalized in self._url_to_id:
+            return self._url_to_id[normalized]
+        # Auto-create if not found (so it always returns an int)
+        return self.add(url)
+    
+    def get_url(self, cid: int) -> str | None:
+        return self._id_to_url.get(cid)
+    
+    def get_title(self, cid: int) -> str | None:
+        return self._id_to_title.get(cid)
+    
+    def render(self, cited_ids: list[int] | None = None) -> str:
+        """Render Sources block for cited IDs (or all if None)."""
+        ids = cited_ids if cited_ids is not None else sorted(self._id_to_url.keys())
+        lines = ["## Sources", ""]
+        for cid in ids:
+            url = self._id_to_url.get(cid)
+            title = self._id_to_title.get(cid)
+            if url:
+                lines.append(f"[{cid}] {title} — {url}")
+        return "\n".join(lines)
+    
+    def verify(self, draft_text: str) -> tuple[bool, list[str]]:
+        """Verify all citations in draft exist in ledger."""
+        import re
+        cited = re.findall(r'\[(\d+)\]', draft_text)
+        errors = []
+        for cid_str in cited:
+            cid = int(cid_str)
+            if cid not in self._id_to_url:
+                errors.append(f"Citation [{cid}] not found in ledger")
+        return len(errors) == 0, errors
+
+# Global ledger instance
+_citation_ledger: CitationLedger | None = None
+
+def get_citation_ledger() -> CitationLedger:
+    global _citation_ledger
+    if _citation_ledger is None:
+        _citation_ledger = CitationLedger()
+    return _citation_ledger
 
 
 # ── Filesystem Skill ────────────────────────────────────────────────
@@ -1027,7 +1145,7 @@ def test_root():
         return SkillResult.failure(f"Unknown operation: {operation}", component="file_template")
 
 
-# Update the built-in skills dict
+# Update the built-in skills dict (core skills)
 BUILTIN_SKILLS.update(
     {
         "project_build": ProjectBuildSkill,
@@ -1233,3 +1351,809 @@ class MCPSkill(Skill[dict[str, Any]]):
                 return SkillResult.failure(str(e), component="mcp")
 
         return SkillResult.failure(f"Unknown operation: {operation}", component="mcp")
+
+
+# ── Grounded Citations Skill ─────────────────────────────────────────
+
+
+class GroundedCitationsSkill(Skill[dict[str, Any]]):
+    """Ground answers and documents in cited, verifiable sources.
+
+    Every claim from an external source gets an inline numbered citation and a
+    Sources block. The ledger maps URLs to stable IDs so citations are verifiable.
+    """
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="grounded_citations",
+            description="Ground answers/documents in cited, verifiable sources with inline citations",
+            version="1.0.0",
+            category="research",
+            tags=["citations", "grounding", "sources", "verification", "research"],
+            timeout_seconds=30,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": [
+                            "reset",
+                            "add_source",
+                            "list_sources",
+                            "render_sources",
+                            "verify_draft",
+                            "get_citation_id",
+                        ],
+                        "description": "Citation ledger operation",
+                    },
+                    "url": {"type": "string", "description": "Source URL to register"},
+                    "title": {"type": "string", "description": "Optional title for the source"},
+                    "draft_path": {"type": "string", "description": "Path to draft file to verify"},
+                    "draft_text": {"type": "string", "description": "Draft text to verify (alternative to draft_path)"},
+                    "cited_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                        "description": "Specific citation IDs to render (default: all)",
+                    },
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "citation_id": {"type": "integer"},
+                    "sources": {"type": "array", "items": {"type": "object"}},
+                    "sources_block": {"type": "string"},
+                    "valid": {"type": "boolean"},
+                    "errors": {"type": "array", "items": {"type": "string"}},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        operation = kwargs["operation"]
+        ledger = get_citation_ledger()
+
+        if operation == "reset":
+            # Clear the ledger file
+            ledger._url_to_id.clear()
+            ledger._id_to_url.clear()
+            ledger._id_to_title.clear()
+            ledger._next_id = 1
+            ledger._save()
+            return SkillResult.success({"success": True, "message": "Citation ledger reset"})
+
+        if operation == "add_source":
+            url = kwargs.get("url", "")
+            title = kwargs.get("title", "")
+            if not url:
+                return SkillResult.failure("url is required", component="grounded_citations")
+            cid = ledger.add(url, title)
+            return SkillResult.success({"success": True, "citation_id": cid, "url": url})
+
+        if operation == "get_citation_id":
+            url = kwargs.get("url", "")
+            if not url:
+                return SkillResult.failure("url is required", component="grounded_citations")
+            cid = ledger.get_id(url)
+            if cid is None:
+                return SkillResult.failure(f"URL not in ledger: {url}", component="grounded_citations")
+            return SkillResult.success({"success": True, "citation_id": cid})
+
+        if operation == "list_sources":
+            sources = [
+                {"id": cid, "url": ledger.get_url(cid), "title": ledger.get_title(cid)}
+                for cid in sorted(ledger._id_to_url.keys())
+            ]
+            return SkillResult.success({"success": True, "sources": sources})
+
+        if operation == "render_sources":
+            cited_ids = kwargs.get("cited_ids")
+            block = ledger.render(cited_ids)
+            return SkillResult.success({"success": True, "sources_block": block})
+
+        if operation == "verify_draft":
+            draft_text = kwargs.get("draft_text")
+            draft_path = kwargs.get("draft_path")
+            if draft_path and not draft_text:
+                try:
+                    draft_text = Path(draft_path).read_text(encoding="utf-8")
+                except Exception as e:
+                    return SkillResult.failure(f"Failed to read draft: {e}", component="grounded_citations")
+            if not draft_text:
+                return SkillResult.failure("draft_text or draft_path required", component="grounded_citations")
+            valid, errors = ledger.verify(draft_text)
+            return SkillResult.success({"success": True, "valid": valid, "errors": errors})
+
+        return SkillResult.failure(f"Unknown operation: {operation}", component="grounded_citations")
+
+
+# ── ArXiv Research Skill ─────────────────────────────────────────────
+
+
+class ArxivSkill(Skill[dict[str, Any]]):
+    """Search and retrieve academic papers from arXiv."""
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="arxiv",
+            description="Search arXiv papers by keyword, author, category, or ID",
+            version="1.0.0",
+            category="research",
+            tags=["arxiv", "papers", "academic", "science", "search"],
+            timeout_seconds=30,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["search", "get_paper", "search_by_author", "search_by_category"],
+                        "description": "ArXiv operation",
+                    },
+                    "query": {"type": "string", "description": "Search query (for search operation)"},
+                    "paper_id": {"type": "string", "description": "arXiv paper ID (e.g., 2402.03300)"},
+                    "author": {"type": "string", "description": "Author name (for search_by_author)"},
+                    "category": {"type": "string", "description": "arXiv category (e.g., cs.AI)"},
+                    "max_results": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50},
+                    "sort_by": {"type": "string", "enum": ["relevance", "lastUpdatedDate", "submittedDate"], "default": "submittedDate"},
+                    "sort_order": {"type": "string", "enum": ["ascending", "descending"], "default": "descending"},
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "papers": {"type": "array", "items": {"type": "object"}},
+                    "paper": {"type": "object"},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        operation = kwargs["operation"]
+        max_results = kwargs.get("max_results", 10)
+        sort_by = kwargs.get("sort_by", "submittedDate")
+        sort_order = kwargs.get("sort_order", "descending")
+
+        base_url = "https://export.arxiv.org/api/query"
+        ns = {"a": "http://www.w3.org/2005/Atom"}
+
+        def parse_entry(entry: ET.Element) -> dict[str, Any]:
+            title_elem = entry.find("a:title", ns)
+            id_elem = entry.find("a:id", ns)
+            published_elem = entry.find("a:published", ns)
+            summary_elem = entry.find("a:summary", ns)
+            author_elems = entry.findall("a:author", ns)
+            category_elems = entry.findall("a:category", ns)
+
+            title = title_elem.text.strip().replace("\n", " ") if title_elem is not None and title_elem.text else ""
+            arxiv_id = id_elem.text.strip().split("/abs/")[-1] if id_elem is not None and id_elem.text else ""
+            published = published_elem.text[:10] if published_elem is not None and published_elem.text else ""
+            author_names = []
+            for a in author_elems:
+                name_elem = a.find("a:name", ns)
+                if name_elem is not None and name_elem.text:
+                    author_names.append(name_elem.text)
+            authors = ", ".join(author_names)
+            summary = summary_elem.text.strip() if summary_elem is not None and summary_elem.text else ""
+            cat_terms = [c.get("term") for c in category_elems if c.get("term") is not None]
+            cats = ", ".join(cat_terms)  # type: ignore[arg-type]
+            return {
+                "id": arxiv_id,
+                "title": title,
+                "authors": authors,
+                "published": published,
+                "summary": summary,
+                "categories": cats,
+                "pdf_url": f"https://arxiv.org/pdf/{arxiv_id}" if arxiv_id else "",
+                "abs_url": f"https://arxiv.org/abs/{arxiv_id}" if arxiv_id else "",
+            }
+
+        try:
+            if operation == "search":
+                query = kwargs.get("query", "")
+                if not query:
+                    return SkillResult.failure("query is required for search", component="arxiv")
+                search_query = f"all:{urllib.parse.quote(query)}"
+                url = f"{base_url}?search_query={search_query}&max_results={max_results}&sortBy={sort_by}&sortOrder={sort_order}"
+
+            elif operation == "get_paper":
+                paper_id = kwargs.get("paper_id", "")
+                if not paper_id:
+                    return SkillResult.failure("paper_id is required", component="arxiv")
+                url = f"{base_url}?id_list={paper_id}"
+
+            elif operation == "search_by_author":
+                author = kwargs.get("author", "")
+                if not author:
+                    return SkillResult.failure("author is required", component="arxiv")
+                search_query = f"au:{urllib.parse.quote(author)}"
+                url = f"{base_url}?search_query={search_query}&max_results={max_results}&sortBy={sort_by}&sortOrder={sort_order}"
+
+            elif operation == "search_by_category":
+                category = kwargs.get("category", "")
+                if not category:
+                    return SkillResult.failure("category is required", component="arxiv")
+                search_query = f"cat:{urllib.parse.quote(category)}"
+                url = f"{base_url}?search_query={search_query}&max_results={max_results}&sortBy={sort_by}&sortOrder={sort_order}"
+
+            else:
+                return SkillResult.failure(f"Unknown operation: {operation}", component="arxiv")
+
+            # Fetch and parse
+            req = urllib.request.Request(url, headers={"User-Agent": "PROFESSOR-J/1.0"})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                xml_data = response.read()
+
+            root = ET.fromstring(xml_data)
+            entries = root.findall("a:entry", ns)
+
+            if operation == "get_paper" and entries:
+                paper = parse_entry(entries[0])
+                return SkillResult.success({"success": True, "paper": paper})
+
+            papers = [parse_entry(e) for e in entries]
+            return SkillResult.success({"success": True, "papers": papers})
+
+        except Exception as e:
+            logger.exception("ArXiv skill failed: %s", e)
+            return SkillResult.failure(f"ArXiv request failed: {e}", component="arxiv")
+
+
+# ── Workspace Synthesis Skill ────────────────────────────────────────
+
+
+class WorkspaceSynthesisSkill(Skill[dict[str, Any]]):
+    """Summarize multi-repo workspaces: read governance, check git, synthesize status."""
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="workspace_synthesis",
+            description="Summarize multi-repo workspaces — governance, architecture, project status, progress",
+            version="1.0.0",
+            category="workspace",
+            tags=["workspace", "synthesis", "documentation", "governance", "git"],
+            timeout_seconds=60,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["summarize_workspace", "summarize_repo", "check_git_status"],
+                        "description": "Workspace synthesis operation",
+                    },
+                    "workspace_root": {"type": "string", "default": "/home/sajan/Projects", "description": "Workspace root path"},
+                    "repo_name": {"type": "string", "description": "Specific repository to summarize"},
+                    "output_path": {"type": "string", "description": "Optional path to write summary"},
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "summary": {"type": "string"},
+                    "repos": {"type": "array", "items": {"type": "object"}},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        import subprocess
+
+        operation = kwargs["operation"]
+        workspace_root = Path(kwargs.get("workspace_root", "/home/sajan/Projects"))
+        repo_name = kwargs.get("repo_name")
+        output_path = kwargs.get("output_path")
+
+        def run_cmd(cmd: list[str], cwd: Path) -> tuple[int, str, str]:
+            try:
+                result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=30)
+                return result.returncode, result.stdout, result.stderr
+            except subprocess.TimeoutExpired:
+                return -1, "", "Command timed out"
+            except Exception as e:
+                return -1, "", str(e)
+
+        def read_file_safe(path: Path) -> str:
+            try:
+                return path.read_text(encoding="utf-8")[:5000]
+            except Exception:
+                return ""
+
+        if operation == "check_git_status":
+            if not repo_name:
+                return SkillResult.failure("repo_name required for check_git_status", component="workspace_synthesis")
+            repo_path = workspace_root / repo_name
+            if not repo_path.exists():
+                return SkillResult.failure(f"Repo not found: {repo_path}", component="workspace_synthesis")
+            code, stdout, stderr = run_cmd(["git", "status", "--porcelain"], repo_path)
+            code2, stdout2, stderr2 = run_cmd(["git", "log", "--oneline", "-10"], repo_path)
+            return SkillResult.success({
+                "success": True,
+                "repo": repo_name,
+                "status": stdout,
+                "recent_commits": stdout2,
+            })
+
+        if operation == "summarize_repo":
+            if not repo_name:
+                return SkillResult.failure("repo_name required for summarize_repo", component="workspace_synthesis")
+            repo_path = workspace_root / repo_name
+            if not repo_path.exists():
+                return SkillResult.failure(f"Repo not found: {repo_path}", component="workspace_synthesis")
+
+            # Read key files
+            agents_md = read_file_safe(repo_path / "AGENTS.md")
+            readme = read_file_safe(repo_path / "README.md")
+            roadmap = read_file_safe(repo_path / "docs" / "ROADMAP.md")
+            architecture = read_file_safe(repo_path / "ARCHITECTURE.md") or read_file_safe(repo_path / "docs" / "ARCHITECTURE.md")
+
+            # Git status
+            code, git_status, _ = run_cmd(["git", "status", "--porcelain"], repo_path)
+            code2, git_log, _ = run_cmd(["git", "log", "--oneline", "-5"], repo_path)
+
+            summary = f"""# {repo_name} Summary
+
+## Git Status
+```
+{git_status or "(clean)"}
+```
+
+## Recent Commits
+```
+{git_log or "(none)"}
+```
+
+## Key Documents
+### AGENTS.md (excerpt)
+```
+{agents_md[:2000] if agents_md else "(not found)"}
+```
+
+### README.md (excerpt)
+```
+{readme[:2000] if readme else "(not found)"}
+```
+
+### ROADMAP.md (excerpt)
+```
+{roadmap[:2000] if roadmap else "(not found)"}
+```
+
+### ARCHITECTURE.md (excerpt)
+```
+{architecture[:2000] if architecture else "(not found)"}
+```
+"""
+
+            if output_path:
+                Path(output_path).write_text(summary, encoding="utf-8")
+
+            return SkillResult.success({"success": True, "summary": summary, "repo": repo_name})
+
+        if operation == "summarize_workspace":
+            # Discover all repos
+            repos = []
+            for item in workspace_root.iterdir():
+                if item.is_dir() and (item / ".git").exists():
+                    repos.append(item.name)
+
+            all_summaries: list[dict[str, Any]] = []
+            for repo in repos:
+                repo_path = workspace_root / repo
+                code, git_status, _ = run_cmd(["git", "status", "--porcelain"], repo_path)
+                code2, git_log, _ = run_cmd(["git", "log", "--oneline", "-3"], repo_path)
+                agents_md = read_file_safe(repo_path / "AGENTS.md")
+
+                all_summaries.append({
+                    "name": repo,
+                    "git_clean": not git_status.strip(),
+                    "recent_commits": git_log.strip(),
+                    "has_agents_md": bool(agents_md),
+                })
+
+            summary = f"""# Workspace Synthesis — {workspace_root}
+
+## Repositories ({len(repos)} total)
+"""
+
+            for r in all_summaries:
+                status = "✅ clean" if r["git_clean"] else "⚠️ dirty"
+                summary += f"\n### {r['name']} {status}\n"
+                recent_commits = r["recent_commits"]
+                if recent_commits:
+                    summary += f"Recent: {recent_commits.split(chr(10))[0]}\n"
+                summary += f"AGENTS.md: {'yes' if r['has_agents_md'] else 'no'}\n"
+
+            if output_path:
+                Path(output_path).write_text(summary, encoding="utf-8")
+
+            return SkillResult.success({"success": True, "summary": summary, "repos": all_summaries})
+
+        return SkillResult.failure(f"Unknown operation: {operation}", component="workspace_synthesis")
+
+
+# ── GitHub Skills ────────────────────────────────────────────────────
+
+
+class GitHubAuthSkill(Skill[dict[str, Any]]):
+    """GitHub authentication setup for PROFESSOR-J."""
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="github_auth",
+            description="Set up GitHub authentication (HTTPS tokens, SSH keys, gh CLI login)",
+            version="1.0.0",
+            category="github",
+            tags=["github", "auth", "cli", "setup"],
+            timeout_seconds=30,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["check_status", "setup_gh_cli", "setup_https_token", "setup_ssh_key"],
+                        "description": "Auth operation",
+                    },
+                    "token": {"type": "string", "description": "GitHub personal access token"},
+                    "ssh_key_path": {"type": "string", "description": "Path to SSH private key"},
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "authenticated": {"type": "boolean"},
+                    "method": {"type": "string"},
+                    "user": {"type": "string"},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        import subprocess
+        import os
+
+        operation = kwargs["operation"]
+
+        def run_cmd(cmd: list[str], input_data: str | None = None) -> tuple[int, str, str]:
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, input=input_data)
+                return result.returncode, result.stdout, result.stderr
+            except Exception as e:
+                return -1, "", str(e)
+
+        if operation == "check_status":
+            # Check gh CLI
+            code, stdout, _ = run_cmd(["gh", "auth", "status"])
+            if code == 0:
+                return SkillResult.success({"success": True, "authenticated": True, "method": "gh_cli", "user": stdout.strip()})
+            # Check git credential helper
+            code, stdout, _ = run_cmd(["git", "credential", "fill"])
+            return SkillResult.success({"success": True, "authenticated": code == 0, "method": "git_credential" if code == 0 else "none"})
+
+        if operation == "setup_gh_cli":
+            token = kwargs.get("token")
+            if not token:
+                return SkillResult.failure("token required for gh CLI setup", component="github_auth")
+            code, _, stderr = run_cmd(["gh", "auth", "login", "--with-token"], input_data=token)
+            if code == 0:
+                return SkillResult.success({"success": True, "message": "gh CLI authenticated"})
+            return SkillResult.failure(f"gh auth failed: {stderr}", component="github_auth")
+
+        if operation == "setup_https_token":
+            token = kwargs.get("token")
+            if not token:
+                return SkillResult.failure("token required", component="github_auth")
+            # Configure git to use token
+            run_cmd(["git", "config", "--global", "credential.helper", "store"])
+            # Note: actual credential storage requires user interaction or git-credential-store
+            return SkillResult.success({"success": True, "message": "Configured git credential helper; use token on next push"})
+
+        if operation == "setup_ssh_key":
+            ssh_key_path = kwargs.get("ssh_key_path", os.path.expanduser("~/.ssh/id_ed25519"))
+            if not os.path.exists(ssh_key_path):
+                return SkillResult.failure(f"SSH key not found: {ssh_key_path}", component="github_auth")
+            # Add to ssh-agent
+            run_cmd(["ssh-add", ssh_key_path])
+            return SkillResult.success({"success": True, "message": f"Added SSH key: {ssh_key_path}"})
+
+        return SkillResult.failure(f"Unknown operation: {operation}", component="github_auth")
+
+
+class GitHubCodeReviewSkill(Skill[dict[str, Any]]):
+    """Review PRs: diffs, inline comments via gh or REST."""
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="github_code_review",
+            description="Review PRs: diffs, inline comments via gh or REST",
+            version="1.0.0",
+            category="github",
+            tags=["github", "code-review", "pr", "quality"],
+            timeout_seconds=60,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["review_local", "review_pr", "view_pr", "get_diff", "submit_review"],
+                        "description": "Review operation",
+                    },
+                    "pr_number": {"type": "integer", "description": "PR number to review"},
+                    "repo": {"type": "string", "description": "Repository (owner/repo)"},
+                    "base_branch": {"type": "string", "default": "main", "description": "Base branch for local review"},
+                    "review_body": {"type": "string", "description": "Review summary body"},
+                    "event": {"type": "string", "enum": ["APPROVE", "REQUEST_CHANGES", "COMMENT"], "default": "COMMENT"},
+                    "comments": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string"},
+                                "line": {"type": "integer"},
+                                "body": {"type": "string"},
+                                "side": {"type": "string", "enum": ["LEFT", "RIGHT"], "default": "RIGHT"},
+                            },
+                            "required": ["path", "line", "body"],
+                        },
+                        "description": "Inline comments",
+                    },
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "diff": {"type": "string"},
+                    "pr_info": {"type": "object"},
+                    "review_submitted": {"type": "boolean"},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        import subprocess
+        import os
+
+        operation = kwargs["operation"]
+        pr_number = kwargs.get("pr_number")
+        repo = kwargs.get("repo")
+        base_branch = kwargs.get("base_branch", "main")
+
+        def run_cmd(cmd: list[str], input_data: str | None = None) -> tuple[int, str, str]:
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60, input=input_data)
+                return result.returncode, result.stdout, result.stderr
+            except Exception as e:
+                return -1, "", str(e)
+
+        # Auto-detect repo from git remote if not provided
+        if not repo:
+            code, stdout, _ = run_cmd(["git", "remote", "get-url", "origin"])
+            if code == 0:
+                remote = stdout.strip()
+                if "github.com" in remote:
+                    repo = remote.split("github.com")[-1].strip(":/. ").replace(".git", "")
+
+        if operation == "review_local":
+            # Review local changes vs base branch
+            code, stdout, _ = run_cmd(["git", "diff", f"{base_branch}...HEAD", "--stat"])
+            code2, diff, _ = run_cmd(["git", "diff", f"{base_branch}...HEAD"])
+            return SkillResult.success({"success": True, "stat": stdout, "diff": diff[:10000]})
+
+        if operation == "view_pr":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_code_review")
+            code, stdout, _ = run_cmd(["gh", "pr", "view", str(pr_number), "--repo", repo, "--json", "title,author,baseRefName,headRefName,state,body"])
+            return SkillResult.success({"success": True, "pr_info": json.loads(stdout) if code == 0 else {}, "error": "" if code == 0 else "Failed to view PR"})
+
+        if operation == "get_diff":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_code_review")
+            code, stdout, _ = run_cmd(["gh", "pr", "diff", str(pr_number), "--repo", repo])
+            return SkillResult.success({"success": True, "diff": stdout[:10000]})
+
+        if operation == "submit_review":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_code_review")
+            event = kwargs.get("event", "COMMENT")
+            body = kwargs.get("review_body", "Reviewed by PROFESSOR-J")
+            comments = kwargs.get("comments", [])
+
+            if comments:
+                # Build inline comments JSON
+                comments_json = json.dumps(comments)
+                code, stdout, stderr = run_cmd([
+                    "gh", "api", f"repos/{repo}/pulls/{pr_number}/reviews",
+                    "--method", "POST",
+                    "-f", f"event={event}",
+                    "-f", f"body={body}",
+                    "-f", f"comments={comments_json}",
+                ])
+            else:
+                code, stdout, stderr = run_cmd([
+                    "gh", "pr", "review", str(pr_number), "--repo", repo,
+                    f"--{event.lower()}", "-b", body,
+                ])
+
+            if code == 0:
+                return SkillResult.success({"success": True, "review_submitted": True})
+            return SkillResult.failure(f"Review failed: {stderr}", component="github_code_review")
+
+        return SkillResult.failure(f"Unknown operation: {operation}", component="github_code_review")
+
+
+class GitHubPRWorkflowSkill(Skill[dict[str, Any]]):
+    """GitHub PR lifecycle: branch, commit, open, CI, merge."""
+
+    def _default_metadata(self) -> SkillMetadata:
+        return SkillMetadata(
+            name="github_pr_workflow",
+            description="GitHub PR lifecycle: branch, commit, open, CI, merge",
+            version="1.0.0",
+            category="github",
+            tags=["github", "pr", "ci", "merge", "workflow"],
+            timeout_seconds=120,
+            requires_approval=False,
+            parameters_schema={
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["create_branch", "commit", "push", "create_pr", "check_ci", "merge_pr", "auto_merge"],
+                        "description": "PR workflow operation",
+                    },
+                    "branch_name": {"type": "string", "description": "Branch name"},
+                    "base_branch": {"type": "string", "default": "main", "description": "Base branch"},
+                    "commit_message": {"type": "string", "description": "Commit message"},
+                    "pr_title": {"type": "string", "description": "PR title"},
+                    "pr_body": {"type": "string", "description": "PR body"},
+                    "repo": {"type": "string", "description": "Repository (owner/repo)"},
+                    "pr_number": {"type": "integer", "description": "PR number"},
+                    "merge_method": {"type": "string", "enum": ["squash", "merge", "rebase"], "default": "squash"},
+                },
+                "required": ["operation"],
+            },
+            returns_schema={
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "branch": {"type": "string"},
+                    "pr_number": {"type": "integer"},
+                    "pr_url": {"type": "string"},
+                    "ci_status": {"type": "string"},
+                    "merged": {"type": "boolean"},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+
+    async def execute(self, **kwargs: Any) -> SkillResult[dict[str, Any]]:
+        import subprocess
+
+        operation = kwargs["operation"]
+        branch_name = kwargs.get("branch_name")
+        base_branch = kwargs.get("base_branch", "main")
+        commit_message = kwargs.get("commit_message")
+        pr_title = kwargs.get("pr_title")
+        pr_body = kwargs.get("pr_body", "")
+        repo = kwargs.get("repo")
+        pr_number = kwargs.get("pr_number")
+        merge_method = kwargs.get("merge_method", "squash")
+
+        def run_cmd(cmd: list[str]) -> tuple[int, str, str]:
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                return result.returncode, result.stdout, result.stderr
+            except Exception as e:
+                return -1, "", str(e)
+
+        # Auto-detect repo
+        if not repo:
+            code, stdout, _ = run_cmd(["git", "remote", "get-url", "origin"])
+            if code == 0:
+                remote = stdout.strip()
+                if "github.com" in remote:
+                    repo = remote.split("github.com")[-1].strip(":/. ").replace(".git", "")
+
+        if operation == "create_branch":
+            if not branch_name:
+                return SkillResult.failure("branch_name required", component="github_pr_workflow")
+            run_cmd(["git", "fetch", "origin"])
+            run_cmd(["git", "checkout", base_branch])
+            run_cmd(["git", "pull", "origin", base_branch])
+            code, _, stderr = run_cmd(["git", "checkout", "-b", branch_name])
+            if code == 0:
+                return SkillResult.success({"success": True, "branch": branch_name})
+            return SkillResult.failure(f"Branch creation failed: {stderr}", component="github_pr_workflow")
+
+        if operation == "commit":
+            if not commit_message:
+                return SkillResult.failure("commit_message required", component="github_pr_workflow")
+            run_cmd(["git", "add", "-A"])
+            code, _, stderr = run_cmd(["git", "commit", "-m", commit_message])
+            if code == 0:
+                return SkillResult.success({"success": True, "message": "Committed"})
+            return SkillResult.failure(f"Commit failed: {stderr}", component="github_pr_workflow")
+
+        if operation == "push":
+            code, _, stderr = run_cmd(["git", "push", "-u", "origin", "HEAD"])
+            if code == 0:
+                return SkillResult.success({"success": True, "message": "Pushed"})
+            return SkillResult.failure(f"Push failed: {stderr}", component="github_pr_workflow")
+
+        if operation == "create_pr":
+            if not pr_title or not repo:
+                return SkillResult.failure("pr_title and repo required", component="github_pr_workflow")
+            code, stdout, stderr = run_cmd([
+                "gh", "pr", "create", "--repo", repo,
+                "--title", pr_title,
+                "--body", pr_body,
+                "--base", base_branch,
+            ])
+            if code == 0:
+                # Extract PR number from output
+                import re
+                match = re.search(r"#(\d+)", stdout)
+                pr_num = int(match.group(1)) if match else None
+                return SkillResult.success({"success": True, "pr_number": pr_num, "pr_url": stdout.strip()})
+            return SkillResult.failure(f"PR creation failed: {stderr}", component="github_pr_workflow")
+
+        if operation == "check_ci":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_pr_workflow")
+            code, stdout, _ = run_cmd(["gh", "pr", "checks", str(pr_number), "--repo", repo, "--json", "name,state,conclusion"])
+            return SkillResult.success({"success": True, "ci_status": stdout if code == 0 else "failed"})
+
+        if operation == "merge_pr":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_pr_workflow")
+            code, _, stderr = run_cmd([
+                "gh", "pr", "merge", str(pr_number), "--repo", repo,
+                "--" + merge_method, "--delete-branch",
+            ])
+            if code == 0:
+                return SkillResult.success({"success": True, "merged": True})
+            return SkillResult.failure(f"Merge failed: {stderr}", component="github_pr_workflow")
+
+        if operation == "auto_merge":
+            if not pr_number or not repo:
+                return SkillResult.failure("pr_number and repo required", component="github_pr_workflow")
+            code, _, stderr = run_cmd([
+                "gh", "pr", "merge", str(pr_number), "--repo", repo,
+                "--auto", "--" + merge_method, "--delete-branch",
+            ])
+            if code == 0:
+                return SkillResult.success({"success": True, "merged": True, "auto_merge_enabled": True})
+            return SkillResult.failure(f"Auto-merge failed: {stderr}", component="github_pr_workflow")
+
+        return SkillResult.failure(f"Unknown operation: {operation}", component="github_pr_workflow")
+
+
+# Update the built-in skills dict (ecosystem development agent skills)
+BUILTIN_SKILLS.update(
+    {
+        "grounded_citations": GroundedCitationsSkill,
+        "arxiv": ArxivSkill,
+        "workspace_synthesis": WorkspaceSynthesisSkill,
+        "github_auth": GitHubAuthSkill,
+        "github_code_review": GitHubCodeReviewSkill,
+        "github_pr_workflow": GitHubPRWorkflowSkill,
+    }
+)

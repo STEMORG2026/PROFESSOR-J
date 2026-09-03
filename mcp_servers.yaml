@@ -1,0 +1,20 @@
+# PROFESSOR-J MCP Server Configuration
+# This format is used by app.mcp.manager (management/config layer)
+
+servers:
+  - name: "github"
+    transport_type: "stdio"
+    command: ["gh", "api"]
+    enabled: true
+
+  - name: "brave-search"
+    transport_type: "stdio"
+    command: ["npx", "-y", "@modelcontextprotocol/server-brave-search"]
+    env:
+      BRAVE_API_KEY: "${BRAVE_API_KEY}"
+    enabled: true
+
+  - name: "arxiv"
+    transport_type: "stdio"
+    command: ["npx", "-y", "@modelcontextprotocol/server-arxiv"]
+    enabled: true
