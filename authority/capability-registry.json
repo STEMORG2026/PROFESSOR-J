@@ -1,0 +1,52 @@
+{
+  "capabilities": [
+    {
+      "id": "lhs-knowledge-adapter",
+      "name": "STEMMA Knowledge Adapter",
+      "description": "Consumer adapter for STEMMA canonical knowledge exports",
+      "state": "selected"
+    },
+    {
+      "id": "llm-provider-pool",
+      "name": "LLM Provider Pool",
+      "description": "Multi-provider LLM routing with circuit breakers",
+      "state": "selected"
+    },
+    {
+      "id": "tool-executor",
+      "name": "Tool Executor",
+      "description": "Safety-gated tool execution with HITL",
+      "state": "selected"
+    },
+    {
+      "id": "skill-registry",
+      "name": "Skill Registry",
+      "description": "Agent skill discovery and registration",
+      "state": "selected"
+    },
+    {
+      "id": "code-exec/sandbox",
+      "name": "Code Execution Sandbox",
+      "description": "Isolated Python execution with resource limits",
+      "state": "routed"
+    },
+    {
+      "id": "web-search",
+      "name": "Web Search",
+      "description": "Web search via Brave Search MCP",
+      "state": "discovered"
+    },
+    {
+      "id": "git-operations",
+      "name": "Git Operations",
+      "description": "Git read/write operations",
+      "state": "selected"
+    },
+    {
+      "id": "filesystem-operations",
+      "name": "Filesystem Operations",
+      "description": "File read/write/list/delete operations",
+      "state": "selected"
+    }
+  ]
+}

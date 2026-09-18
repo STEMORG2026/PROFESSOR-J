@@ -1,0 +1,44 @@
+format: 1
+generated: 2026-09-04
+principals:
+  owner:
+    name: "Sajan"
+  platform:
+    name: "PROFESSOR-J"
+  agents:
+    authority_grant: false
+    can_grant_capabilities: false
+invariants: {}
+grants:
+  default:
+    - capability: "test_tool"
+      risk_cap: 1
+      actions: ["execute"]
+    - capability: "git-operations"
+      risk_cap: 1
+      actions: ["execute"]
+    - capability: "filesystem-operations"
+      risk_cap: 1
+      actions: ["execute"]
+repo_allocation:
+  PROFESSOR-J:
+    capabilities:
+    - "test_tool"
+    - "git-operations"
+    - "filesystem-operations"
+    - "lhs-knowledge-adapter"
+    - "llm-provider-pool"
+    - "tool-executor"
+    - "skill-registry"
+    profile: "full"
+    lifecycle: "active"
+  TEST-PROJECT:
+    capabilities:
+    - "test_tool"
+    - "git-operations"
+    - "filesystem-operations"
+    profile: "minimal"
+    lifecycle: "active"
+    agents:
+    - "tester"
+    max_tier: 1

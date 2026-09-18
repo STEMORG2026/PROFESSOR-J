@@ -15,6 +15,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from app.acp import create_acp_server
+from app.routers.chat import chat_router
+from app.routers.lh_integration import lh_router
 from app.bootstrap import build_root
 from app.orchestration import (
     create_agent_router,
@@ -49,6 +51,10 @@ app = FastAPI(
     version=_VERSION,
     lifespan=lifespan,
 )
+
+# Include routers
+app.include_router(lh_router)
+app.include_router(chat_router)
 
 
 @app.get("/health")
