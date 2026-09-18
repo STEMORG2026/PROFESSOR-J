@@ -65,6 +65,12 @@ class AppRoot:
     plugin_registry: Any = None
     agent_router: Any = None
     hooks_system: Any = None
+    # Phase 10: Advanced orchestration
+    session_manager: Any = None
+    tool_search: Any = None
+    sandbox: Any = None
+    task_tracker: Any = None
+    scheduler: Any = None
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -208,13 +214,18 @@ def build_root(
     # execution; every call is gated by the same policy as other tools.
     mcp = MCPServerManager(policy=policy)
 
-    # Phase 9: Orchestration plane singletons
+    # Phase 9+10: Orchestration plane singletons
     from app.acp import create_acp_server
     from app.orchestration import (
         create_agent_router,
         create_hooks_system,
         create_plugin_registry,
+        create_sandbox,
+        create_scheduler,
+        create_session_manager,
         create_subagent_manager,
+        create_task_tracker,
+        create_tool_search,
     )
 
     acp_server = create_acp_server()
@@ -222,6 +233,11 @@ def build_root(
     plugin_registry = create_plugin_registry()
     agent_router = create_agent_router()
     hooks_system = create_hooks_system()
+    session_manager = create_session_manager()
+    tool_search = create_tool_search()
+    sandbox = create_sandbox()
+    task_tracker = create_task_tracker()
+    scheduler = create_scheduler()
 
     return AppRoot(
         sessions=SessionManager(),
@@ -247,6 +263,11 @@ def build_root(
         plugin_registry=plugin_registry,
         agent_router=agent_router,
         hooks_system=hooks_system,
+        session_manager=session_manager,
+        tool_search=tool_search,
+        sandbox=sandbox,
+        task_tracker=task_tracker,
+        scheduler=scheduler,
     )
 
 
