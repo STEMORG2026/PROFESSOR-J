@@ -71,6 +71,10 @@ class AppRoot:
     sandbox: Any = None
     task_tracker: Any = None
     scheduler: Any = None
+    # Phase 11: SOTA tools
+    web: Any = None
+    browser: Any = None
+    computer_use: Any = None
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -238,6 +242,14 @@ def build_root(
     sandbox = create_sandbox()
     task_tracker = create_task_tracker()
     scheduler = create_scheduler()
+    # Phase 11: SOTA tools
+    from app.tools.browser import create_browser
+    from app.tools.computer_use import create_computer_use
+    from app.tools.web import create_web_search
+
+    web = create_web_search()
+    browser = create_browser()
+    computer_use = create_computer_use()
 
     return AppRoot(
         sessions=SessionManager(),
@@ -268,6 +280,9 @@ def build_root(
         sandbox=sandbox,
         task_tracker=task_tracker,
         scheduler=scheduler,
+        web=web,
+        browser=browser,
+        computer_use=computer_use,
     )
 
 
