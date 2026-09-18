@@ -8,8 +8,7 @@
 
 **Name of the project.** PROFESSOR-J
 
-**One-line description.** Autonomous general-purpose AI platform and the next-generation
-successor to JARVIS — renamed, upgraded, and general.
+**One-line description.** PROFESSOR-J — the AI WORKER for the STEM ecosystem. Handles AI execution, model routing, orchestration, and task delegation on behalf of LearningHub (the information head).
 
 **Kind.** software · education · research · open-source (pick all that apply)
 
