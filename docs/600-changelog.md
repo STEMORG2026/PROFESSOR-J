@@ -9,6 +9,22 @@
 ## Unreleased
 
 ### Added (2026-09)
+- **Agent Orchestration Plane (Phase 9+10+11):** complete orchestration stack
+  - `app/acp/` — ACP JSON-RPC 2.0 server (`ACPServer`, `ACPRequest`, `ACPResponse`)
+  - `app/orchestration/subagent_manager.py` — `SubagentManager` (spawn, stop, steer, list)
+  - `app/orchestration/plugin_registry.py` — `PluginRegistry` (register, get, discover, list)
+  - `app/orchestration/agent_router.py` — `AgentRouter` (classify tasks → route to dsh/Hermes/OpenCode/PROFESSOR-J)
+  - `app/orchestration/hooks.py` — `HooksSystem` (Claude Code + Codex bridge)
+  - `app/orchestration/session_manager.py` — `SessionManager` (fork, resume, export, import)
+  - `app/orchestration/tool_search.py` — `ToolSearch` (find tools across agents)
+  - `app/orchestration/sandbox.py` — `SandboxedExecution` (command/script with timeout)
+  - `app/orchestration/task_tracker.py` — `TaskTracker` (Todo/Plan/Goal decomposition)
+  - `app/orchestration/scheduler.py` — `Scheduler` (cron-like job scheduling)
+  - `app/tools/web.py` — `WebSearch` (search + fetch)
+  - `app/tools/browser.py` — `BrowserControl` (navigate, click, type, screenshot, scroll)
+  - `app/tools/computer_use.py` — `ComputerUse` (launch, kill, focus, move, resize)
+  - 21 orchestration tests + 7 SOTA tool tests, all passing
+  - All singletons wired into `bootstrap.AppRoot`
 - **STEM-TUITION narration now runs under the engine — workflow codified:** refreshed
   `agents_dev/stem-tuition/workflow.md` and `current-state.md` so the recorded process
   mandates the content-engine as the **single** path for narration: every batch-8+ narrative is
