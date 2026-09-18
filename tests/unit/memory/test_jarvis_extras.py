@@ -85,8 +85,8 @@ class TestEventBus:
 
 # ── context window ───────────────────────────────────────────────────────
 class TestContextWindow:
-    def _msgs(self, count: int, size: int = 50) -> list[dict]:
-        msgs: list[dict] = [{"role": "system", "content": "You are a tutor."}]
+    def _msgs(self, count: int, size: int = 50) -> list[dict[str, str]]:
+        msgs: list[dict[str, str]] = [{"role": "system", "content": "You are a tutor."}]
         for i in range(count):
             msgs.append({"role": "user", "content": f"user message {i}" * size})
             msgs.append({"role": "assistant", "content": f"assistant reply {i}" * size})

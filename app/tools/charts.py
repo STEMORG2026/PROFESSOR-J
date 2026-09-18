@@ -20,9 +20,9 @@ from typing import Any
 from app.domain.tool import SafetyTier
 
 try:  # plotly is a declared runtime dep (requirements.txt); degrade gracefully.
-    import plotly.graph_objects as go  # type: ignore[import-not-found]
+    import plotly.graph_objects as go  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - exercised only in dependency-light envs
-    go = None  # type: ignore[assignment]
+    go = None
 
 _LINE_STYLES = frozenset({"solid", "dash", "dot", "dashdot"})
 _PIE_HOLES = ("0", "0.35", "0.5")

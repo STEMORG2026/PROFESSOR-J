@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from app.authority.gateway import AuthorityGateway, set_gateway
 from app.authority.policy import default_register_policy
@@ -58,6 +59,12 @@ class AppRoot:
     context_window: ContextWindowManager
     prompt_loader: PromptLoader
     mcp: MCPServerManager
+    # Phase 9: Orchestration plane
+    acp_server: Any = None
+    subagent_manager: Any = None
+    plugin_registry: Any = None
+    agent_router: Any = None
+    hooks_system: Any = None
 
     def health(self) -> dict[str, object]:
         """Return per-subsystem liveness for a health/status endpoint (Phase 9b)."""
@@ -201,6 +208,21 @@ def build_root(
     # execution; every call is gated by the same policy as other tools.
     mcp = MCPServerManager(policy=policy)
 
+    # Phase 9: Orchestration plane singletons
+    from app.acp import create_acp_server
+    from app.orchestration import (
+        create_agent_router,
+        create_hooks_system,
+        create_plugin_registry,
+        create_subagent_manager,
+    )
+
+    acp_server = create_acp_server()
+    subagent_manager = create_subagent_manager()
+    plugin_registry = create_plugin_registry()
+    agent_router = create_agent_router()
+    hooks_system = create_hooks_system()
+
     return AppRoot(
         sessions=SessionManager(),
         memory=memory,
@@ -220,6 +242,11 @@ def build_root(
         context_window=context_window,
         prompt_loader=prompt_loader,
         mcp=mcp,
+        acp_server=acp_server,
+        subagent_manager=subagent_manager,
+        plugin_registry=plugin_registry,
+        agent_router=agent_router,
+        hooks_system=hooks_system,
     )
 
 
