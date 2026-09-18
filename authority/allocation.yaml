@@ -1,0 +1,86 @@
+format: 1
+generated: 2026-08-31
+repo_allocation:
+  PROFESSOR-J:
+    category:
+    - universal
+    - domain/stem
+    - project/PROFESSOR-J
+    agents:
+    - researcher
+    - architect
+    - implementer
+    - tester
+    - security-reviewer
+    - code-reviewer
+    - docs-reviewer
+    - ci-reviewer
+    max_tier: 2
+  STEMMA:
+    category:
+    - universal
+    - domain/stem
+    - project/STEMMA
+    agents:
+    - researcher
+    - implementer
+    - docs-reviewer
+    - security-reviewer
+    max_tier: 2
+  LearningHub:
+    category:
+    - universal
+    - domain/stem
+    - project/LearningHub
+    agents:
+    - implementer
+    - tester
+    - code-reviewer
+    - ci-reviewer
+    max_tier: 2
+  JARVIS:
+    category:
+    - universal
+    - project/JARVIS
+    agents:
+    - implementer
+    - code-reviewer
+    max_tier: 1
+    lifecycle: frozen
+  deepseek-harness:
+    category:
+    - universal
+    - project/deepseek-harness
+    agents:
+    - implementer
+    - tester
+    - ci-reviewer
+    max_tier: 2
+  3D-Ludo:
+    category:
+    - universal
+    - project/3D-Ludo
+    agents:
+    - implementer
+    - tester
+    - code-reviewer
+    max_tier: 2
+  sajan-portfolio:
+    category:
+    - universal
+    - project/sajan-portfolio
+    agents:
+    - implementer
+    max_tier: 2
+isolation:
+  domain_skills_require_tag:
+    domain/stem:
+    - STEMMA
+    - LearningHub
+    - PROFESSOR-J
+  project_private_never_leaks: true
+  mcp_skills: []
+version: 1
+previous_hash: genesis
+content_hash: e520c29ebe068fe2f85869b70b02be354191842b9cd8b016212cfcda57d4dc6a
+updated_at: '2026-08-31T23:53:06.827847+00:00'

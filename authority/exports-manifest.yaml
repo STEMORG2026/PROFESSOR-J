@@ -1,0 +1,9 @@
+exports:
+  knowledge-json:
+    path: STEMMA/exports/knowledge.json
+    expected:
+      sha256: 1ffe9aec71961ed41b8781db976d242513d9c129222c80431e1254ce893cbba3
+    contract:
+      export_version: '0.1'
+      schema_version: '0.2'
+      last_validated: ''
