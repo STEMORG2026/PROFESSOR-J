@@ -240,7 +240,35 @@ PHASE 9  ░░░░░░░░░░  Mastery Tracking, Production & CI/CD Pi
 
 ---
 
-## 2b. Overall Implementation Status (honest, reconciled 2026-08)
+## Phase 10: Agent Orchestration Foundation
+
+- [x] **ACP Server** (`app/acp/server.py`): JSON-RPC 2.0 server — `ACPServer`, `ACPRequest`, `ACPResponse`, method registration (`status`, `capabilities`)
+- [x] **Subagent Manager** (`app/orchestration/subagent_manager.py`): `SubagentManager` — `spawn()`, `stop()`, `steer()`, `list_agents()`, `get_agent()`
+- [x] **Plugin Registry** (`app/orchestration/plugin_registry.py`): `PluginRegistry` — `register()`, `get()`, `discover()`, `list_plugins()`
+- [x] **Agent Router** (`app/orchestration/agent_router.py`): `AgentRouter` — `classify()` tasks (research, code, github, education), `get_agent_for_task()` routes to dsh/Hermes/OpenCode/PROFESSOR-J
+- [x] **Hooks System** (`app/orchestration/hooks.py`): `HooksSystem` — `register_hook()`, `fire_hook()` with `HookEvent`, `HookResult` (Claude Code + Codex bridge)
+- [x] **Tests**: 14 orchestration tests, all passing
+- **Acceptance Criteria:** All Phase 9 packages wired into `bootstrap.AppRoot`; mypy strict clean; tests green
+
+---
+
+## Phase 11: Advanced Orchestration + SOTA Tools
+
+- [x] **Session Manager** (`app/orchestration/session_manager.py`): `SessionManager` — `create_session()`, `fork_session()`, `resume_session()`, `export_session()`, `import_session()`
+- [x] **Tool Search** (`app/orchestration/tool_search.py`): `ToolSearch` — `register_tool()`, `search()`, `list_agent_tools()`
+- [x] **Sandboxed Execution** (`app/orchestration/sandbox.py`): `SandboxedExecution` — `execute_command()`, `execute_script()` with timeout, `SandboxConfig`, `SandboxResult`
+- [x] **Task Tracker** (`app/orchestration/task_tracker.py`): `TaskTracker` — `create_todo()`, `create_goal()`, `create_plan()`, `decompose_goal()`, `complete_todo()`, `TodoStatus` enum
+- [x] **Scheduler** (`app/orchestration/scheduler.py`): `Scheduler` — `add_job()`, `remove_job()`, `execute_job()`, `list_jobs()`
+- [x] **Web Tools** (`app/tools/web.py`): `WebSearch` — `search()`, `fetch()`, `SearchResult`, `FetchResult`
+- [x] **Browser Control** (`app/tools/browser.py`): `BrowserControl` — `navigate()`, `click()`, `type_text()`, `screenshot()`, `scroll()`
+- [x] **Computer Use** (`app/tools/computer_use.py`): `ComputerUse` — `launch()`, `kill()`, `focus()`, `move()`, `resize()`, `screenshot()`
+- [x] **Wiring**: All Phase 10+11 singletons wired into `bootstrap.AppRoot`
+- [x] **Tests**: 7 additional tests, all passing (21 total orchestration + SOTA tests)
+- **Acceptance Criteria:** All SOTA reference capabilities operational; mypy strict clean; tests green
+
+---
+
+## 2b. Overall Implementation Status (honest, reconciled 2026-09)
 
 **Implemented & tested in-process (suite green, mypy strict, board 8/8):**
 - Phase 0, 0.5: governance, foundation hardening.

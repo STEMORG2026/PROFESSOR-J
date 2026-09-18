@@ -33,6 +33,7 @@ where no canonical entity exists.
 | Tool sandbox | **Inherited** |
 | FastAPI + Next.js UI | **Inherited** |
 | Socratic tutoring, research, pedagogy | **New** (primary domain) |
+| **Agent Orchestration Plane** | **New** (Phase 9+10+11) — ACP server, subagent manager, plugin registry, agent router, hooks, session manager, tool search, sandbox, task tracker, scheduler, web tools, browser control, computer use |
 
 **Ratified Architecture Decisions (Infrastructure Audit §6):**
 
