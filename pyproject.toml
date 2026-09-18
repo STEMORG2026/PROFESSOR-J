@@ -40,7 +40,7 @@ module = "app.config.settings"
 strict_optional = false
 
 [[tool.mypy.overrides]]
-module = "app.tools.charts"
+module = "app.orchestration.scheduler"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
