@@ -31,8 +31,8 @@ import yaml
 
 from app.authority.principal import Principal, require_principal
 from app.domain.tool import SafetyTier
-from app.exceptions import ProfessorError
-from app.guardrails.policy import HITLRequiredError, SafetyGateError, SafetyPolicy
+from app.exceptions import HITLRequiredError, ProfessorError, SafetyGateError
+from app.guardrails.policy import SafetyPolicy
 from app.tools.executor import ToolExecutor, ToolNotFoundError
 
 logger = logging.getLogger(__name__)

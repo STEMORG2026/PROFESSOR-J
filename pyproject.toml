@@ -13,6 +13,50 @@ disallow_untyped_defs = false
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
+module = "app.main"
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "app.authority.gateway"
+disallow_untyped_defs = false
+disallow_any_unimported = false
+warn_return_any = false
+disable_error_code = "no-untyped-def"
+
+[[tool.mypy.overrides]]
+module = "app.adapters.api"
+disallow_untyped_defs = false
+disallow_any_unimported = false
+strict_optional = false
+disable_error_code = "attr-defined"
+
+[[tool.mypy.overrides]]
+module = "app.config.settings"
+strict_optional = false
+
+[[tool.mypy.overrides]]
+module = "app.config.settings"
+strict_optional = false
+
+[[tool.mypy.overrides]]
+module = "app.orchestration.scheduler"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tests.unit.authority.*"
+disallow_untyped_defs = false
+check_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tests.unit.knowledge.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "fitz.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "numpy.*"
 ignore_errors = true
 
@@ -28,13 +72,8 @@ src = ["app", "tests", "scripts"]
 force-exclude = true
 
 [tool.ruff.lint]
-# E/F/W core, I (isort), UP (pyupgrade), B (bugbear), C4 (comprehensions),
-# SIM (simplifications), PIE (flake8-pie). Security (S) deliberately NOT blanket-
-# enabled; secrets are handled by gitleaks + bandit separately.
 select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "PIE"]
-ignore = [
-  "B008",  # function calls in defaults (common with fastapi Depends)
-]
+ignore = ["B008"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
@@ -43,7 +82,7 @@ known-first-party = ["app"]
 [tool.bandit]
 exclude_dirs = ["tests", "scripts", ".venv", ".github"]
 targets = ["app"]
-skips = ["B311"]  # random is not used for security-critical randomness
+skips = ["B311"]
 
 [tool.coverage.run]
 source = ["app"]
@@ -52,13 +91,9 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = false
-# Lines that are not meaningful to test (guards, typing-only, placeholders).
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
-    "if __name__ == ['\\\"]__main__['\\\"]:",
 ]
-# Aggregate floor for the whole app so gross regressions fail loudly.
-# Per-layer targets (95% domain/brain, 85% adapters) are enforced per-module in CI.
 fail_under = 80

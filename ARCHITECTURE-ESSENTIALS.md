@@ -34,7 +34,8 @@ Status: **✓ implemented** · **~ scaffold/foundation** · **◇ planned**.
 | **Platform Services** | `app/session/`, `app/workspace/`, `app/tools/` | `SessionManager`, `WorkspaceManager`, sandboxed `ToolExecutor`. | ◇ planned |
 | **Models & Resources** | `app/models/`, `app/resources/` | `ModelRouter` (multi-provider), `CircuitBreaker` (3-state), `TokenBudget`, `ProviderCatalog`. | ~ foundation ✓ (17+ real providers & task-type routing ◇) |
 | **Skills** | `app/skills/` | `SkillRegistry` + built-ins (filesystem, git, LHS knowledge, web_search, code_execution, memory). | ✓ implemented |
-| **MCP Client** | `app/mcp/` | `MCPServerManager`, `MCPToolSearch`, `CodeExecutionTools`, `MCPRegistry`. | ◇ planned |
+|| **Orchestration** | `app/orchestration/`, `app/acp/` | `SubagentManager`, `PluginRegistry`, `AgentRouter`, `HooksSystem`, `SessionManager`, `ToolSearch`, `SandboxedExecution`, `TaskTracker`, `Scheduler`, `ACPServer`. | ✓ implemented (Phase 9+10+11) |
+|| **SOTA Tools** | `app/tools/web.py`, `app/tools/browser.py`, `app/tools/computer_use.py` | `WebSearch`, `BrowserControl`, `ComputerUse`. | ✓ implemented (Phase 11) |
 | **Observability** | `app/telemetry/` | OTel SDK (OpenInference), `LangfuseExporter`, `Tracer`, `MetricsCollector`. | ✓ exporter implemented |
 | **Domain Layer** | `app/domain/` | Pure Python 3.11+ dataclasses (`LearnerState`, `ExecutionPlan`, `ConceptEntity`). | ✓ implemented |
 | **Passive Telemetry** | `app/events/` | `InMemoryAsyncBus`, `EventLogger`, `MetricsCollector`. | ◇ planned |

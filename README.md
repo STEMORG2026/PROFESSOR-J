@@ -8,10 +8,15 @@
 
 ## 🌟 What is PROFESSOR-J?
 
-**PROFESSOR-J is a general-purpose autonomous AI platform** — an AI OS that inherits the
+PROFESSOR-J is a **general-purpose autonomous AI platform** — an AI OS that inherits the
 proven JARVIS capability surface (cognitive brain, multi-provider model pool with circuit
 breakers, hybrid memory, tiered safety gates, tool sandbox, session/workspace management,
 FastAPI + Next.js UI) under a new name, and extends it beyond any single domain.
+
+**Agent orchestration plane** — PROFESSOR-J now includes a complete orchestration stack:
+ACP server, subagent manager, plugin registry, agent router, hooks system, session manager,
+tool search, sandboxed execution, task tracker, scheduler, web tools, browser control,
+and computer use (Phases 9+10+11).
 
 It is **not bound to LearningHubSTEM**. It consumes LearningHubSTEM as one specialized
 knowledge source among others via a consumer adapter, and falls back to general knowledge
@@ -25,7 +30,8 @@ where no canonical entity exists.
   provenance, LaTeX proof validation.
 - 🧮 **Executable Code & Math Sandbox** — isolated Python execution, SymPy derivations,
   Plotly visualizations, behind tiered safety gates.
-- 🎙️ **Voice & Streaming Workspace** — WebRTC voice classroom, SSE token streaming,
+- 🎯 **Agent Orchestration** — ACP server, subagent manager, plugin registry, agent router, hooks, session manager, tool search, sandbox, task tracker, scheduler
+- 🌐 **SOTA Tools** — web search/fetch, browser control, computer use (desktop)
   KaTeX rendering.
 - ⚡ **Resilient Model Pool** — multi-provider LLM routing with 3-state circuit breakers.
 - 💾 **Hybrid Memory** — ChromaDB dense + BM25 sparse retrieval.
