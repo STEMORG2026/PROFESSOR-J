@@ -1,6 +1,6 @@
 # Makefile — PROFESSOR-J Common Commands
 
-.PHONY: help install test typecheck lint format clean langfuse-up langfuse-down langfuse-logs eval
+.PHONY: help install test typecheck lint format clean langfuse-up langfuse-down langfuse-logs eval backup restore-test
 
 # Default target
 help:
@@ -79,6 +79,20 @@ langfuse-logs:
 eval:
 	@echo "Evaluation harness not yet implemented (Phase 9)"
 	@echo "Will run: .venv/bin/python -m pytest tests/evals/ -v"
+
+# ── Durability ────────────────────────────────────────────────────────
+# No backup mechanism and no restore had ever been tested (audit S0-11). The entire
+# product state lives in one gitignored SQLite file, so a single loss was total and
+# unrecoverable. `make restore-test` proves the backup is usable rather than assuming it.
+
+backup:
+	@mkdir -p data/backups
+	@test -f data/professor.db || { echo "no database at data/professor.db — nothing to back up"; exit 1; }
+	sqlite3 data/professor.db ".backup 'data/backups/professor-$$(date +%Y%m%d-%H%M%S).db'"
+	@echo "backup written:"; ls -1t data/backups/*.db | head -1
+
+restore-test:
+	.venv/bin/python -m pytest tests/unit/db/test_backup_restore.py -v --tb=short
 
 # ── Maintenance ───────────────────────────────────────────────────────
 

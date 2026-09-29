@@ -160,8 +160,12 @@ class GoogleAIProvider(LLMProvider):
         if not self.api_key:
             raise RuntimeError("Google AI API key not configured")
 
-        url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
-        headers = {"Content-Type": "application/json"}
+        # The API key travels in a header, never in the URL. Query-string keys leak
+        # into http logs, proxy logs, tracebacks and error tracker payloads, and
+        # httpx embeds the full URL in its HTTPStatusError message -- which was
+        # serialised back to the caller (audit S0-4 / kill chain K9).
+        url = f"{self.base_url}/models/{self.model}:generateContent"
+        headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key}
 
         formatted_messages = self._format_messages(messages)
 

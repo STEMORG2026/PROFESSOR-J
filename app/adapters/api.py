@@ -19,11 +19,12 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.adapters.auth import require_api_key, resolve_base_url
 from app.bootstrap import AppRoot, build_root
 from app.brain.graph import CognitiveBrain
 from app.brain.intents import Intent
@@ -69,10 +70,10 @@ class ChatRequest(BaseModel):
         default=None,
         description="API key for the selected provider",
     )
-    base_url: str | None = Field(
-        default=None,
-        description="Base URL for OpenAI-compatible providers",
-    )
+    # NOTE: `base_url` is deliberately absent. It was removed after the audit
+    # (S0-2) established that pairing a caller-supplied URL with the server's own
+    # DEFAULT_API_KEY handed the workspace credential to an arbitrary host. Origins
+    # are now server-owned; see PROFESSOR_ALLOWED_BASE_URLS in app/adapters/auth.py.
     system_prompt: str | None = Field(
         default=None,
         description="Optional system prompt to override the default persona",
@@ -85,7 +86,6 @@ class SessionCreateRequest(BaseModel):
     provider: str | None = None
     model: str | None = None
     api_keys: dict[str, str] | None = None
-    base_url: str | None = None
     system_prompt: str | None = None
 
 
@@ -95,7 +95,6 @@ class SessionUpdateRequest(BaseModel):
     provider: str | None = None
     model: str | None = None
     api_keys: dict[str, str] | None = None
-    base_url: str | None = None
     system_prompt: str | None = None
 
 
@@ -220,7 +219,9 @@ def _resolve_chat_params(app_root: AppRoot, req: ChatRequest) -> dict[str, Any]:
     system_prompt = req.system_prompt
     provider = req.provider
     model = req.model
-    base_url = req.base_url
+    # `base_url` is no longer caller-supplied (see ChatRequest); a stored session
+    # value is re-validated against the allow-list below before it is ever used.
+    base_url: str | None = None
     api_key = req.api_key
 
     if req.session_id:
@@ -243,11 +244,9 @@ def _resolve_chat_params(app_root: AppRoot, req: ChatRequest) -> dict[str, Any]:
                 or app_root.session_repo.get_default("model")
                 or DEFAULT_MODEL
             )
-            base_url = (
-                base_url
-                or session.get("base_url")
-                or app_root.session_repo.get_default("base_url")
-                or DEFAULT_BASE_URL
+            base_url = resolve_base_url(
+                session.get("base_url") or app_root.session_repo.get_default("base_url"),
+                DEFAULT_BASE_URL,
             )
             if not api_key and session.get("api_keys"):
                 try:
@@ -310,7 +309,7 @@ def _make_provider_for(
         )
 
     if pid == "openai_compat":
-        url = (base_url or "https://api.openai.com/v1").rstrip("/")
+        url = resolve_base_url(base_url, "https://api.openai.com/v1")
         return OpenAICompatProvider(
             name="openai_compat",
             model=model or "gpt-4o-mini",
@@ -319,9 +318,10 @@ def _make_provider_for(
         )
 
     if pid == "singularity":
-        # OpenAI-compatible Singularity endpoint; the key is read server-side
-        # from the repo .env unless the client supplies one explicitly.
-        url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        # The key is read server-side from the repo .env. Because that credential
+        # belongs to the server, resolve_base_url guarantees the origin it is sent
+        # to is server-owned or loopback -- never a caller-nominated host.
+        url = resolve_base_url(base_url, DEFAULT_BASE_URL)
         return OpenAICompatProvider(
             name="singularity",
             model=model or DEFAULT_MODEL,
@@ -330,10 +330,9 @@ def _make_provider_for(
         )
 
     if pid == "bluesmind":
-        # OpenAI-compatible Bluesmind endpoint; the key is read server-side
-        # from the repo .env unless the client supplies one explicitly.
+        # As above: a server-owned credential only travels to a server-owned origin.
         settings = get_settings()
-        url = (base_url or settings.bluesmind_base_url).rstrip("/")
+        url = resolve_base_url(base_url, settings.bluesmind_base_url)
         return OpenAICompatProvider(
             name="bluesmind",
             model=model or "kimi-k2.5",
@@ -343,7 +342,7 @@ def _make_provider_for(
 
     # Fallback: treat as openai_compat with the provider id as a label
     logger.warning("Unknown provider_id=%r; treating as OpenAI-compatible", pid)
-    url = (base_url or "https://api.openai.com/v1").rstrip("/")
+    url = resolve_base_url(base_url, "https://api.openai.com/v1")
     return OpenAICompatProvider(
         name=pid,
         model=model or "gpt-4o-mini",
@@ -372,7 +371,7 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
         # fields arrive unset on a bare call.
         provider_id = provider or (req.provider if req else None)
         model_name = model or (req.model if req else None) or ""
-        resolved_url = base_url or (req.base_url if req else None)
+        resolved_url = resolve_base_url(base_url, None)
         resolved_key = api_key or (req.api_key if req else None)
 
         # Existing session: fill gaps from the session, then the built-in
@@ -382,7 +381,11 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
             if session:
                 provider_id = provider_id or session.get("provider") or DEFAULT_PROVIDER
                 model_name = model_name or session.get("model") or DEFAULT_MODEL
-                resolved_url = resolved_url or session.get("base_url") or DEFAULT_BASE_URL
+                # A stored session base_url is still untrusted input: it was written
+                # by an earlier request. Route it through the same allow-list.
+                resolved_url = resolve_base_url(
+                    resolved_url or session.get("base_url"), DEFAULT_BASE_URL
+                )
                 if not resolved_key and session.get("api_keys"):
                     try:
                         session_keys = json.loads(session["api_keys"])
@@ -409,7 +412,32 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                 return CognitiveBrain(router=router)
         return brain or CognitiveBrain()
 
-    app = FastAPI(title="PROFESSOR-J", version="0.1.0")
+    # Authentication is applied app-wide so that a newly added route is protected by
+    # default rather than by remembering to protect it. The two exceptions below are
+    # deliberately public and are the *only* unauthenticated surface; both are
+    # recorded in _audit/04_EXECUTION_LOG.md and asserted by tests.
+    public_paths = {
+        "/api/health",  # liveness/readiness probe
+        "/api/voice/status",  # provider connectivity check for the settings dialog
+    }
+
+    async def _auth_gate(
+        request: Request,
+        authorization: str | None = Header(default=None),
+        x_api_key: str | None = Header(default=None),
+    ) -> None:
+        if request.url.path in public_paths:
+            return
+        await require_api_key(authorization=authorization, x_api_key=x_api_key)
+
+    # Structured logging was configured nowhere before the audit (S1-11): setup_logging()
+    # existed and had zero call sites, so nothing the system did was recorded and three CI
+    # checks passed vacuously on the absence of output.
+    from app.logging_config import setup_logging
+
+    setup_logging()
+
+    app = FastAPI(title="PROFESSOR-J", version="0.1.0", dependencies=[Depends(_auth_gate)])
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],  # dev only; tighten for production
@@ -490,9 +518,17 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                         continue
                     yield f"event: token\ndata: {json.dumps({'content': delta})}\n\n"
                     await asyncio.sleep(0)
-            except Exception as exc:  # surface upstream failures to the client
+            except Exception as exc:
+                # Log the detail server-side; emit a stable code to the client. The
+                # previous `str(exc)` echoed httpx's HTTPStatusError message, which
+                # embeds the full request URL -- including a provider key when the key
+                # travelled in the query string (audit S0-4 / kill chain K9).
                 logger.exception("chat stream failed")
-                yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
+                logger.debug("chat stream failure type: %s", type(exc).__name__)
+                error_event = json.dumps(
+                    {"message": "Upstream provider call failed.", "code": "upstream_error"}
+                )
+                yield f"event: error\ndata: {error_event}\n\n"
                 return
             yield f"event: done\ndata: {json.dumps({'session_id': req.session_id})}\n\n"
 
@@ -518,7 +554,7 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
         provider = req.provider or app_root.session_repo.get_default("provider") or DEFAULT_PROVIDER
         model = req.model or app_root.session_repo.get_default("model") or DEFAULT_MODEL
         system_prompt = req.system_prompt or app_root.session_repo.get_default("system_prompt")
-        base_url = req.base_url or app_root.session_repo.get_default("base_url") or DEFAULT_BASE_URL
+        base_url = resolve_base_url(app_root.session_repo.get_default("base_url"), DEFAULT_BASE_URL)
 
         app_root.session_repo.create_session(
             session_id=session_id,
@@ -877,8 +913,10 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
     # Skill execution endpoints
     @app.post("/api/skills/execute", response_model=SkillExecuteResponse)
     async def execute_skill(req: SkillExecuteRequest) -> SkillExecuteResponse:
+        from app.exceptions import HITLRequiredError, PromptInjectionError, SafetyGateError
         from app.skills.builtin import register_builtin_skills
         from app.skills.registry import SkillRegistry
+        from app.skills.safety import tier_for_skill
 
         # Create a fresh registry and register built-in skills
         registry = SkillRegistry()
@@ -891,6 +929,41 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                 error=f"Skill '{req.skill_name}' not found",
             )
 
+        # Enforce the skill's safety tier before invoking it. Previously this route
+        # called the skill directly, so neither the tier nor the skill's own
+        # `requires_approval` declaration was consulted (audit S0-3, S1-23).
+        tier = tier_for_skill(skill)
+        try:
+            app_root.policy.check(
+                tool=skill.metadata.name,
+                args=dict(req.params),
+                tier=tier,
+                description=skill.metadata.description,
+            )
+        except HITLRequiredError:
+            logger.warning(
+                "Refused skill=%s tier=%s: human approval required and no approval "
+                "callback is configured",
+                skill.metadata.name,
+                tier.value,
+            )
+            return SkillExecuteResponse(
+                status="failed",
+                error=(
+                    f"Skill '{skill.metadata.name}' requires human approval "
+                    f"(tier={tier.value}) and no approval channel is configured."
+                ),
+                metadata={"tier": tier.value, "refused": True},
+            )
+        except (PromptInjectionError, SafetyGateError) as exc:
+            # Deliberately terse: the exception may quote the rejected argument.
+            logger.warning("Safety gate rejected skill=%s: %s", skill.metadata.name, exc)
+            return SkillExecuteResponse(
+                status="failed",
+                error="Request rejected by the safety gate.",
+                metadata={"tier": tier.value, "refused": True},
+            )
+
         try:
             result = await skill(**req.params)
             return SkillExecuteResponse(
@@ -899,10 +972,14 @@ def create_app(root: AppRoot | None = None, brain: CognitiveBrain | None = None)
                 error=result.error,
                 metadata=result.metadata,
             )
-        except Exception as e:
+        except Exception:
+            # Log the detail server-side; never return it to the caller. Returning
+            # `str(exc)` previously echoed provider internals (including a key embedded
+            # in a URL) straight into the response body (audit S0-4 / kill chain K9).
+            logger.exception("Skill execution failed: %s", req.skill_name)
             return SkillExecuteResponse(
                 status="failed",
-                error=str(e),
+                error=f"Skill '{req.skill_name}' failed; see server logs for details.",
             )
 
     @app.get("/api/skills")

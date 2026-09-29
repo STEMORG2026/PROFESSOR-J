@@ -6,6 +6,9 @@ from fastapi.testclient import TestClient
 
 from app.adapters.api import create_app
 
+# Matches PROFESSOR_API_KEY set in tests/conftest.py
+TEST_AUTH_HEADERS = {"Authorization": "Bearer test-key-not-a-real-credential-2f9c1a"}
+
 
 def test_health_ready() -> None:
     client = TestClient(create_app())
@@ -19,7 +22,11 @@ def test_health_ready() -> None:
 
 def test_chat_returns_brain_response() -> None:
     client = TestClient(create_app())
-    resp = client.post("/api/chat", json={"prompt": "hello", "session_id": "s1"})
+    resp = client.post(
+        "/api/chat",
+        json={"prompt": "hello", "session_id": "s1"},
+        headers=TEST_AUTH_HEADERS,
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["session_id"] == "s1"
@@ -30,14 +37,23 @@ def test_chat_returns_brain_response() -> None:
 
 def test_chat_classifies_tutorial_intent() -> None:
     client = TestClient(create_app())
-    resp = client.post("/api/chat", json={"prompt": "teach me socratic physics"})
+    resp = client.post(
+        "/api/chat",
+        json={"prompt": "teach me socratic physics"},
+        headers=TEST_AUTH_HEADERS,
+    )
     assert resp.json()["intent"] == "tutorial"
 
 
 def test_chat_stream_emits_meta_token_done() -> None:
     """The SSE endpoint streams meta, incremental token, and done events."""
     client = TestClient(create_app())
-    with client.stream("POST", "/api/chat/stream", json={"prompt": "hello streaming"}) as resp:
+    with client.stream(
+        "POST",
+        "/api/chat/stream",
+        json={"prompt": "hello streaming"},
+        headers=TEST_AUTH_HEADERS,
+    ) as resp:
         assert resp.status_code == 200
         assert resp.headers["content-type"].startswith("text/event-stream")
         events: dict[str, list[str]] = {}
@@ -66,7 +82,9 @@ def test_chat_stream_emits_meta_token_done() -> None:
 
 def test_chat_stream_meta_reports_provider() -> None:
     client = TestClient(create_app())
-    with client.stream("POST", "/api/chat/stream", json={"prompt": "hi"}) as resp:
+    with client.stream(
+        "POST", "/api/chat/stream", json={"prompt": "hi"}, headers=TEST_AUTH_HEADERS
+    ) as resp:
         meta_raw = next(
             (ln[len("data:") :].strip() for ln in resp.iter_lines() if ln.startswith("data:")),
             "",
