@@ -1,0 +1,133 @@
+name: Quality Ratchets
+
+# Scheduled, not per-PR. These are the checks that are too expensive to gate every pull request
+# but whose *absence* is how test quality silently decays. Added by the test-system audit
+# (_audit/test-system/) after mutation testing measured the domain layer at 45.8% while line
+# coverage sat at 100%.
+#
+# Deliberately NOT wired into ci.yml's PR path: a mutation run and a whole-suite coverage report
+# would add minutes to every PR for signal that changes slowly. Runs nightly, and on demand.
+
+on:
+  schedule:
+    # 03:17 UTC daily — off the hour to avoid the top-of-hour runner stampede.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: quality-ratchets-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  mutation:
+    name: Mutation score (app/domain)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up env
+        uses: ./.github/actions/setup-env
+
+      # mutmut is pinned. An unpinned mutation tool can change its operator set between runs,
+      # which would move the score without any change in test quality — exactly the kind of
+      # silent drift this workflow exists to prevent.
+      - name: Install mutmut
+        run: .venv/bin/pip install mutmut==3.8.0
+
+      # `app/domain` is mutated rather than the whole application: it is pure, fast (~1s of tests)
+      # and holds the learner/session semantics. Baseline measured by the audit: 342 killed /
+      # 164 survived / 506 total = 67.6% (up from 44.9% before the sensitivity tests). A whole-repo
+      # mutation run is the recommended eventual scope and would need a longer budget.
+      - name: Run mutation testing
+        run: .venv/bin/mutmut run --max-children 4
+
+      - name: Report score
+        run: |
+          .venv/bin/mutmut results --all true > mutmut-results.txt 2>&1 || true
+          killed=$(grep -c ': killed$' mutmut-results.txt || true)
+          survived=$(grep -c ': survived$' mutmut-results.txt || true)
+          total=$((killed + survived))
+          if [ "$total" -eq 0 ]; then
+            echo "::error::mutation run produced no results — the tool did not run"
+            exit 1
+          fi
+          score=$(awk "BEGIN {printf \"%.1f\", 100*$killed/$total}")
+          echo "Mutation score: ${score}% (${killed} killed / ${survived} survived / ${total} total)"
+          {
+            echo "### Mutation score (app/domain)"
+            echo ""
+            echo "| metric | value |"
+            echo "|---|---|"
+            echo "| killed | ${killed} |"
+            echo "| survived | ${survived} |"
+            echo "| total | ${total} |"
+            echo "| **score** | **${score}%** |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Ratchet floor, set below the measured baseline so it catches decay without being
+          # brittle. Raise it when the surviving mutants are worked down; never lower it to pass.
+          floor=60
+          if awk "BEGIN {exit !($score < $floor)}"; then
+            echo "::error::mutation score ${score}% fell below the ${floor}% ratchet"
+            exit 1
+          fi
+
+      - name: Upload mutation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-results
+          path: mutmut-results.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+  coverage:
+    name: Whole-suite coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up env
+        uses: ./.github/actions/setup-env
+
+      # The audit found `fail_under = 80` in pyproject.toml with no `--cov` in `addopts`, so the
+      # threshold could not fire from `make test` or a bare pytest — it was configuration that
+      # looked like a gate and was not one. This job is the missing invocation. The floor is
+      # *measured* (76% at the time of the audit), not invented.
+      - name: Run suite with coverage
+        run: |
+          .venv/bin/python -m pytest tests/ -q --tb=short \
+            --cov=app --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 14
+          if-no-files-found: warn
+
+      # AGENTS.md:86-87 requires >= 85% coverage for adapters. Measured whole-suite adapter coverage
+      # is 68% (app/adapters/api.py 63%, auth.py 96%) and NO gate measures it — the 80% figure in
+      # pyproject.toml cannot fire because `addopts` has no `--cov`. This step does not fail the
+      # build; it makes the gap visible and trendable so the standard/measurement conflict
+      # (report finding T-16) can be resolved by a human decision rather than by silence.
+      # Turn this into a gate only after that decision is made.
+      - name: Report adapter coverage against the AGENTS.md standard
+        if: always()
+        run: |
+          echo "### Adapter coverage vs AGENTS.md §3.5 (>= 85%)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          .venv/bin/python -m pytest tests/ -q --tb=no -p no:warnings \
+            --cov=app.adapters --cov-report=term 2>/dev/null \
+            | grep -E "^(app/adapters|TOTAL)" >> "$GITHUB_STEP_SUMMARY" || true

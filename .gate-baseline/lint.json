@@ -1,0 +1,11 @@
+{
+  "_comment": "Known pre-existing violations. The gate FAILS on any file NOT listed here (no new debt) and ALSO fails if a listed file stops violating (stale entry), so this list can only shrink. Regenerate with scripts/ratchet.py lint --update \u2014 and review the diff before committing it.",
+  "_why": "Pre-existing ruff findings, concentrated in app/skills/builtin.py (unsorted imports and blank-line whitespace) plus two unused imports in app/routers/. Fixing builtin.py's findings is entangled with reformatting 339 lines of it, which is too large to fold into a tooling change. The ratchet keeps them visible and blocks new ones; the list can only shrink.",
+  "files": [
+    "app/routers/chat.py",
+    "app/routers/lh_integration.py",
+    "app/skills/builtin.py",
+    "tests/unit/authority/test_build1_identity_gateway.py",
+    "tests/unit/authority/test_phase6_security.py"
+  ]
+}

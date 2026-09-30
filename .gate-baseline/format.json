@@ -1,0 +1,7 @@
+{
+  "_comment": "Known pre-existing violations. The gate FAILS on any file NOT listed here (no new debt) and ALSO fails if a listed file stops violating (stale entry), so this list can only shrink. Regenerate with scripts/ratchet.py format --update \u2014 and review the diff before committing it.",
+  "_why": "Files that `ruff format --check` reports. The baseline exists because reformatting app/skills/builtin.py alone rewrites 339 lines of semantically-neutral code \u2014 too large a diff to smuggle into a tooling change, and not something to do without review.",
+  "files": [
+    "app/skills/builtin.py"
+  ]
+}

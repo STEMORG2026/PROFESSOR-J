@@ -1,0 +1,133 @@
+name: Gate Mirror
+
+# CI is a MIRROR, not the gate.
+#
+# Branch protection is unavailable on this repository (private + free plan; the API returns 403 for
+# branches/main/protection), so CI cannot block anything — 30 of 30 recent runs on `main` concluded
+# `failure` and merges proceeded. Enforcement therefore lives locally in `scripts/ci_gate.py`,
+# wired to `githooks/pre-push`.
+#
+# This workflow exists to answer one question: **does the same gate pass on a clean runner?**
+# It is not the first place a problem should be discovered. If this workflow fails where the local
+# gate passed, the correct response is to add the missing stage to `scripts/ci_gate.py` — not to
+# rely on CI noticing. That rule is written down because the alternative (treating CI as the real
+# gate) is how this repository ended up with a permanently-red pipeline nobody read.
+#
+# It runs the SAME entry point as the hook. There is no second, divergent gate definition to drift.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: gate-mirror-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  gate:
+    name: Local gate, replayed on a clean runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The docs-to-code co-change check needs history to resolve commit ranges.
+          fetch-depth: 0
+
+      - name: Set up env
+        uses: ./.github/actions/setup-env
+
+      # The gate is invoked exactly as the pre-push hook invokes it. If this workflow ever needs a
+      # different command, that is a signal the gate has grown an environment dependency it should
+      # not have.
+      # Compute the commit range this run covers, so the docs-to-code co-change stage compares real
+      # commits. Without it the stage compares the worktree to HEAD, and on a clean checkout that is
+      # empty -- a green stage that inspected nothing.
+      - name: Determine the docs co-change range
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "value=${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] \
+               && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "value=${{ github.event.before }}..${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the gate
+        run: |
+          RANGE="${{ steps.range.outputs.value }}"
+          if [ -n "$RANGE" ]; then
+            echo "docs co-change range: $RANGE"
+            .venv/bin/python scripts/ci_gate.py --docs-range "$RANGE"
+          else
+            echo "docs co-change range: (none — comparing the worktree)"
+            .venv/bin/python scripts/ci_gate.py
+          fi
+
+      # Repeat-run verification: the enforcement surface must pass repeatedly, not once. A check
+      # that passed a single time has shown it CAN pass, not that it DOES.
+      #
+      # `--control` injects a genuine failure and asserts the harness detects it. Without that
+      # control, "N consecutive passes" is unfalsifiable.
+      - name: Repeat-run verification of the enforcement surface
+        if: always()
+        run: .venv/bin/python scripts/verify_repeat.py --runs 3 --control
+
+      - name: Verify the pre-push hook can refuse a push
+        if: always()
+        run: bash githooks/pre-push --self-test
+
+      - name: Upload gate + verification logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-mirror-logs
+          path: artifacts/verify-repeat/
+          retention-days: 14
+          if-no-files-found: warn
+
+  # A separate job so a docs regression is legible on its own rather than buried in one large job's
+  # output. Deliberately runs the docs stages only — it duplicates work the gate already did, which
+  # is the accepted cost of making documentation failures impossible to miss.
+  docs:
+    name: Documentation gate (explicit, non-skippable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up env
+        uses: ./.github/actions/setup-env
+
+      - name: Manifest — every doc classified exactly once
+        run: .venv/bin/python scripts/docs/manifest_validate.py
+
+      - name: Structure — headings, fences, links, drift markers
+        run: .venv/bin/python scripts/docs/check_docs.py --worktree
+
+      - name: Executable examples — doctests and markdown blocks
+        run: .venv/bin/python scripts/docs/check_executable.py
+
+      - name: Standard vs reality — documented claims that are not true
+        run: .venv/bin/python scripts/docs/check_standard_reality.py
+
+      - name: Docs-to-code co-change
+        run: .venv/bin/python scripts/docs/check_changed.py --full
+
+      # The docs system's own tests, run where a docs change cannot skip them.
+      - name: Tests for the documentation system itself
+        run: .venv/bin/python -m pytest tests/meta/ -q --tb=short

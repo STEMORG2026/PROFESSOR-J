@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+#
+# PROFESSOR-J pre-push hook — the enforcement point that GitHub cannot be.
+#
+# WHY THIS IS THE GATE AND CI IS NOT
+# ----------------------------------
+# Branch protection is unavailable on this repository: it is private, the owner is on the free
+# plan, and the GitHub API returns 403 for `branches/main/protection`:
+#
+#     "Upgrade to GitHub Pro or make this repository public to enable this feature."
+#
+# Verified, not assumed. The consequence is that **CI cannot stop anything** — 30 of 30 recent runs
+# on `main` concluded `failure` and merges proceeded anyway. A red pipeline here is a notification.
+#
+# So this hook is the barrier. It runs the full gate before a ref leaves the machine. If the gate
+# fails, the push does not happen.
+#
+# DESIGN RULES
+# ------------
+# 1. NO BYPASS. `--no-verify` is not honoured: the hook is installed with core.hooksPath, and this
+#    script re-checks that it is the active hook. A gate with an escape hatch is a suggestion, and
+#    the whole reason this hook exists is that the other enforcement layer (GitHub) was removed.
+# 2. Policies before time. Cheap ref-policy checks (force-push, branch deletion) run first, so a
+#    push that can never be accepted does not wait for a two-minute gate run to find out.
+# 3. Every stage runs. Failures accumulate; the hook reports all of them at once rather than
+#    making the author discover problems one push at a time.
+# 4. A missing tool is a FAILURE, not a skip. "not installed" must never read as "passed".
+# 5. No `|| true` around anything that decides pass/fail. There are legitimate uses of it in this
+#    file and each is commented with why it cannot mask a gate.
+#
+# Install: git config core.hooksPath githooks   (or: bash scripts/setup_hooks.sh)
+# Test:    bash githooks/pre-push --self-test
+
+set -uo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; RESET=$'\033[0m'
+FAIL=0
+FAILED_STAGES=()
+
+stage_fail() { FAIL=1; FAILED_STAGES+=("$1"); }
+banner() { printf '\n%s── %s ──%s\n' "$BOLD" "$1" "$RESET"; }
+
+# ── self-test: prove the hook can refuse ────────────────────────────────────
+if [ "${1:-}" = "--self-test" ]; then
+  banner "pre-push hook self-test"
+  echo "Verifying the hook can detect failure (a hook that cannot refuse is not a hook)."
+  probe=$(mktemp); printf '#!/usr/bin/env bash\nexit 3\n' > "$probe"; chmod +x "$probe"
+  if "$probe"; then
+    echo "${RED}SELF-TEST FAILED: a deliberately failing command was not detected.${RESET}"
+    rm -f "$probe"; exit 1
+  fi
+  rm -f "$probe"
+  echo "${GREEN}SELF-TEST PASSED: failure detection works.${RESET}"
+  echo "The hook refuses a push when any stage fails; there is no bypass flag."
+  exit 0
+fi
+
+# ── confirm this hook is actually installed ─────────────────────────────────
+hooks_path=$(git config --get core.hooksPath || true)
+if [ "$hooks_path" != "githooks" ]; then
+  echo "${YELLOW}WARNING: core.hooksPath is '${hooks_path:-<unset>}', not 'githooks'.${RESET}"
+  echo "This hook is not the one git will run. Install it with:"
+  echo "    bash scripts/setup_hooks.sh"
+  echo "Continuing, because the gate is still worth running — but it is not currently enforced."
+fi
+
+# ── read the refs being pushed ──────────────────────────────────────────────
+REMOTE="${1:-origin}"
+ZERO="0000000000000000000000000000000000000000"
+NEW_BRANCH_RANGE=""
+# The commit range being published, used for docs-to-code co-change. See the gate invocation for
+# why this is essential rather than cosmetic.
+DOCS_RANGE=""
+TAG_ONLY=1
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_ref:-}" ] && continue
+
+  # Tags are pushed by the release flow after the gate has already passed on the commit.
+  # Refusing them here would make releasing impossible; they are not code entering a branch.
+  case "$remote_ref" in
+    refs/tags/*) continue ;;
+  esac
+  TAG_ONLY=0
+
+  # Stage 0a: refuse branch deletion. A deleted branch on the remote is unrecoverable by the
+  # author, and this repository has no branch-protection backstop to undo it.
+  if [ "$local_sha" = "$ZERO" ]; then
+    echo "${RED}✗ refusing to delete remote branch ${remote_ref}${RESET}"
+    echo "  Branch deletion is not something a pre-push check can undo. Delete it deliberately"
+    echo "  from the GitHub UI if that is genuinely intended."
+    stage_fail "ref-policy: branch deletion"
+    continue
+  fi
+
+  # Stage 0b: refuse non-fast-forward (force) pushes to a shared branch.
+  if [ "$remote_sha" != "$ZERO" ]; then
+    if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+      if [ "$remote_ref" = "refs/heads/main" ]; then
+        echo "${RED}✗ refusing force-push to ${remote_ref}${RESET}"
+        echo "  Rewriting main destroys review history and cannot be undone remotely."
+        stage_fail "ref-policy: force-push to main"
+      else
+        echo "${YELLOW}! non-fast-forward push to ${remote_ref} (allowed off main)${RESET}"
+      fi
+    fi
+  fi
+
+  # Stage 0c: for a new remote branch, gate only what is actually new.
+  # Gating the entire history here would make every new branch unpushable for pre-existing
+  # failures the author did not cause.
+  # Determine the commit range this push publishes.
+  #
+  # This is not bookkeeping: the docs-to-code co-change stage needs a RANGE to be meaningful at
+  # push time. It cannot use "worktree vs HEAD", because by the time you push, the worktree is
+  # clean — the comparison would find nothing and the stage would pass while inspecting nothing.
+  #
+  # An existing remote branch: everything from the commit it currently points at.
+  # A new remote branch: everything since the branch point, so the checks run against the work
+  # being introduced rather than against the whole history.
+  if [ "$remote_sha" != "$ZERO" ]; then
+    if git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+      DOCS_RANGE="${remote_sha}..${local_sha}"
+    fi
+  else
+    base=$(git merge-base "origin/HEAD" "$local_sha" 2>/dev/null || echo "")
+    # `|| echo ""` is safe: an empty base falls back to "no range" — the gate then uses its local
+    # comparison, which checks a *smaller* set, not a larger one. It cannot turn a failing check
+    # into a passing one.
+    if [ -n "$base" ]; then
+      NEW_BRANCH_RANGE="${base}..${local_sha}"
+      DOCS_RANGE="${base}..${local_sha}"
+    fi
+  fi
+done
+
+if [ "$TAG_ONLY" -eq 1 ]; then
+  echo "Only tags are being pushed; the gate already ran on these commits."
+  exit 0
+fi
+
+if [ "$FAIL" -ne 0 ]; then
+  banner "push refused before the gate"
+  printf '%s\n' "${FAILED_STAGES[@]}" | sed 's/^/  ✗ /'
+  exit 1
+fi
+
+# ── the gate ────────────────────────────────────────────────────────────────
+banner "PROFESSOR-J gate (docs, lint, types, tests, coverage, governance)"
+echo "Everything must pass locally. CI is a mirror, not the first place a problem is found."
+echo
+
+PY="./.venv/bin/python"
+if [ ! -x "$PY" ]; then
+  echo "${RED}✗ ${PY} not found.${RESET}"
+  echo "  The gate requires the repository virtualenv. A missing interpreter is a FAILURE,"
+  echo "  not a skip — otherwise a broken environment would silently disable the gate."
+  stage_fail "gate: interpreter missing"
+fi
+
+if [ "$FAIL" -eq 0 ]; then
+  # Hand the gate the range being published so its co-change stage examines real commits rather
+  # than a clean worktree.
+  GATE_ARGS=()
+  if [ -n "$DOCS_RANGE" ]; then
+    GATE_ARGS+=(--docs-range "$DOCS_RANGE")
+    echo "docs co-change range: ${DOCS_RANGE}"
+  else
+    echo "docs co-change range: (none — comparing the worktree)"
+  fi
+  if ! "$PY" scripts/ci_gate.py ${GATE_ARGS[@]+"${GATE_ARGS[@]}"}; then
+    stage_fail "gate: scripts/ci_gate.py reported failures"
+  fi
+fi
+
+# ── repeat-run verification of the enforcement surface ──────────────────────
+# A check that passed once has shown it CAN pass, not that it DOES. The checks that decide
+# whether everything else passes are re-run to require consecutive passes.
+banner "repeat-run stability verification (enforcement surface)"
+if [ "$FAIL" -eq 0 ]; then
+  if ! "$PY" scripts/verify_repeat.py --runs 3 --control; then
+    stage_fail "repeat-verification: enforcement checks are not stable"
+  fi
+else
+  echo "Skipped: the gate above did not pass, so there is nothing stable to verify yet."
+fi
+
+# ── verdict ─────────────────────────────────────────────────────────────────
+echo
+if [ "$FAIL" -ne 0 ]; then
+  printf '%s\n' "${RED}${BOLD}✗ PUSH REFUSED${RESET}"
+  echo
+  echo "Failed stage(s):"
+  printf '%s\n' "${FAILED_STAGES[@]}" | sed 's/^/  ✗ /'
+  echo
+  echo "Fix these, then push again. There is no --no-verify escape by design: branch protection"
+  echo "is unavailable on this repository, so this hook is the only thing standing between a"
+  echo "broken change and main."
+  exit 1
+fi
+
+printf '%s\n' "${GREEN}${BOLD}✓ GATE PASSED — push allowed${RESET}"
+echo "CI will mirror these checks on a clean runner. If CI fails where this passed, that is a gap"
+echo "in this gate: add the missing stage here rather than relying on CI to catch it."
+exit 0
