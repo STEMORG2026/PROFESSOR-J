@@ -8,6 +8,52 @@
 
 ## Unreleased
 
+### Added (2026-09-30) — local gate and documentation governance
+
+Replaces the previous posture, in which CI was the only checker and could not block anything:
+branch protection is unavailable on this private/free-plan repository (API `403`), so 30 of 30
+recent CI runs on `main` concluded `failure` while merges proceeded.
+
+- `scripts/ci_gate.py` — the single local gate: 14 stages covering docs, lint, types, tests,
+  coverage and governance. No bypass flag; a missing tool is a failure, not a skip.
+- `githooks/pre-push` + `scripts/setup_hooks.sh` — enforces the gate before any ref reaches GitHub.
+  `--no-verify` is not honoured. Self-test: `bash githooks/pre-push --self-test`.
+- `scripts/verify_repeat.py` — requires N consecutive passes with per-run logs, plus a positive
+  control that injects a failure and asserts it is detected.
+- `docs.manifest.yaml` + `scripts/docs/` — every markdown file classified exactly once, with
+  doc-to-code co-change detection, executable examples, and standard-vs-reality checking.
+- `scripts/ratchet.py` — baseline ratchet for lint/format debt; fails on new violations *and* on
+  stale baseline entries, so the baseline can only shrink.
+- `tests/meta/` — 23 tests for the enforcement system itself, including positive controls that
+  assert each check can actually fail.
+- `scripts/declared_defects.py` — the two known product defects (12 failing tests; 5 tools without
+  `@safety_gate`), declared by name. Declared failures are printed every run and do not fail the
+  gate; undeclared failures do; a declaration that stops reproducing fails as stale. The list can
+  only shrink.
+- `.github/workflows/gate-mirror.yml` — CI as a **mirror** of the local gate, not the gate.
+- `AGENTS.md` §5.1/§5.2 — the local-gate policy and the documentation rules.
+- `docs/700-open-work.md` — the resume guide: what is built, how to verify it, what is unfinished,
+  and the traps. Referenced from `AGENTS.md` §4. **Read this first when picking the work up again.**
+
+### Fixed (2026-09-30)
+
+- **The docs-to-code co-change stage passed vacuously at push time.** It compared the *worktree* to
+  HEAD, which is empty on a clean tree — and a clean tree is the normal state when you push, because
+  you have just committed. The stage was therefore reporting a pass while inspecting nothing.
+  `scripts/ci_gate.py` now takes `--docs-range A..B`, `githooks/pre-push` passes the range actually
+  being published, and `.github/workflows/gate-mirror.yml` computes the equivalent range for pull
+  requests and pushes.
+- **`scripts/setup_hooks.sh` now states what it disables.** Setting `core.hooksPath` redirects git's
+  entire hook lookup, so anything installed by the `pre-commit` framework into `.git/hooks/` stops
+  running. The script and `AGENTS.md` §5.1 now say so explicitly, and `docs/700-open-work.md`
+  records the missing `githooks/pre-commit`.
+- Whitespace only, no behaviour change (verified with `git diff -w`): missing trailing newline in
+  `app/authority/__init__.py`, `scripts/verify.py`, `scripts/verify_git_safety.py`; trailing
+  whitespace in `app/routers/chat.py`.
+- `docs/CONSTITUTION.md` and `board/personas/README.md` carried multiple H1 headings, so their
+  section structure did not reflect their actual hierarchy. Numbered sections demoted to H2; the
+  personas file given a real document title.
+
 ### Added (2026-09)
 - **Agent Orchestration Plane (Phase 9+10+11):** complete orchestration stack
   - `app/acp/` — ACP JSON-RPC 2.0 server (`ACPServer`, `ACPRequest`, `ACPResponse`)

@@ -84,7 +84,12 @@ propose or act, but never override repository governance or workspace invariants
   `strict: true` in mypy.
 - **TypeScript (Frontend):** Next.js 15 App Router, React 19, strict mode, zero `any` types.
 - **Test Coverage:** ≥ 95% line coverage for domain and cognitive engine logic; ≥ 85% for
-  adapters.
+  adapters. **Enforcement status is not uniform — see the table in `docs/500-software-testing.md`.**
+  `app.domain` (≥ 95%) and `app.brain` (≥ 95%) are gated and met. `app.adapters` and `app.tools`
+  are **documented but not yet met** (67.5% and 83.3% respectively) and are measured and reported
+  rather than gated, because a permanently-red gate is one people learn to bypass. The discrepancy
+  is escalated, not hidden: `scripts/docs/check_standard_reality.py` fails the gate whenever a
+  documented threshold has no enforcing gate, so this cannot drift back silently.
 - **Conventional Commits:** `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
 
 ---
@@ -92,11 +97,13 @@ propose or act, but never override repository governance or workspace invariants
 ## 4. Starting Work
 
 1. Read `AGENTS.md`, `docs/GOVERNANCE.md`, `PRD.md`, `ARCHITECTURE-ESSENTIALS.md`.
-2. Classify your work into **NOW / SEAM / LATER / OUT OF SCOPE**.
-3. State a short plan before modifying files.
-4. Write tests alongside implementation (TDD encouraged).
-5. Check if an ADR is needed (new architectural decision → write ADR first).
-6. Run verification commands before ending the session.
+2. **Picking up existing work?** Read `docs/700-open-work.md` first — it records what is built, how
+   to verify it, what is unfinished, and the traps that have already cost time once.
+3. Classify your work into **NOW / SEAM / LATER / OUT OF SCOPE**.
+4. State a short plan before modifying files.
+5. Write tests alongside implementation (TDD encouraged).
+6. Check if an ADR is needed (new architectural decision → write ADR first).
+7. Run verification commands before ending the session.
 
 ---
 
@@ -109,12 +116,65 @@ propose or act, but never override repository governance or workspace invariants
 # Typecheck backend (strict)
 .venv/bin/mypy app/
 
-# Pre-commit (ruff, ruff-format, mypy, eof fixes)
-.venv/bin/pre-commit run --all-files
+# THE GATE (docs, lint, types, tests, coverage, governance) — run this, not the parts
+python3 scripts/ci_gate.py
+
+# Repeated-run verification of the enforcement surface (N consecutive passes, per-run logs)
+python3 scripts/verify_repeat.py --runs 3 --control
 
 # Frontend (Phase 7+, once `frontend/` exists)
 # cd frontend && pnpm typecheck && pnpm lint
 ```
+
+---
+
+### 5.1. The gate is local, because GitHub cannot enforce
+
+**Branch protection is unavailable on this repository** — it is private, the owner is on the free
+plan, and the API returns `403` for `branches/main/protection`. Verified, not assumed. So CI cannot
+block a merge, and 30 of 30 recent runs on `main` concluded `failure` while merges proceeded.
+
+Enforcement therefore lives in `scripts/ci_gate.py`, wired to `githooks/pre-push`.
+**Everything must pass locally before a ref reaches GitHub.** CI is a *mirror*: if it ever fails
+where the gate passed, add the missing stage to the gate rather than relying on CI to catch it.
+
+There is **no bypass flag**, and `--no-verify` is not honoured. Missing tools are failures, never
+skips.
+
+> **Install it per clone — git cannot do this automatically.**
+> ```bash
+> bash scripts/setup_hooks.sh          # once per clone
+> bash scripts/setup_hooks.sh --check  # verify
+> ```
+> `core.hooksPath` lives in `.git/config`, which is not versioned, so **a fresh clone is unprotected
+> until this runs**. If you are checking whether enforcement is real, check this first.
+>
+> Note the consequence: `core.hooksPath` redirects git's *entire* hook lookup to `githooks/`, so
+> hooks installed by `pre-commit install` into `.git/hooks/` will **not** run. There is currently no
+> `githooks/pre-commit` (see `docs/700-open-work.md` §3.5).
+
+> **Do not run `pre-commit run --all-files`.** It is listed in older instructions and it rewrites
+> files unrelated to the current change, because the tree is already non-conformant (measured at
+> `42b2587`: `ruff format --check` would reformat 6 files). Use the gate, which checks read-only, or
+> `pre-commit run --files <paths>` for a specific change.
+
+### 5.2. Documentation is a gated surface
+
+Docs are enforced, not advisory. `docs.manifest.yaml` classifies **every** markdown file exactly
+once (`kind`, `staleness`, `covers`, `owner`), and the gate fails when:
+
+- a doc is neither classified nor marked `standalone, reviewed YYYY-MM-DD: <reason>`;
+- a `covers` binding points at a path that does not exist;
+- code under a doc's `covers` changes without that doc changing in the same commit — unless the
+  commit carries an explicit `Docs-Not-Needed: <reason>` trailer. Most-specific binding blocks;
+  broader bindings warn. Silence is never accepted as a reason;
+- a doc states a threshold that no gate enforces;
+- an executable example in a docstring or a markdown block fails, or a Python block does not parse;
+- internal links or heading structure break.
+
+`scripts/docs/check_executable.py` **executes** documented examples rather than only parsing them,
+and reports each block by how it was verified (executed / doctested / compiled-only / skipped) so
+the summary can never imply more coverage than was achieved.
 
 ---
 
