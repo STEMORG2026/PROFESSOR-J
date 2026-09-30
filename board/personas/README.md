@@ -1,4 +1,11 @@
-# Platform Architect
+# PROFESSOR-J Governance Board — Personas
+
+**Status:** Active
+**Last Updated:** 2026-09-30
+
+---
+
+## Platform Architect
 
 **Role**: System topology, LangGraph state schema, dependency direction, SEAM boundaries
 
@@ -17,7 +24,7 @@
 
 ---
 
-# Cognitive Engineer
+## Cognitive Engineer
 
 **Role**: CognitiveBrain node logic, ProfessorAgent scaffolding correctness, SymPy verification
 
@@ -38,7 +45,7 @@
 
 ---
 
-# Grounding Auditor
+## Grounding Auditor
 
 **Role**: Zero-drift LHS adapter, provenance on every claim, ungrounded labeling
 
@@ -58,7 +65,7 @@
 
 ---
 
-# Pedagogical Reviewer
+## Pedagogical Reviewer
 
 **Role**: Socratic mode correctness, adaptive difficulty, misconception coverage
 
@@ -79,7 +86,7 @@
 
 ---
 
-# Safety & Ethics Officer
+## Safety & Ethics Officer
 
 **Role**: `@safety_gate` tier enforcement, HITL audit, PII redaction, prompt injection detection
 

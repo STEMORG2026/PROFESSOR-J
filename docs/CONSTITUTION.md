@@ -11,7 +11,7 @@
 
 ---
 
-# 0. PURPOSE
+## 0. PURPOSE
 
 This document is the **development constitution**. It defines how PROFESSOR-J is to be
 designed, implemented, documented, tested, debugged, governed, and evolved.
@@ -32,7 +32,7 @@ does**, but also:
 
 ---
 
-# 1. WHAT PROFESSOR-J IS
+## 1. WHAT PROFESSOR-J IS
 
 PROFESSOR-J is the **next-generation successor to JARVIS** — an autonomous, general-purpose
 AI platform. It is an **Autonomous AI Professor, Research Companion, and Personal AI
@@ -42,7 +42,7 @@ It is **not** a single product: it is a platform whose primary domains include t
 research, coding, and everyday personal assistance — grounded in verified knowledge when
 available, and capable of operating generally when not.
 
-# 2. NON-NEGOTIABLES
+## 2. NON-NEGOTIABLES
 
 These constraints may not be traded away without a recorded ADR that the human owner
 accepts:
@@ -65,7 +65,7 @@ accepts:
 9. **Humans decide.** AI agents propose and draft; the human owner decides. Nothing
    AI-produced becomes authoritative without review.
 
-# 3. HOW THE PROJECT IS GOVERNED
+## 3. HOW THE PROJECT IS GOVERNED
 
 - Authority precedence: workspace L1 → PROFESSOR-J L2 → architecture → implementation
   (see `docs/GOVERNANCE.md`).
@@ -74,12 +74,12 @@ accepts:
 - Standards for coding, docs, and working live in `docs/STANDARDS.md`.
 - The values the project commits to live in `docs/PRINCIPLES.md`.
 
-# 4. SCOPE DISCIPLINE
+## 4. SCOPE DISCIPLINE
 
 All work is classified NOW / SEAM / LATER / OUT OF SCOPE (see `docs/GOVERNANCE.md` §3).
 The roadmap and its phase gates are in `docs/400-roadmap.md` and `IMPLEMENTATION-PLAN.md`.
 
-# 5. AMENDMENT
+## 5. AMENDMENT
 
 This constitution is amended only by a recorded ADR accepted by the human owner. Agents
 may propose amendments; they may not adopt them unilaterally.

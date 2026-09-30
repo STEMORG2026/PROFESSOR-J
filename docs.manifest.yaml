@@ -1,0 +1,455 @@
+# Doc-to-code manifest (PROFESSOR-J docs governance v1).
+#
+# Modelled on the system proven in JARVIS (docs.manifest.yaml + scripts/docs/), adopted here because
+# PROFESSOR-J's previous `verify-docs` CI job only asserted that eleven files EXIST. File existence
+# is not documentation governance: it cannot detect a doc that describes code which no longer
+# behaves that way, which is the failure mode that actually costs readers.
+#
+# CONTRACT — enforced by scripts/docs/manifest_validate.py:
+#   * Every git-tracked *.md must appear in exactly ONE section below, or carry an explicit
+#     "standalone, reviewed YYYY-MM-DD: <reason>" line in its first 20 lines.
+#   * `covers` maps the doc to the code paths it describes. This drives doc-to-code co-change
+#     detection (docs/check_changed.py R1): a change under a doc's `covers` paths without a change
+#     to that doc is a FAILURE unless the commit carries an explicit `Docs-Not-Needed: <reason>`
+#     trailer. Silence is never accepted as a reason.
+#   * `kind: generated` docs are produced by `generator` and are diffed against their committed
+#     content; never hand-edit one. `kind: hand` docs are human-authored and never overwritten.
+#   * `staleness` declares how the doc decays, which selects its review rule:
+#       facts    — asserts concrete values (counts, paths, flags). Must be regenerated.
+#       content  — describes current structure/behaviour. Must change with the code it covers.
+#       semantic — states intent, policy or principles. Reviewed on a schedule.
+#       snapshot — a point-in-time record. NEVER edited in place; superseded, not corrected.
+#
+# Field values are validated against a closed set by manifest_validate.py. An unknown `staleness`
+# or `kind` is an error rather than a silently-ignored typo — JARVIS learned this the hard way: a
+# misspelled value means the rule that should have applied never ran.
+
+version: 1
+
+sections:
+  # ── Root governance (the documents that define how this repo is run) ──────────────────────────
+  - doc: AGENTS.md
+    covers: [scripts/, githooks/, .github/, Makefile, .pre-commit-config.yaml, docs.manifest.yaml]
+    kind: hand
+    staleness: semantic
+    owner: governance
+    notes: |
+      Operating instructions for humans and agents. Covers the tooling surface deliberately: when
+      the gate, the docs system or the hooks change, this file must change with them.
+
+  - doc: README.md
+    covers: [app/main.py, app/bootstrap.py, requirements.txt]
+    kind: hand
+    staleness: content
+    owner: platform
+
+  - doc: PRD.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: product
+    notes: Product requirements; states intent, not current implementation.
+
+  - doc: ARCHITECTURE.md
+    covers: [app/]
+    kind: hand
+    staleness: content
+    owner: architecture
+    notes: Living architecture at HEAD; must change when the module topology changes.
+
+  - doc: ARCHITECTURE-ESSENTIALS.md
+    covers: [app/adapters/, app/tools/sandbox.py, app/guardrails/]
+    kind: hand
+    staleness: content
+    owner: architecture
+    notes: Quick-reference topology and the safety-gate protocol.
+
+  - doc: IMPLEMENTATION-PLAN.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: product
+    notes: Phased roadmap; forward-looking intent.
+
+  # ── Docs that record a specific past audit (snapshots — never edited in place) ────────────────
+  - doc: SKILL-AUDIT.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: governance
+    notes: Point-in-time skill audit; superseded by later work, never corrected in place.
+
+  - doc: UI_REDESIGN_PLAN.md
+    covers: [frontend/]
+    kind: hand
+    staleness: semantic
+    owner: frontend
+    notes: Design intent for a not-yet-built surface; becomes `content` once frontend/ lands.
+
+  # ── docs/ — the numbered Project Operating System ─────────────────────────────────────────────
+  - doc: docs/100-identity.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/101-context.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/102-problem.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/103-stakeholders.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/105-education-learners.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: education
+  - doc: docs/200-goals.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: product
+  - doc: docs/201-constraints.md
+    covers: [requirements.txt, app/config/]
+    kind: hand
+    staleness: content
+    owner: architecture
+  - doc: docs/202-principles.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/204-education-learning-objectives.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: education
+
+  - doc: docs/300-architecture.md
+    covers: [app/]
+    kind: hand
+    staleness: content
+    owner: architecture
+  - doc: docs/301-decisions.md
+    covers: [docs/adr/, app/authority/]
+    notes: |
+      Index of ADRs. Also the live owner of `app/authority/`: the three phase-6 boundary reports
+      under docs/architecture/ also describe that subsystem, but they are `snapshot` docs and a
+      snapshot must never be edited. Binding live code to a doc that cannot change produces a
+      permanent, unsatisfiable co-change finding — so ownership sits here instead.
+    kind: hand
+    staleness: content
+    owner: architecture
+    notes: Index of ADRs; must change when an ADR is added.
+  - doc: docs/302-software-api.md
+    covers: [app/adapters/api.py, app/models/catalog.py, app/main.py]
+    kind: hand
+    staleness: facts
+    owner: platform
+    notes: |
+      Documents the HTTP surface. This is a `facts` doc because it enumerates routes: the route
+      count is asserted against the live app by the API-facts check. PROFESSOR-J has TWO app
+      factories (app/adapters/api.py:937 with 34 routes, app/main.py:121 with 8) and this document
+      must say which one it is describing.
+  - doc: docs/303-software-data-model.md
+    covers: [app/db/, app/domain/, app/memory/]
+    kind: hand
+    staleness: content
+    owner: platform
+  - doc: docs/306-education-pedagogy-curriculum.md
+    covers: [app/brain/]
+    kind: hand
+    staleness: content
+    owner: education
+  - doc: docs/307-education-content-structure.md
+    covers: [app/knowledge/]
+    kind: hand
+    staleness: content
+    owner: education
+  - doc: docs/400-roadmap.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: product
+  - doc: docs/500-software-testing.md
+    covers: [tests/, scripts/ci_gate.py, .github/workflows/]
+    kind: hand
+    staleness: facts
+    owner: quality
+    notes: |
+      States the testing standard. A `facts` doc because it asserts thresholds and commands that
+      must match reality — the class of document where PROFESSOR-J previously drifted (AGENTS.md
+      §3.5 claims >= 85% adapter coverage; measured 68% with no gate). The standard-vs-reality
+      check reads this file.
+  - doc: docs/503-education-assessment-evaluation.md
+    covers: [app/brain/]
+    kind: hand
+    staleness: content
+    owner: education
+  - doc: docs/600-changelog.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: platform
+    notes: Append-only release history; entries are point-in-time facts.
+  - doc: docs/700-open-work.md
+    covers: []
+    kind: hand
+    staleness: content
+    owner: quality
+    notes: |
+      The resume guide: what is built, how to verify it, what is unfinished, and the traps. Read
+      this first when picking the work up again.
+      `covers: []` is deliberate and explained in the document itself: its subject is OPEN WORK,
+      which changes independently of any one file. Binding it would produce a blocking co-change
+      finding on every unrelated commit, which is how a rule gets bypassed rather than followed.
+      The cost is that nothing will mechanically notice when it goes stale — review it when the
+      gate's interface changes or an item closes.
+  - doc: docs/601-agents.md
+    covers: [app/brain/, app/orchestration/]
+    kind: hand
+    staleness: content
+    owner: platform
+  - doc: docs/650-workspace-operations.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+    notes: Workspace/umbrella awareness record; describes the environment, not this repo's code.
+
+  # ── docs/ — governance set ────────────────────────────────────────────────────────────────────
+  - doc: docs/CAPABILITY-CONTRACT.md
+    covers: [app/]
+    kind: hand
+    staleness: content
+    owner: architecture
+  - doc: docs/CONSTITUTION.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/GOVERNANCE.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/PRINCIPLES.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/RULES.md
+    covers: [.pre-commit-config.yaml, scripts/ci_gate.py]
+    kind: hand
+    staleness: content
+    owner: governance
+    notes: Enforceable rules; must change when enforcement changes.
+  - doc: docs/STANDARDS.md
+    covers: [pyproject.toml, .pre-commit-config.yaml]
+    kind: hand
+    staleness: facts
+    owner: governance
+    notes: Coding/documentation standards with concrete thresholds — a `facts` doc.
+  - doc: docs/VERSIONING.md
+    covers: [docs/600-changelog.md]
+    kind: hand
+    staleness: semantic
+    owner: governance
+  - doc: docs/WORKING-PROCEDURE.md
+    covers: [scripts/ci_gate.py]
+    kind: hand
+    staleness: content
+    owner: governance
+    notes: How work gets done; describes the gate it must be run through.
+
+  # ── docs/adr/ — architecture decision records ─────────────────────────────────────────────────
+  - doc: docs/adr/ADR-001-successor-decision.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: architecture
+    notes: Accepted ADR; immutable by convention.
+  - doc: docs/adr/ADR-002-pattern-inheritance.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: architecture
+  - doc: docs/adr/ADR-003-langgraph-orchestration.md
+    covers: [app/orchestration/]
+    kind: hand
+    staleness: snapshot
+    owner: architecture
+  - doc: docs/adr/ADR-004-jarvis-frozen.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: architecture
+  - doc: docs/adr/template.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: architecture
+    notes: Blank ADR template, not a decision.
+
+  # ── docs/architecture/ — point-in-time verification reports ───────────────────────────────────
+  - doc: docs/architecture/JARVIS-PROFESSORJ-COMPARISON.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: architecture
+  - doc: docs/architecture/PHASE-6-FINAL-BOUNDARY-VERIFICATION.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: security
+    notes: |
+      Phase-6 boundary verification. IMPORTANT: this is a `snapshot`, so it is never edited in
+      place — but its subject matter (the authority boundary) is covered by tests that must keep
+      passing. If those tests are removed the snapshot becomes misleading; the authority test
+      directory carries a `covers` binding in the reverse index for that reason.
+  - doc: docs/architecture/PHASE-6B-CERTIFICATION-REPORT.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: security
+  - doc: docs/architecture/PROFESSOR-J-AUTHORITY-FORENSIC-AUDIT.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: security
+
+  - doc: docs/architecture/PROFESSOR-J-AUDIT-2026-09-30.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: quality
+    notes: |
+      The PRODUCT audit report (phases 1-5 plus H1-H5), distinct from the test-system audit which
+      lives under _audit/ and is excluded from the repository. A point-in-time record: never
+      corrected in place, only superseded.
+      This file was untracked and unclassified until the manifest validator was extended to see
+      untracked markdown. The validator named it on its first run — the system working as intended,
+      and the reason that extension matters.
+
+  # ── docs/archive/ — superseded, kept for provenance ───────────────────────────────────────────
+  - doc: docs/archive/650-workspace-operations.md
+    covers: []
+    kind: hand
+    staleness: snapshot
+    owner: governance
+    notes: Superseded by docs/650-workspace-operations.md; retained for provenance only.
+
+  # ── docs/gamedev/ — the game-development subsystem contract set ───────────────────────────────
+  - doc: docs/gamedev/ARCHITECTURE.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+  - doc: docs/gamedev/CERTIFICATION.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: snapshot
+    owner: gamedev
+  - doc: docs/gamedev/COGNITIVE_REPAIR.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+  - doc: docs/gamedev/DETERMINISTIC_REPLAY.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+    notes: |
+      The central guarantee of this subsystem. Its executable examples must actually run —
+      docs/check_executable.py executes the Python blocks in this file.
+  - doc: docs/gamedev/ENGINE_BINDING.md
+    covers: [app/gamedev/adapters/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+  - doc: docs/gamedev/GAMECORE_CONTRACT.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: facts
+    owner: gamedev
+    notes: A contract document — enumerates required interface members.
+  - doc: docs/gamedev/GENERALIZATION_BENCHMARKS.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: facts
+    owner: gamedev
+    notes: |
+      Asserts benchmark numbers. A `facts` doc, and the highest-risk document in the repository
+      for silent decay: a benchmark figure that is no longer reproducible is indistinguishable
+      from a true one to a reader.
+  - doc: docs/gamedev/PRESENTATION_CONTRACT.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: facts
+    owner: gamedev
+  - doc: docs/gamedev/SYNTHESIS_PROTOCOL.md
+    covers: [app/gamedev/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+  - doc: docs/gamedev/UNITY_ADAPTER.md
+    covers: [app/gamedev/adapters/]
+    kind: hand
+    staleness: content
+    owner: gamedev
+
+  # ── Subsystem READMEs and operational docs ────────────────────────────────────────────────────
+  - doc: agents_dev/skills/README.md
+    covers: [agents_dev/]
+    kind: hand
+    staleness: content
+    owner: governance
+  - doc: agents_dev/skills/stem-tuition-content-developer.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: education
+  - doc: agents_dev/skills/stem-tuition-content-engine.md
+    covers: []
+    kind: hand
+    staleness: semantic
+    owner: education
+  - doc: agents_dev/stem-tuition/current-state.md
+    covers: [agents_dev/]
+    kind: hand
+    staleness: content
+    owner: education
+  - doc: agents_dev/stem-tuition/workflow.md
+    covers: [agents_dev/]
+    kind: hand
+    staleness: content
+    owner: education
+
+  - doc: board/personas/README.md
+    covers: [board/personas/, scripts/board/]
+    kind: hand
+    staleness: content
+    owner: governance
+  - doc: scripts/board/ledger.md
+    covers: [scripts/board/review.py]
+    kind: hand
+    staleness: snapshot
+    owner: governance
+    notes: |
+      Append-only governance ledger written by scripts/board/review.py. Gitignored at runtime
+      (.gitignore:48) but a tracked template; never edited by hand.
+
+  - doc: frontend/README.md
+    covers: [frontend/]
+    kind: hand
+    staleness: content
+    owner: frontend
