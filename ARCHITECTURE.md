@@ -318,3 +318,14 @@ sequenceDiagram
    package level; integration is via contracts/adapters.
 6. **General by Default:** The platform must remain capable of general assistance; education
    and research are primary domains, not exclusive.
+
+---
+
+## Maintenance notes
+
+**2026-09-30 — whitespace normalisation.** `app/routers/chat.py` had trailing whitespace and
+`app/authority/__init__.py` was missing a trailing newline. Both were corrected as part of making
+the local gate satisfiable. `git diff -w` confirms no non-whitespace change in either file; no
+behaviour is affected. Recorded here because the docs-to-code co-change check requires that code
+changes either carry their doc or state an explicit reason, and "the change is invisible" is a
+reason worth writing down rather than assuming.

@@ -35,19 +35,19 @@ class ChatResponse(BaseModel):
 async def chat(request: ChatRequest) -> ChatResponse:
     """
     Chat endpoint for LearningHub frontend.
-    
+
     Routes messages through the orchestration plane:
     1. Agent router selects best model for the task
     2. Model provider generates response
     3. Response returned to LH frontend
     """
     last_message = request.messages[-1].content if request.messages else ""
-    
+
     # Route through orchestration plane
     # For now, echo back with model info
     # In production: call model router → provider → stream response
     response = f"PROFESSOR-J orchestration response: {last_message}"
-    
+
     return ChatResponse(
         message=response,
         model=request.model,
