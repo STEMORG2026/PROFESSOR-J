@@ -135,6 +135,23 @@ The gate's own failure detection is tested, not assumed:
 * The manifest validator's universe includes **untracked** markdown, so a newly written doc cannot
   escape classification on the way in.
 
+### Probabilistic tests are measured by rate, not asserted once
+
+A test that asserts a probabilistic outcome is not a deterministic check, and treating it as one
+makes the *gate itself* unreliable. `test_benchmark_2_farming_production` drives the model-backed
+repair loop and requires the repair to succeed; on 2026-09-30 it failed 3 of 13 isolated runs, and 4
+of 10 with `PYTHONHASHSEED=0` pinned.
+
+It carries the `nondeterministic_repair` marker (registered in `pyproject.toml`), which the gate
+deselects. That deselection is deliberate and visible rather than a skip: the marker, its reason and
+its count are recorded, and a nightly job runs the test **20 times and publishes the success rate**,
+failing only below a 50% floor.
+
+The reasoning is a direct application of the rule above: **one green run of a probabilistic test
+proves nothing.** Where a capability is probabilistic, the *rate* is the measurement and a floor on
+that rate is the assertion. A single pass/fail would report noise as signal in both directions —
+absorbing genuine breakage on a lucky run, and failing an unrelated push on an unlucky one.
+
 ### The lint ratchet, and why not a plain format check
 
 `ruff format --check` reports two pre-existing non-conformant files. A stage that fails on

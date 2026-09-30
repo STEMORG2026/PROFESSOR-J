@@ -155,6 +155,15 @@ class FarmingGameCore(BaseGameCore):
         return True, ""
 
 
+# INTERMITTENT, and measured rather than assumed: this test failed 3 of 13 isolated runs (and 4 of
+# 10 with PYTHONHASHSEED pinned to 0, which rules out hash-order as the cause). The failing run
+# reported exit_code=1, duration_ms=961 with iterations=1, so it is NOT the 10s sandbox watchdog:
+# the repair proposal is applied, the test still fails, and no further edit is judged safe.
+#
+# The variability lives in the model-backed repair loop under app/gamedev/, which is outside the
+# scope of a test-integrity change. Excluding it from the gate is a decision about WHERE it is
+# measured, not permission for it to fail: the nightly repeated-run job reports its success rate.
+@pytest.mark.nondeterministic_repair
 @pytest.mark.asyncio
 async def test_benchmark_2_farming_production(
     temp_workspace: WorkspaceManager, sandbox: CodeSandbox

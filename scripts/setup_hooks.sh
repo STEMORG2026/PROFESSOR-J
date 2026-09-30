@@ -13,7 +13,7 @@
 # The same redirection means hooks installed by the `pre-commit` framework into `.git/hooks/`
 # (from .pre-commit-config.yaml) will NO LONGER RUN. That is a real behaviour change, not a
 # footnote: this script does not silently disable anything without saying so. There is currently no
-# `githooks/pre-commit`, so nothing runs at commit time. See docs/700-open-work.md 3.5.
+# `githooks/pre-commit`, so nothing runs at commit time. See docs/700-open-work.md 3.6.
 #
 # Usage: bash scripts/setup_hooks.sh [--check]
 
@@ -69,4 +69,4 @@ echo "The pre-push hook runs the full gate and has no bypass flag."
 echo
 echo "NOTE: core.hooksPath=$WANT supersedes hooks in .git/hooks/, so anything installed by"
 echo "      'pre-commit install' will not run. There is no githooks/pre-commit yet."
-echo "      See docs/700-open-work.md section 3.5."
+echo "      See docs/700-open-work.md section 3.6."

@@ -151,7 +151,7 @@ skips.
 >
 > Note the consequence: `core.hooksPath` redirects git's *entire* hook lookup to `githooks/`, so
 > hooks installed by `pre-commit install` into `.git/hooks/` will **not** run. There is currently no
-> `githooks/pre-commit` (see `docs/700-open-work.md` §3.5).
+> `githooks/pre-commit` (see `docs/700-open-work.md` §3.6).
 
 > **Do not run `pre-commit run --all-files`.** It is listed in older instructions and it rewrites
 > files unrelated to the current change, because the tree is already non-conformant (measured at
