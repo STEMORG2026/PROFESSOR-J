@@ -15,6 +15,13 @@
 - **Boundaries:** `app/domain/` is pure; `app/brain/` never imports web frameworks;
   code execution only in the sandbox; no package-level coupling to other repos.
 - **Single-tenant** personal platform first.
+- **Credentials and origins are server-owned.** A caller may not nominate the upstream origin for a
+  credential the server holds; the allow-list lives in `app/adapters/auth.py`. A provider must have
+  its settings declared in `app/config/settings.py` before it can be selected — the Bluesmind
+  provider was selectable while `bluesmind_api_key` / `bluesmind_base_url` were undeclared, so
+  choosing it raised `AttributeError` at runtime (S2-17). Declaration is part of adding a provider.
+- **Startup is logged.** `app/main.py` calls `setup_logging()` before serving, so startup is
+  recorded structurally rather than inferred from stdout.
 
 ## Assumptions (that, if false, would change the design)
 

@@ -83,6 +83,15 @@ PROFESSOR-J/
 
 ---
 
+## 🪵 Startup & Logging
+
+`app/main.py` configures structured logging via `setup_logging()` **before** anything else runs, so
+startup itself is recorded. Configure it with the standard logging environment variables; the
+gateway's ingress decisions (rejected credentials, refused origins) are logged with their reasons,
+because an authentication check that fails silently is indistinguishable from one that is absent.
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Backend Setup
@@ -101,10 +110,16 @@ The `frontend/` app is not built yet — this is planned work, not present.
 ```
 
 ### 3. Verification
+
+The gate is the single entry point — it runs the docs, lint, format, type, test, coverage and
+governance stages, and it is what the pre-push hook enforces. Do **not** run
+`pre-commit run --all-files`: it rewrites files unrelated to your change, because the tree is not
+yet fully conformant. Use `pre-commit run --files <paths>` when you want the framework's hooks for a
+specific change.
+
 ```bash
-.venv/bin/python -m pytest tests/    # Python test suite
-.venv/bin/mypy app/                  # strict typecheck
-.venv/bin/pre-commit run --all-files # ruff, ruff-format, mypy, eof fixes
+.venv/bin/python scripts/ci_gate.py   # THE gate: docs, lint, types, tests, coverage, governance
+bash scripts/setup_hooks.sh           # install the pre-push hook (once per clone)
 ```
 
 ---
@@ -121,9 +136,9 @@ The `frontend/` app is not built yet — this is planned work, not present.
 
 ## 📜 Governance
 
-Read **[`AGENTS.md`]**, **[`docs/GOVERNANCE.md`]**, and **[`docs/ARCHITECTURE-ESSENTIALS.md`]**
+Read **[`AGENTS.md`]**, **[`docs/GOVERNANCE.md`]**, and **[`ARCHITECTURE-ESSENTIALS.md`]**
 before contributing.
 
 [`AGENTS.md`]: AGENTS.md
 [`docs/GOVERNANCE.md`]: docs/GOVERNANCE.md
-[`docs/ARCHITECTURE-ESSENTIALS.md`]: ARCHITECTURE-ESSENTIALS.md
+[`ARCHITECTURE-ESSENTIALS.md`]: ARCHITECTURE-ESSENTIALS.md
