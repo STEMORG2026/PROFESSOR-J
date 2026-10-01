@@ -1,8 +1,8 @@
 # DASHBOARD — PROFESSOR-J
 
 > **Executive summary. Read this first.**
-> **Last Reconciled:** 2026-10-01T10:05Z
-> **Reconciled by:** A7F3 (bootstrap agent)
+> **Last Reconciled:** 2026-10-01T22:15Z
+> **Reconciled by:** A7F3 (bootstrap + CI-greening agent, shutdown)
 > **Repo:** STEMORG2026/PROFESSOR-J (public, org-owned) · default branch `main`
 
 ---
@@ -19,13 +19,15 @@ the **pattern level only** — no package coupling.
 | Area | State |
 |---|---|
 | Working tree | clean, on `fix/containment-48h` @ `164d631` |
-| Local gate | **14/14 PASS** (14 stages, no bypass flag) |
+| Local gate | **14/14 PASS** locally (no bypass flag) |
+| CI mirror (clean runner) | **13/14** — `Tests` now green; `mypy` still red on 2 stale `type: ignore` in `app/` |
 | Repeat verifier | 5/5 checks green over 3 consecutive runs |
 | Test suite | 882 passed · 12 declared failures · 4 xfailed · 1 deselected (rate-measured) |
 | Docs governance | 67 docs classified exactly once · 0 errors · 346 warnings |
 | `main` CI | 🔴 every `ci.yml` job fails — see §4 |
 | Ruleset `main` | ⚠️ **`evaluate` mode** (deliberately non-blocking) |
-| Open PR | **#129** (`fix/containment-48h` → `main`) |
+| Open PR | **#129** (`fix/containment-48h` → `main`) — `MERGEABLE`, unmerged |
+| MACP | v2 adopted; protocol persisted at `state/PROTOCOL.md` |
 
 ## 3. Critical alerts
 
@@ -35,7 +37,7 @@ the **pattern level only** — no package coupling.
 | A2 | `types-PyYAML` is installed in dev venvs but **not declared** in `requirements.txt`; CI cannot type-check the 5 modules that import `yaml`. | 🟠 MED |
 | A3 | 5 tools/skill-modules lack `@safety_gate`. Verified **latent** (unreferenced) but `computer_use.py` launches processes via `subprocess.Popen`. | 🟠 MED |
 | A4 | Local venv is **Python 3.14.7**; CI runs **3.11**. Gate can pass locally where CI cannot, for interpreter reasons. | 🟠 MED |
-| A5 | Local branch `main` is **5 commits behind** `origin/main`. | 🟡 LOW |
+| A5 | Local branch `main` is behind `origin/main`. | 🟡 LOW |
 
 ## 4. Why `main`'s CI is red (root cause, verified)
 
@@ -64,7 +66,12 @@ Jobs now actually run, which exposed the next layer:
 - Documentation governance: `docs.manifest.yaml` + 5 checkers under `scripts/docs/`.
 - Fixed 3 "passes while inspecting nothing" defects (vacuous co-change, format ratchet, and the
   uninstallable `requirements.txt`).
-- Made `requirements.txt` installable again.
+- Made `requirements.txt` installable again, then declared two undeclared dependencies.
+- Adopted MACP v2 and persisted the protocol in-repo.
+- Re-tightened the declared-defect baseline 12 → 9 after finding the declarations were
+  environment-dependent (sibling-repo export absent on CI, stale locally).
+- Corrected 4 stale "branch protection is impossible" claims.
+- CI mirror advanced 12/14 → 13/14 (the `Tests` stage is green on a clean runner).
 
 ## 6. Next actions (priority order)
 

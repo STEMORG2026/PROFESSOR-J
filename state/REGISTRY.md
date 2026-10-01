@@ -5,7 +5,7 @@
 
 | Agent ID | Type | Branch | Task (one line) | Started (UTC) | Status | Claims (files/dirs) |
 |---|---|---|---|---|---|---|
-| A7F3 | DeepSeek v4.1 Flash (DSH) | `fix/containment-48h` | Bootstrap MACP; green the CI mirror; reconcile `state/` with docs governance | 2026-10-01T12:09Z | IN-PROGRESS | `state/`, `requirements.txt`, `scripts/docs/manifest_validate.py`, `docs.manifest.yaml`, `scripts/declared_defects.py` |
+| A7F3 | DeepSeek v4.1 Flash (DSH) | `fix/containment-48h` | Bootstrap MACP; green the CI mirror; reconcile `state/` with docs governance | 2026-10-01T12:09Z | **PARTIAL** (released) | none — all claims released at shutdown |
 
 ## Coordination notes
 

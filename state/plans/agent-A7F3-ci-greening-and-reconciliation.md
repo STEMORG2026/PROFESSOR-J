@@ -1,4 +1,4 @@
-# Plan — agent A7F3: reconcile `state/` with governance, then green the CI mirror
+# Plan (PARTIAL — see status note at the end) — agent A7F3: reconcile `state/` with governance, then green the CI mirror
 
 ## Objective
 Make the required GitHub status check `Local gate, replayed on a clean runner` pass on a clean
@@ -50,3 +50,19 @@ while keeping the MACP `state/` directory governed rather than exempted by accid
 3. PR #129 shows `Local gate, replayed on a clean runner` **green**.
 4. Ruleset `active` with no deadlock, and `allowed_merge_methods` consistent with linear history.
 5. Working tree clean; all work committed and pushed; `state/` updated.
+
+
+---
+
+## Status at shutdown — PARTIAL
+
+| # | Success criterion | Result |
+|---|---|---|
+| 1 | Manifest passes with `state/` present; still fails on a genuinely unclassified doc outside it | ✅ met, with 4 boundary tests + a two-checker agreement test |
+| 2 | `python scripts/ci_gate.py` → 14/14 locally | ✅ met |
+| 3 | PR #129 shows `Local gate` **green** | ❌ **not met** — 13/14; `mypy` red on 2 stale `# type: ignore` in `app/` |
+| 4 | Ruleset `active`, `allowed_merge_methods` consistent | ❌ not attempted — criterion 3 is its precondition |
+| 5 | Tree clean; work committed and pushed; `state/` updated | ✅ met |
+
+**Why it stopped:** the remaining fix is an `app/` change, which this agent is not authorized to
+make. Recorded as B3 `[NEEDS HUMAN]`. Plan file retained (not deleted) because it is incomplete.

@@ -5,7 +5,7 @@
 
 | Session ID | Agent | Date (UTC) | Title | Files touched | Status | Branch |
 |---|---|---|---|---|---|---|
-| 20261001-1209-A7F3 | A7F3 | 2026-10-01 | Bootstrap MACP + repository audit | `state/**` | IN-PROGRESS | `fix/containment-48h` |
+| 20261001-1209-A7F3 | A7F3 | 2026-10-01 | Bootstrap MACP; MACP v2 amendment; docs-governance reconciliation; CI mirror 12/14 → 13/14 | `state/**`, `requirements.txt`, `docs.manifest.yaml`, `scripts/docs/*`, `scripts/declared_defects.py`, `AGENTS.md`, `docs/500`, `docs/700`, `githooks/pre-push`, `tests/meta/`, `tests/unit/knowledge/test_lhs_adapter.py` | **PARTIAL** (B3 needs human) | `fix/containment-48h` |
 
 ## Search guidance
 
