@@ -595,3 +595,64 @@ class TestRatchetIsNotVacuous:
             f"a broken ratchet command exited {proc.returncode}; it must exit non-zero (2) rather "
             f"than report a pass. stdout={proc.stdout!r} stderr={proc.stderr!r}"
         )
+
+
+class TestSubtreeExemptionIsBounded:
+    """ADR-001 exempts `state/` from per-file classification.
+
+    An exemption with no verifier is precisely how a governance rule becomes a loophole, so this
+    class pins three properties: it is *justified* (never an empty reason), it is *bounded* (only
+    the declared subtree, and a sibling filename cannot slip through on a prefix match), and it is
+    *visible* (printed on every run, including --quiet, so it cannot quietly grow).
+    """
+
+    @staticmethod
+    def _validator() -> ModuleType:
+        sys.path.insert(0, str(REPO_ROOT / "scripts" / "docs"))
+        return importlib.import_module("manifest_validate")
+
+    def test_every_exempt_subtree_carries_a_written_reason(self) -> None:
+        mv = self._validator()
+        table = mv.EXEMPT_SUBTREES
+        assert table, "the exemption table exists but is empty — this test would be vacuous"
+        for prefix, reason in table.items():
+            assert prefix.endswith("/"), f"{prefix!r} must be a directory subtree, not a file"
+            assert len(reason.strip()) > 30, (
+                f"{prefix!r} carries no meaningful justification. An unexplained exemption is "
+                f"indistinguishable from an accident."
+            )
+
+    def test_the_exemption_matches_the_declared_subtree_and_nothing_else(self) -> None:
+        mv = self._validator()
+        # In-subtree files are exempt.
+        assert mv._exempt_reason("state/DASHBOARD.md") is not None
+        assert mv._exempt_reason("state/sessions/20261001-1209-A7F3-x.md") is not None
+        # Everything else is not. `stateful.md` is the important case: a naive prefix test would
+        # exempt it, and a root-level filename sharing a prefix with an exempt directory is exactly
+        # how an exemption silently widens.
+        assert mv._exempt_reason("stateful.md") is None
+        assert mv._exempt_reason("docs/700-open-work.md") is None
+        assert mv._exempt_reason("README.md") is None
+
+    def test_an_unclassified_doc_outside_the_exempt_subtree_is_still_rejected(self) -> None:
+        """The bounded-ness proof at the process level, not just the predicate level."""
+        intruder = REPO_ROOT / "docs" / "_meta_test_exempt_scope.md"
+        intruder.write_text("# Unclassified\n\nOutside the exempt subtree, so still an error.\n")
+        try:
+            proc = run([PY, "scripts/docs/manifest_validate.py", "--quiet"])
+            assert (
+                proc.returncode != 0
+            ), "the exemption widened: an unclassified doc outside state/ was accepted"
+            assert "R4a-unclassified" in proc.stdout
+        finally:
+            intruder.unlink(missing_ok=True)
+
+    def test_the_exemption_is_printed_even_in_quiet_mode(self) -> None:
+        """Silence would let the exemption grow unnoticed. It must announce itself every run."""
+        proc = run([PY, "scripts/docs/manifest_validate.py", "--quiet"])
+        if not (REPO_ROOT / "state").exists():
+            pytest.skip("state/ not present; nothing to exempt")
+        assert (
+            "exempt subtree" in proc.stdout
+        ), "the subtree exemption is not reported, so it can grow without anyone seeing it"
+        assert "state/" in proc.stdout

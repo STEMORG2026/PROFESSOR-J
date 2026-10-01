@@ -8,6 +8,13 @@
 # CONTRACT — enforced by scripts/docs/manifest_validate.py:
 #   * Every git-tracked *.md must appear in exactly ONE section below, or carry an explicit
 #     "standalone, reviewed YYYY-MM-DD: <reason>" line in its first 20 lines.
+#   * ONE reasoned exception exists: subtrees listed in EXEMPT_SUBTREES in
+#     scripts/docs/manifest_validate.py are outside the classification universe entirely. Only
+#     `state/` is exempt today, because MACP's coordination surface (sessions/, plans/, INDEX.md)
+#     changes on EVERY agent session and would otherwise fail the gate for bookkeeping reasons —
+#     which would train agents to bypass the gate. The exemption is printed on every validation
+#     run, including --quiet, so it cannot quietly become a loophole. See state/DECISIONS.md
+#     ADR-001. Adding a second entry requires an ADR.
 #   * `covers` maps the doc to the code paths it describes. This drives doc-to-code co-change
 #     detection (docs/check_changed.py R1): a change under a doc's `covers` paths without a change
 #     to that doc is a FAILURE unless the commit carries an explicit `Docs-Not-Needed: <reason>`
