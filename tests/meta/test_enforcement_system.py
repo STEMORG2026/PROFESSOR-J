@@ -656,3 +656,25 @@ class TestSubtreeExemptionIsBounded:
             "exempt subtree" in proc.stdout
         ), "the subtree exemption is not reported, so it can grow without anyone seeing it"
         assert "state/" in proc.stdout
+
+    def test_both_checkers_honour_the_exemption(self) -> None:
+        """The classification rule is enforced by TWO checkers — and they once disagreed.
+
+        `manifest_validate.py` (R4a) and `check_docs.py` (D9) each decided independently whether a
+        doc was classified. Exempting a subtree in one left the other failing, so the exemption was
+        half-applied while appearing complete, and the gate still refused the push. This pins the
+        agreement, because the failure mode is invisible from either checker alone.
+        """
+        if not (REPO_ROOT / "state").exists():
+            pytest.skip("state/ not present; nothing to exempt")
+
+        mv = run([PY, "scripts/docs/manifest_validate.py"])
+        assert (
+            "R4a-unclassified" not in mv.stdout
+        ), f"manifest_validate.py does not honour the subtree exemption:\n{mv.stdout[:600]}"
+
+        cd = run([PY, "scripts/docs/check_docs.py", "--worktree"])
+        assert "D9-standalone-undated" not in cd.stdout, (
+            f"check_docs.py does not honour the subtree exemption — the rule is enforced in two "
+            f"places and they have drifted apart:\n{cd.stdout[:600]}"
+        )

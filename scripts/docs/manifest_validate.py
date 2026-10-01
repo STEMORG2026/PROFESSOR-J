@@ -36,39 +36,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _common import (  # noqa: E402
+from _common import (  # noqa: E402  # noqa: E402
+    EXEMPT_SUBTREES,
     REPO_ROOT,
     Report,
+    exempt_reason as _exempt_reason,
     load_manifest,
     read_from_index,
     standalone_reason,
     tracked_markdown,
 )
-
-# Subtrees exempt from per-file classification (R4a only).
-#
-# Each entry MUST carry a written reason, and the exemption is printed on EVERY run so it stays
-# visible rather than becoming folklore. An exemption cannot weaken R4b or R4c, because an exempted
-# doc is not in the manifest at all — the vocabulary and binding checks simply have nothing to say
-# about a file nobody classified.
-#
-# This exists because MACP's `state/` coordination surface changes on every agent session. Without
-# a subtree rule, each new session file would fail the gate, and a gate that fails for bookkeeping
-# reasons on every session is one agents learn to bypass — the exact failure mode this system
-# exists to prevent. Rationale and rejected alternatives: state/DECISIONS.md ADR-001.
-EXEMPT_SUBTREES: dict[str, str] = {
-    "state/": (
-        "MACP coordination surface: sessions/, plans/ and INDEX.md change on every agent session"
-    ),
-}
-
-
-def _exempt_reason(doc: str) -> str | None:
-    """Return the declared reason this doc's subtree is exempt from classification, or None."""
-    for prefix, reason in EXEMPT_SUBTREES.items():
-        if doc == prefix.rstrip("/") or doc.startswith(prefix):
-            return reason
-    return None
 
 
 def _covers_target_exists(entry: str) -> tuple[bool, str]:

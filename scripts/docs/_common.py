@@ -273,3 +273,28 @@ def is_code_path(entry: str) -> bool:
     if e.endswith(_CODE_SUFFIXES):
         return True
     return e.startswith(_CODE_ROOT_PREFIXES)
+
+
+# ── Subtree exemptions (single source of truth) ─────────────────────────────────────────────
+#
+# The rule "every markdown file must be classified or standalone-dated" is enforced by TWO
+# checkers: manifest_validate.py (R4a) and check_docs.py (D9). They previously each decided that
+# for themselves, so exempting a subtree in one still failed in the other — the exemption was
+# half-implemented and looked complete. Keeping the table here makes disagreement impossible.
+#
+# Each entry MUST carry a written reason, and every checker prints the exemption on every run, so
+# it stays visible rather than becoming folklore. Rationale and rejected alternatives:
+# state/DECISIONS.md ADR-001.
+EXEMPT_SUBTREES: dict[str, str] = {
+    "state/": (
+        "MACP coordination surface: sessions/, plans/ and INDEX.md change on every agent session"
+    ),
+}
+
+
+def exempt_reason(doc: str) -> str | None:
+    """Return the declared reason this doc's subtree is exempt from doc governance, or None."""
+    for prefix, reason in EXEMPT_SUBTREES.items():
+        if doc == prefix.rstrip("/") or doc.startswith(prefix):
+            return reason
+    return None

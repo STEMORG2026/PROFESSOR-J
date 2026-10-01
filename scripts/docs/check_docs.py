@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     REPO_ROOT,
     Report,
+    exempt_reason,
     load_manifest,
     read_from_index,
     standalone_reason,
@@ -274,7 +275,10 @@ def main(argv: list[str]) -> int:
 
     sections, _ = load_manifest()
     manifest_docs = {s.doc for s in sections}
-    docs = paths or tracked_markdown()
+    # Exempt subtrees are outside doc governance entirely (ADR-001). This check is the SECOND
+    # place the classification rule is enforced, and it must agree with manifest_validate.py —
+    # they once disagreed, so the exemption was half-applied and looked complete.
+    docs = [d for d in (paths or tracked_markdown()) if not exempt_reason(d)]
 
     report = Report()
     report.checked = len(docs)

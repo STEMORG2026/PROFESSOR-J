@@ -196,9 +196,10 @@ if [ "$FAIL" -ne 0 ]; then
   echo "Failed stage(s):"
   printf '%s\n' "${FAILED_STAGES[@]}" | sed 's/^/  ✗ /'
   echo
-  echo "Fix these, then push again. There is no --no-verify escape by design: branch protection"
-  echo "is unavailable on this repository, so this hook is the only thing standing between a"
-  echo "broken change and main."
+  echo "Fix these, then push again. There is no --no-verify escape by design. A branch ruleset"
+  echo "named 'main' requires this gate's mirror as a status check, but it is deliberately left in"
+  echo "'evaluate' mode until that mirror passes on a clean runner -- so this hook remains the thing"
+  echo "standing between a broken change and main."
   exit 1
 fi
 
