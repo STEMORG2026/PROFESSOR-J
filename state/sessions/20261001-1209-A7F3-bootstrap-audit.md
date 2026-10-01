@@ -1,9 +1,10 @@
 # Session 20261001-1209-A7F3 — Bootstrap MACP + repository audit
 
 - **Agent:** A7F3 (DeepSeek v4.1 Flash, DSH harness)
-- **Branch:** `fix/containment-48h` @ `164d631`
+- **Branch:** `fix/containment-48h`
+- **Base commit:** `4ba2c8a`
 - **Started:** 2026-10-01T12:09Z
-- **Status:** IN-PROGRESS
+- **Status:** PARTIAL (released)
 
 ## Live log
 
@@ -200,3 +201,46 @@ and compare against local. Do not guess this one twice.
 3. Diagnose `Security scan` (D9).
 4. Merge PR #129 to land the workflows on `main`.
 5. Triage stashes (D10); decide the 5 `@safety_gate` findings (latent, unreferenced today).
+
+
+---
+
+## Commit list (P6 — complete, verified against `git log 4ba2c8a..HEAD`)
+
+**Content commits** — `git log 4ba2c8a..HEAD --oneline`:
+
+| Commit | Subject |
+|---|---|
+| `99e0eb7` | docs(state): adopt MACP v2 (P1-P6), defer P7, persist protocol in-repo |
+| `fb971ba` | fix(deps): declare PyYAML and types-PyYAML instead of relying on luck |
+| `87a5784` | fix(tests): a declared defect must reproduce everywhere, not just here |
+| `eb1f830` | fix(docs): one exemption table, because two checkers disagreed |
+
+**Bookkeeping note — why this list cannot be "complete" in the literal sense.** The
+shutdown and P2 commits that carry this file are deliberately excluded, because **a commit
+cannot record its own hash.** Chasing that would recurse forever: fixing the list creates a
+commit that invalidates the list. The terminating rule is therefore:
+
+> The commit list covers every commit from the session base up to the last **content**
+> commit. Bookkeeping commits (`chore(state): …`) that follow are identified by subject, not
+> by hash, and are the ones an auditor will find with `git log --oneline`.
+
+This was found by running P2's check literally (the list said 5, reality said 5, and adding
+the fix made it 6). The check is now stated against content commits, which is the version
+that can actually hold.
+
+Commits before the session base (`4ba2c8a`) are recorded in `docs/600-changelog.md`.
+
+## P2 verification loop — iteration 1 result
+
+| Check | Result |
+|---|---|
+| `git log 4ba2c8a..HEAD` matches the commit list | ✅ content commits all present (bookkeeping commits excluded by construction — see note above) |
+| `git status --porcelain` clean | ✅ |
+| Session header matches `REGISTRY.md` | ❌ **found**: header said `IN-PROGRESS`, REGISTRY said `PARTIAL` → record error, fixed |
+| Commit list present at all | ❌ **found**: missing entirely (P6 violation) → record error, fixed |
+| DASHBOARD alert rows vs BLOCKERS rows | ✅ 5 vs 5 |
+| Header carried the full P6 schema | ❌ **found**: `Base commit` absent → fixed |
+
+Three record errors, zero reality errors — so no return to work mode was required (P1 applies
+only to reality errors). Iteration 2 re-runs the same checks after these fixes.
