@@ -12,9 +12,35 @@
 |-----------|----------|------------|----------|
 | Chat/stream | POST `/api/v1/chat/stream` → SSE | `/v1` in path | frontend |
 | Voice signaling | WS `/api/v1/voice/signal` (WebRTC) | `/v1` in path | frontend |
-| Auth | Bearer token (`PROFESSOR_API_KEY`) | header | all clients |
+| Auth | Bearer token (`PROFESSOR_API_KEY`), enforced per router | header | all clients |
 | LHS knowledge | file contract: `exports/knowledge.json` schema | `export_version` / `schema_version` (currently `0.1`) | `app/knowledge/` |
 | Provider pool | provider API contracts (per provider) | pinned catalogs | `app/models/` |
+
+## Authentication & egress allow-listing (enforced)
+
+Both controls live in `app/adapters/auth.py` and both **fail closed**. They exist because an audit
+established that all 34 routes were reachable without credentials (S0-1) and that a caller-supplied
+`base_url` was paired with the server's own provider credential (S0-2).
+
+**Ingress.** Routers are mounted with `dependencies=[Depends(require_api_key)]`. A request must carry
+the configured bearer token. If that token is absent **or is a known placeholder**, *every* request
+is rejected and the reason is logged — a placeholder token is not a weaker password but a publicly
+known one, so honouring it would be worse than no check at all, because it would appear in the route
+table as an enforced dependency while enforcing nothing.
+
+**Egress.** `resolve_base_url(candidate, default)` decides which upstream origins the server may be
+pointed at, and whether a credential the *server* owns may be sent there. A server-side provider
+credential may travel only to an allow-listed origin; a caller that nominates its own origin must
+supply its own credential. Precedence:
+
+1. Origins named in `PROFESSOR_ALLOWED_BASE_URLS` (comma-separated).
+2. Provider endpoints the server itself owns (`singularity_base_url`, `bluesmind_base_url`).
+3. Loopback origins on any port — the local-inference path (Ollama, llama.cpp), which cannot
+   exfiltrate a credential off the machine.
+
+**Removed, not deprecated:** the caller-supplied `base_url` field on provider-select routes. Pairing
+a caller's URL with the server's own `DEFAULT_API_KEY` handed the workspace credential to an
+arbitrary host.
 
 ## Contract format & versioning discipline
 

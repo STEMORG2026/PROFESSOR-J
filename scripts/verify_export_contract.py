@@ -58,28 +58,31 @@ def main() -> int:
             else:
                 exports["knowledge-json"] = {
                     "path": "../STEMMA/exports/knowledge.json",
-                    "expected": {"sha256": actual}
+                    "expected": {"sha256": actual},
                 }
             data["exports"] = exports
             yaml.safe_dump(data, MANIFEST.open("w"), sort_keys=False, default_flow_style=False)
-            print(f"export-contract: recorded new digest for knowledge-json")
+            print("export-contract: recorded new digest for knowledge-json")
         else:
             # Create minimal manifest
             data = {
                 "exports": {
                     "knowledge-json": {
                         "path": "../STEMMA/exports/knowledge.json",
-                        "expected": {"sha256": actual}
+                        "expected": {"sha256": actual},
                     }
                 }
             }
             yaml.safe_dump(data, MANIFEST.open("w"), sort_keys=False, default_flow_style=False)
-            print(f"export-contract: created manifest with digest for knowledge-json")
+            print("export-contract: created manifest with digest for knowledge-json")
 
     else:
         # Verify mode - check against manifest
         if not MANIFEST.is_file():
-            print(f"export-contract: manifest not found at {MANIFEST.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"export-contract: manifest not found at {MANIFEST.relative_to(REPO_ROOT)}",
+                file=sys.stderr,
+            )
             return 1
 
         data = yaml.safe_load(MANIFEST.read_text()) or {}
@@ -96,7 +99,11 @@ def main() -> int:
             return 1
 
         if pinned != actual:
-            print(f"export-contract: knowledge-json DRIFT — digest mismatch (content regenerated without record)", file=sys.stderr)
+            print(
+                "export-contract: knowledge-json DRIFT — digest mismatch "
+                "(content regenerated without record)",
+                file=sys.stderr,
+            )
             return 1
 
     print("export-contract OK: STEMMA knowledge.json matches pinned digest")

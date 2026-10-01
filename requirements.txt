@@ -9,7 +9,17 @@ python-dotenv==1.2.3
 # Logging
 python-json-logger==4.2.0
 
+# YAML — imported directly by app/authority/gateway.py and by scripts/. Previously reached
+# only transitively via chromadb/bandit/pre_commit/..., so an unrelated dependency change
+# could silently remove it at runtime.
+PyYAML==6.0.2
+
 # OpenTelemetry + Langfuse
+# These three are released in lockstep and constrain each other: the OTLP exporter
+# requires `opentelemetry-sdk~=<its own version>`. They were pinned to 1.29.0 / 1.29.0 /
+# 1.44.0, which is unsatisfiable — `pip install -r requirements.txt` failed with
+# ResolutionImpossible, so EVERY CI job died in "Set up env" before running a single test,
+# and a fresh clone could not be installed at all. Keep all three on one version.
 opentelemetry-api==1.45.0
 opentelemetry-sdk==1.45.0
 opentelemetry-exporter-otlp-proto-http==1.45.0
@@ -63,5 +73,9 @@ pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 hypothesis==6.168.2
 mypy==2.3.1
+# Stubs for the above. Without these, mypy reports 'Library stubs not installed for "yaml"'
+# in 5 files — locally invisible because dev venvs happened to already have them, which is
+# exactly the kind of undeclared dependency that makes CI disagree with local.
+types-PyYAML==6.0.12.20260815
 pre-commit==4.6.2
 ruff==0.16.9

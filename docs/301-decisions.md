@@ -27,3 +27,16 @@ attributed to a decider (default: Sajan).
 **What triggers a new record.** Any new architectural decision, a deliberate deviation
 from governance, a change to a stable interface, or a significant product-scope change.
 Inline remarks are not a substitute.
+
+---
+
+## Ownership note
+
+`app/authority/` is bound to this document because it has no ADR of its own and its three phase-6
+reports under `docs/architecture/` are `snapshot` documents, which must never be edited. When
+`app/authority/` changes materially, either add an ADR here (preferred — the authority boundary is
+exactly the kind of decision an ADR exists for) or note the change below.
+
+- **2026-09-30** — trailing newline added to `app/authority/__init__.py`. Whitespace only; no
+  behaviour change, so no ADR is warranted. Registered here so the co-change check has a real
+  record rather than an unstated exemption.

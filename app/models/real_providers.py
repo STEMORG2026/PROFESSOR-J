@@ -330,12 +330,20 @@ class GoogleProvider(LLMProvider):
         if "top_k" in kwargs:
             payload["generationConfig"]["topK"] = kwargs["top_k"]
 
-        url = f"{self.base_url}/models/{self.model}:generateContent?key={self.api_key}"
+        # The API key travels in a header, never in the URL -- a query-string key leaks
+        # into access logs, proxy logs and httpx's own HTTPStatusError message, which the
+        # API previously serialised back to the caller (audit S0-4 / kill chain K9).
+        url = f"{self.base_url}/models/{self.model}:generateContent"
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 resp = await client.post(
-                    url, json=payload, headers={"Content-Type": "application/json"}
+                    url,
+                    json=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": self.api_key or "",
+                    },
                 )
         except httpx.TimeoutException as e:
             raise ProviderTimeoutError(

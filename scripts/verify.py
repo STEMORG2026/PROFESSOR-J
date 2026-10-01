@@ -20,7 +20,7 @@ def main() -> int:
     for cmd in [
         [".venv/bin/python", "-m", "pytest", "tests/", "-q"],
         [".venv/bin/mypy", "app/"],
-        [".venv/bin/pre-commit", "run", "--all-files"]
+        [".venv/bin/pre-commit", "run", "--all-files"],
     ]:
         print(f"→ Verifying PROFESSOR-J: {' '.join(cmd)}")
         result = subprocess.run(cmd, cwd=REPO_ROOT)

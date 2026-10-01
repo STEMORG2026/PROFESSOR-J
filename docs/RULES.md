@@ -34,7 +34,8 @@ marked **ALERT** requires review/acknowledgement.
 | Rule | Severity | Enforcement |
 |------|----------|-------------|
 | Tests are written alongside implementation | BLOCK | CI test run |
-| Domain/brain coverage ≥ 95%, adapter coverage ≥ 85% | ALERT | Coverage report in CI |
+| Domain coverage ≥ 95% and brain coverage ≥ 95% | BLOCK | `coverage-domain` and `coverage-brain` gate stages |
+| Adapter coverage ≥ 85% (**aspirational target**; measured 67.5% — see `docs/500-software-testing.md`) | ALERT | Reported every run. No gate, because a permanently-red stage is one people learn to bypass |
 | `mypy --strict` passes on `app/` | BLOCK | CI typecheck |
 | Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`) | BLOCK | Commit-lint |
 | No `any` in TypeScript | BLOCK | Frontend typecheck |

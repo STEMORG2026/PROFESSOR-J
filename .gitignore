@@ -18,6 +18,15 @@ dist/
 test-results/
 coverage/
 
+# Repeat-run verification logs (scripts/verify_repeat.py).
+# These are per-run evidence produced by the gate, not source: regenerated on every run and
+# uploaded as CI artifacts. Kept out of the tree so a verification run never dirties it.
+/artifacts/verify-repeat/
+
+# Coverage JSON written by the gate's coverage stages for exact measurement
+# (scripts/ci_gate.py reads totals.percent_covered from it). Transient: rewritten every run.
+/coverage.json
+
 # Editors
 .vscode/
 .idea/
@@ -59,3 +68,6 @@ board/ledger.md
 /test_*.py
 /test_*.wav
 /piper_voices/
+
+# Database backups (contain learner data; never commit)
+data/backups/

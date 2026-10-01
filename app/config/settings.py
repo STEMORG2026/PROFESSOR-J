@@ -99,6 +99,18 @@ class Settings(BaseSettings):
         default="https://api.singularityapi.dev/v1",
         validation_alias=AliasChoices("SINGULARITY_BASE_URL", "PROFESSOR_SINGULARITY_BASE_URL"),
     )
+    # ── Bluesmind (OpenAI-compatible) ────────────────────────────────
+    # These were missing while `_make_provider_for` already read them and `.env`
+    # already declared BLUESMIND_API_KEY, so selecting the provider raised
+    # AttributeError (audit S2-17). Declared here to complete the contract.
+    bluesmind_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BLUESMIND_API_KEY", "PROFESSOR_BLUESMIND_API_KEY"),
+    )
+    bluesmind_base_url: str = Field(
+        default="https://api.bluesmind.ai/v1",
+        validation_alias=AliasChoices("BLUESMIND_BASE_URL", "PROFESSOR_BLUESMIND_BASE_URL"),
+    )
 
     # ── Vector Store ─────────────────────────────────────────────────
     chroma_host: str = "localhost"

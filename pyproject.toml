@@ -64,6 +64,9 @@ ignore_errors = true
 testpaths = ["tests"]
 addopts = "-q --tb=short"
 asyncio_mode = "auto"
+markers = [
+    "nondeterministic_repair: asserts a PROBABILISTIC outcome of the model-backed repair loop. Excluded from the deterministic gate, because a gate that fails 20% of the time for reasons unrelated to the change teaches people to bypass it. Measured instead by the repeated-run job in .github/workflows/quality-ratchets.yml, which reports the actual success rate rather than a single pass/fail.",
+]
 
 [tool.ruff]
 line-length = 100

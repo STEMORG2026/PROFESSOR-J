@@ -181,7 +181,23 @@ provider.add_span_processor(processor)
 
 ---
 
-## 9. Quick Verification Commands
+## 9. Ingress Boundary — Authentication & Egress Allow-Listing
+
+`app/adapters/auth.py` is the single ingress boundary for the HTTP surface. It was added after an
+audit found all 34 routes reachable without credentials (S0-1) and a caller-supplied `base_url`
+paired with the server's own provider key (S0-2).
+
+Both controls fail closed:
+
+| Control | Guarantee |
+|---------|-----------|
+| `require_api_key` | Mounted per router via `Depends`. Rejects requests without the configured bearer token. An absent **or placeholder** token rejects *everything* — a placeholder is a publicly known credential, so accepting it would be worse than no check, because it would look enforced. |
+| `resolve_base_url` | A server-owned credential may travel only to an allow-listed origin. A caller nominating its own origin must bring its own credential. Allow-list precedence: `PROFESSOR_ALLOWED_BASE_URLS`, then server-owned provider endpoints, then loopback on any port for local inference. |
+
+`auth_is_configured()` lets startup fail loudly rather than silently serving an unauthenticated API.
+The caller-supplied `base_url` field was **removed**, not deprecated.
+
+## 10. Quick Verification Commands
 
 ```bash
 # Backend

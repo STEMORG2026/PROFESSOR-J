@@ -15,8 +15,6 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
 from app.acp import create_acp_server
-from app.routers.chat import chat_router
-from app.routers.lh_integration import lh_router
 from app.bootstrap import build_root
 from app.orchestration import (
     create_agent_router,
@@ -24,6 +22,8 @@ from app.orchestration import (
     create_plugin_registry,
     create_subagent_manager,
 )
+from app.routers.chat import chat_router
+from app.routers.lh_integration import lh_router
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,10 @@ _hooks_system = create_hooks_system()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifecycle manager."""
+    # Configure structured logging before anything else runs, so startup is recorded.
+    from app.logging_config import setup_logging
+
+    setup_logging()
     build_root()
     logger.info("PROFESSOR-J server starting (version=%s)", _VERSION)
     yield

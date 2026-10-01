@@ -37,6 +37,26 @@
 
 ---
 
+### 1.4 Test markers
+
+`pyproject.toml`, under `[tool.pytest.ini_options]`, is the single registry of test markers, and
+every marker used in the suite must be declared there. An undeclared marker is more than a warning:
+`-m` matches on the name, so a mistyped marker deselects **nothing**, and a test meant to be
+excluded keeps running while the command that excludes it appears to work.
+
+Two markers carry policy rather than metadata:
+
+- **`nondeterministic_repair`** — the test asserts a *probabilistic* outcome (the model-backed repair
+  loop), so a single pass/fail is noise in both directions. The gate deselects it, and a nightly job
+  runs it 20 times and enforces a floor on the **success rate**. The rate is the assertion; see
+  `docs/500-software-testing.md`.
+- **`asyncio`** — declares an async test, with `asyncio_mode = "auto"`.
+
+A test that can pass and fail on identical inputs is not permitted to enter the suite unmarked:
+either make it deterministic, or declare a marker and give it a measured floor. Note that
+`scripts/declared_defects.py` cannot absorb such a test — that mechanism fails the gate when a
+declared failure *stops* failing, so intermittent failures are structurally undeclarable.
+
 ## 2. Documentation standards
 
 | Document | Where | Purpose |

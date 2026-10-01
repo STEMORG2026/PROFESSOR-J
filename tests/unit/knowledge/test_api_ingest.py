@@ -8,6 +8,9 @@ from fastapi.testclient import TestClient
 
 from app.adapters.api import create_app
 
+# Matches PROFESSOR_API_KEY set in tests/conftest.py
+TEST_AUTH_HEADERS = {"Authorization": "Bearer test-key-not-a-real-credential-2f9c1a"}
+
 
 def _make_pdf(path: Path, text: str = "Forces equal mass times acceleration.\n" * 40) -> Path:
     """Write a real PDF via PyMuPDF so PDFExtractor can read it."""
@@ -29,6 +32,7 @@ class TestApiIngest:
             resp = client.post(
                 "/api/ingest",
                 files={"file": ("paper.pdf", f, "application/pdf")},
+                headers=TEST_AUTH_HEADERS,
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -42,6 +46,7 @@ class TestApiIngest:
         resp = client.post(
             "/api/ingest",
             files={"file": ("notes.txt", b"hello", "text/plain")},
+            headers=TEST_AUTH_HEADERS,
         )
         assert resp.status_code == 415
 
@@ -53,6 +58,7 @@ class TestApiIngest:
                 "/api/ingest",
                 files={"file": ("p.pdf", f, "application/pdf")},
                 data={"source": "my-label.pdf"},
+                headers=TEST_AUTH_HEADERS,
             )
         assert resp.status_code == 200
         assert resp.json()["source"] == "my-label.pdf"
@@ -68,6 +74,7 @@ class TestApiIngest:
                     "session_id": "s-int",
                 },
                 files={"file": ("laws.pdf", f, "application/pdf")},
+                headers=TEST_AUTH_HEADERS,
             )
         # Tolerate either a direct answer or a grounded response intent;
         # key point: it must not 500, and it must include the model reply.
