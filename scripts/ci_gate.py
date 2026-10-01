@@ -92,7 +92,7 @@ class Stage:
     # Enforce a coverage floor by reading coverage.py's JSON report, instead of relying on
     # `--cov-fail-under` plus pytest's exit code.
     #
-    # WHY: this repository has 12 pre-existing test failures spanning the layers these coverage
+    # WHY: this repository has 9 pre-existing test failures spanning the layers these coverage
     # stages measure. `--cov-fail-under` reports "Required test coverage reached" and pytest STILL
     # exits 1, because a test failed. Keying the stage on that exit code reports a coverage failure
     # that is really a test failure — the same defect counted twice, and the coverage number made
@@ -280,7 +280,7 @@ def build_stages(*, quick: bool = False, docs_range: str = "") -> list[Stage]:
             docs="The one coverage gate that was already load-bearing. Kept.",
         ),
         # ── Whole-suite coverage, judged on COVERAGE ONLY ───────────────────────────────────
-        # These stages span layers whose tests include the 12 pre-existing failures (8 authority,
+        # These stages span layers whose tests include the 9 pre-existing failures (8 authority,
         # 3 LHS contract, 1 voice). `--cov-fail-under` reports "Required test coverage reached" and
         # pytest STILL exits 1, because a test failed. Keying the stage on pytest's exit code would
         # therefore report a coverage failure that is really a test failure — the same defect

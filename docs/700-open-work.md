@@ -34,11 +34,11 @@ is per-clone. See §5.1.
 | Local gate (`scripts/ci_gate.py`) | **14/14 stages pass** |
 | Pre-push hook | Installed on this clone; `--self-test` proves it can refuse |
 | Repeat verification | **5/5 checks pass 3 consecutive runs**, positive control fires |
-| Docs manifest | 66 docs classified exactly once, 57 code bindings resolve |
+| Docs manifest | 67 docs classified exactly once (+10 exempt under `state/`), 58 code bindings resolve |
 | Executable docs | 3 executed, 1 doctested, 12 compiled-only |
-| Declared product defects | 12 failing tests, 5 tools without `@safety_gate` |
+| Declared product defects | 9 failing tests, 5 tools without `@safety_gate` |
 | Intermittent tests | 1 (`test_benchmark_2_farming_production`, ~75%); deselected from the gate, rate-measured nightly |
-| CI (GitHub) | A **mirror**. Cannot block merges — see §4 |
+| CI (GitHub) | A **mirror**; a branch ruleset now requires its two jobs. Currently `enforcement: evaluate`, not yet blocking — see §4 |
 
 Verification commands actually run, and their results, are in `docs/600-changelog.md`.
 
@@ -48,10 +48,14 @@ Verification commands actually run, and their results, are in `docs/600-changelo
 
 ### 2.1 The enforcement chain
 
-Enforcement had to move local because GitHub will not enforce it here: the repository is private and
-on the free plan, so the branch-protection API returns `403`. Historically 30 of 30 CI runs on
-`main` concluded `failure` while merges proceeded — a red pipeline here is a notification, not a
+Enforcement had to move local because GitHub would not enforce it here: at the time the repository
+was private on the free plan, so the branch-protection API returned `403`. Historically 30 of 30 CI
+runs on `main` concluded `failure` while merges proceeded — a red pipeline was a notification, not a
 barrier.
+
+**This changed on 2026-10-01.** The repository is now public and organization-owned, and a ruleset
+named `main` requires the gate mirror's two checks. It sits in `enforcement: evaluate` until
+`Local gate` actually passes on a clean runner — see §4 and `state/DECISIONS.md` ADR-002.
 
 | Artefact | Role |
 |---|---|
@@ -235,8 +239,18 @@ $ gh api repos/Er-Sajan-PLG/PROFESSOR-J/branches/main/protection
 403  Upgrade to GitHub Pro or make this repository public to enable this feature.
 ```
 
-Verified, not assumed. Branch protection is unavailable, so **CI cannot block a merge**. Enforcement
-therefore lives in `githooks/pre-push`.
+That was verified, not assumed — and the message names its own remedy, which was then taken. The
+repository is now **public and organization-owned**, and the same call against the new location
+returns `404 Branch not protected` rather than `403`: protection is *available and unset*, not
+forbidden.
+
+A ruleset named `main` now targets `~DEFAULT_BRANCH` and requires exactly two status checks —
+`Local gate, replayed on a clean runner` and `Documentation gate (explicit, non-skippable)` — plus
+deletion/force-push blocking, linear history, and **no bypass actors**.
+
+**It is deliberately left at `enforcement: evaluate`, not `active`.** The required `Local gate`
+check does not yet pass on a clean runner, and with `bypass_actors: []` a wrongly-required check
+deadlocks every PR with no escape. Enforcement therefore still lives in `githooks/pre-push`.
 
 **If CI ever fails where the local gate passed, that is a bug in the gate.** Add the missing stage to
 `scripts/ci_gate.py` — do not start relying on CI to notice things. That rule is written down because
@@ -293,7 +307,7 @@ fail until you classify it or exclude it.**
 
 ### 5.6 Coverage stages are judged on the JSON report, not pytest's exit code
 
-This repository carries 12 known failing tests. `--cov-fail-under` therefore prints "Required test
+This repository carries 9 known failing tests. `--cov-fail-under` therefore prints "Required test
 coverage reached" *and* pytest exits 1, simultaneously. Keying the stage on the exit code would
 report a coverage failure that is really a test failure — the same defect twice, with the coverage
 number rendered unreadable. The stages read `totals.percent_covered` from `coverage.json` instead

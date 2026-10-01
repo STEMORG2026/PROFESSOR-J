@@ -18,7 +18,7 @@ on (JARVIS) has **no stability mechanism at all** — no rerun plugin, no repeat
 Its strategy is determinism by construction. That is a good strategy and it is not sufficient here,
 because this repository has checks whose *reliability* is genuinely in question:
 
-  * the test suite has 12 known-red tests and one test that performs a live network download;
+  * the test suite has 9 known-red tests and one test that performs a live network download;
   * the gate itself is new code and its own correctness is asserted by tests that could be flaky;
   * doc checks read the filesystem and the git index, both of which change under them.
 

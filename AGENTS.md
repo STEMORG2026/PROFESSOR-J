@@ -128,13 +128,26 @@ python3 scripts/verify_repeat.py --runs 3 --control
 
 ---
 
-### 5.1. The gate is local, because GitHub cannot enforce
+### 5.1. The gate is local-first, and GitHub now mirrors it
 
-**Branch protection is unavailable on this repository** — it is private, the owner is on the free
-plan, and the API returns `403` for `branches/main/protection`. Verified, not assumed. So CI cannot
-block a merge, and 30 of 30 recent runs on `main` concluded `failure` while merges proceeded.
+Historically branch protection was unavailable here — the repository was private on the free plan
+and the API returned `403` for `branches/main/protection` — so CI could not block a merge, and 30 of
+30 runs on `main` concluded `failure` while merges proceeded. **That is no longer true.** The
+repository is now public and organization-owned, and a branch ruleset named `main` requires two
+status checks:
 
-Enforcement therefore lives in `scripts/ci_gate.py`, wired to `githooks/pre-push`.
+    Local gate, replayed on a clean runner
+    Documentation gate (explicit, non-skippable)
+
+It also blocks deletions and force-pushes, requires linear history, and sets `bypass_actors: []` —
+no override, for anyone.
+
+**Current enforcement state: `evaluate`, not `active`.** The required `Local gate` check does not
+yet pass on a clean runner, and with no bypass actor a wrongly-required check deadlocks every PR
+with no escape. It will be set to `active` only once that check is green; see `state/DECISIONS.md`
+ADR-002.
+
+Enforcement therefore still lives in `scripts/ci_gate.py`, wired to `githooks/pre-push`.
 **Everything must pass locally before a ref reaches GitHub.** CI is a *mirror*: if it ever fails
 where the gate passed, add the missing stage to the gate rather than relying on CI to catch it.
 
@@ -175,6 +188,28 @@ once (`kind`, `staleness`, `covers`, `owner`), and the gate fails when:
 `scripts/docs/check_executable.py` **executes** documented examples rather than only parsing them,
 and reports each block by how it was verified (executed / doctested / compiled-only / skipped) so
 the summary can never imply more coverage than was achieved.
+
+### 5.3. A declared defect must reproduce everywhere
+
+`scripts/declared_defects.py` is the only route by which a known failure is tolerated, and it has a
+rule that is easy to get wrong: **a declaration that stops reproducing fails the gate.**
+That is deliberate — a baseline that absorbs intermittent or environment-dependent failures is not
+a baseline, it is an amnesty.
+
+It caught a real case. Three `TestLHSSchemaContract` tests were declared as known failures, but they
+assert against a **sibling repository's** export and `skip` when it is absent. So they failed only on
+a machine holding a stale sibling export, and skipped everywhere else — including CI. The gate saw a
+declaration that no longer reproduced and refused to trust it. They now skip with an explicit reason
+("present but not contract-conformant: <detail>") instead, because PROFESSOR-J cannot repair another
+repository's artifact and should not red its own gate over one. The drift stays visible in the skip
+text and is tracked in `state/DEBT.md` (D12).
+
+The baseline is now **9** failures — 8 in `tests/unit/authority/`, 1 live-network voice test — and it
+**can only shrink**. Regenerate it with `python3 scripts/declared_defects.py` reporting and shrink it
+in the same commit that fixes a defect; do not leave a fixed defect declared, the gate will fail.
+
+**Rule for you:** never declare a failure whose reproduction depends on the machine. Either make it
+deterministic, or give it a marker and a measured floor (see §5.2).
 
 ---
 
