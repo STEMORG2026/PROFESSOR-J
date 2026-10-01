@@ -73,3 +73,21 @@ could never report.
 2. `state/` is currently unclassified markdown; the docs gate will fail until ADR-001 is implemented.
 3. Local venv is Python 3.14.7 while CI is 3.11. A local pass is not proof of a CI pass.
 4. `# type: ignore` comments are version-sensitive; two are stale under CI's install set.
+
+---
+
+## Protocol amendment to v2 (live log continued)
+
+`12:20` [DECISION] Adopted MACP v2: P1, P2, P3, P4, P5 (principle form), P6 **adopted with
+        refinements**; P7 **deferred** on its own sequencing argument. Recorded at
+        `state/PROTOCOL.md` rather than left in chat, because v1 lived only in a conversation and
+        was therefore unreadable by every subsequent agent — the precise failure MACP exists to
+        prevent. See DECISIONS.md ADR-003.
+`12:20` [SCOPE EXPANSION] Writing `state/PROTOCOL.md` is in scope: persisting the governing
+        protocol is required by MACP rule #3 ("never assume the next agent has your context").
+`12:22` [PROGRESS] P4's ownership table adopted; this session now owes: `DEBT.md` (deps/CI/config),
+        `ARCHITECTURE.md` (structure), `BLOCKERS.md` (blocked work), `DECISIONS.md` (ADRs).
+`12:23` [PROGRESS] Implemented ADR-001: reasoned subtree exemption in
+        `scripts/docs/manifest_validate.py`. Verified: 67 classifiable doc(s), 9 exempt `state/`
+        doc(s), and the exemption is **printed on every run including `--quiet`**, so it cannot
+        quietly become a loophole.
