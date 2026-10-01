@@ -20,6 +20,12 @@
   its settings declared in `app/config/settings.py` before it can be selected — the Bluesmind
   provider was selectable while `bluesmind_api_key` / `bluesmind_base_url` were undeclared, so
   choosing it raised `AttributeError` at runtime (S2-17). Declaration is part of adding a provider.
+- **OpenTelemetry packages move in lockstep.** `opentelemetry-api`, `opentelemetry-sdk` and the
+  OTLP exporters constrain each other (the exporter requires `opentelemetry-sdk~=<its own
+  version>`), so they must be pinned to the *same* release. They were pinned to 1.29.0 / 1.29.0 /
+  1.44.0, which is unsatisfiable: `pip install -r requirements.txt` failed with
+  `ResolutionImpossible`, every CI job died in "Set up env" before running a single test, and a
+  fresh clone could not be installed at all. Treat these three as one unit when upgrading.
 - **Startup is logged.** `app/main.py` calls `setup_logging()` before serving, so startup is
   recorded structurally rather than inferred from stdout.
 

@@ -10,8 +10,13 @@ python-dotenv==1.2.3
 python-json-logger==4.2.0
 
 # OpenTelemetry + Langfuse
-opentelemetry-api==1.29.0
-opentelemetry-sdk==1.29.0
+# These three are released in lockstep and constrain each other: the OTLP exporter
+# requires `opentelemetry-sdk~=<its own version>`. They were pinned to 1.29.0 / 1.29.0 /
+# 1.44.0, which is unsatisfiable — `pip install -r requirements.txt` failed with
+# ResolutionImpossible, so EVERY CI job died in "Set up env" before running a single test,
+# and a fresh clone could not be installed at all. Keep all three on one version.
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
 opentelemetry-exporter-otlp-proto-http==1.44.0
 
 # MCP (Model Context Protocol)
