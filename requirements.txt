@@ -15,9 +15,9 @@ python-json-logger==4.2.0
 # 1.44.0, which is unsatisfiable — `pip install -r requirements.txt` failed with
 # ResolutionImpossible, so EVERY CI job died in "Set up env" before running a single test,
 # and a fresh clone could not be installed at all. Keep all three on one version.
-opentelemetry-api==1.44.0
-opentelemetry-sdk==1.44.0
-opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-api==1.45.0
+opentelemetry-sdk==1.45.0
+opentelemetry-exporter-otlp-proto-http==1.45.0
 
 # MCP (Model Context Protocol)
 mcp>=2.1.1,<3.0.0
