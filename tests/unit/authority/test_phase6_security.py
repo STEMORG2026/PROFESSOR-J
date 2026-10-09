@@ -15,8 +15,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-WORKSPACE_ROOT = Path("/home/sajan/Projects")
-sys.path.insert(0, str(WORKSPACE_ROOT / "PROFESSOR-J"))
+# The repository root, derived from this file. It used to be the author's absolute
+# workspace path — Path("/home/sajan/Projects") — which exists on exactly one machine, so every
+# test that reads authority/*.yaml raised "Allocation file not found" on CI. The old
+# value was also the repo's *parent*, so joining it with "authority/..." pointed outside
+# the checkout even locally.
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT))
 
 
 from app.authority.gateway import AuthorityGateway
@@ -95,7 +100,6 @@ class TestAllocationEnforcement:
 
         from app.guardrails.policy import SafetyPolicy
 
-        WORKSPACE_ROOT = Path("/home/sajan/Projects")
 
         # Create tools with registered test tools
         policy = SafetyPolicy(approval_callback=None)
@@ -160,7 +164,7 @@ class TestAllocationEnforcement:
         gateway = AuthorityGateway(
             tool_executor=tools,  # Use the same tools instance with registered tools
             safety_policy=SafetyPolicy(approval_callback=None),
-            allocation_path=os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml"),
+            allocation_path=os.path.join(REPO_ROOT, "authority/allocation.yaml"),
             permission_manifest_path=perm_path,
             audit_log_path=None,
         )
@@ -222,7 +226,7 @@ class TestProjectBoundaryEnforcement:
 
     def test_project_cannot_weaken_umbrella_invariants(self):
         """Project config cannot disable signing, audit, or security gates."""
-        with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
+        with open(os.path.join(REPO_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
         # JARVIS is frozen at T1 - cannot increase
@@ -236,7 +240,7 @@ class TestProjectBoundaryEnforcement:
 
     def test_legitimate_project_customization_allowed(self):
         """Projects can customize their own domain rules within ceiling."""
-        with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
+        with open(os.path.join(REPO_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
         # PROFESSOR-J has full specialist set
@@ -270,7 +274,6 @@ class TestBlackBoxAttacks:
 
         import yaml
 
-        WORKSPACE_ROOT = Path("/home/sajan/Projects")
 
         policy = SafetyPolicy(approval_callback=None)
         tools = ToolExecutor(policy)
@@ -330,9 +333,9 @@ class TestBlackBoxAttacks:
         gateway = AuthorityGateway(
             tool_executor=tools,
             safety_policy=SafetyPolicy(approval_callback=None),
-            allocation_path=os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml"),
+            allocation_path=os.path.join(REPO_ROOT, "authority/allocation.yaml"),
             permission_manifest_path=os.path.join(
-                WORKSPACE_ROOT, "authority/permission-manifest.yaml"
+                REPO_ROOT, "authority/permission-manifest.yaml"
             ),
             audit_log_path=None,
         )
