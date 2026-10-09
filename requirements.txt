@@ -4,7 +4,7 @@
 # Runtime (Phase 0.5+)
 pydantic==2.13.5
 pydantic-settings>=2.15.0
-python-dotenv==1.2.3
+python-dotenv==1.2.4
 
 # Logging
 python-json-logger==4.2.0
