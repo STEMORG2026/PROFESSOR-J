@@ -31,21 +31,25 @@ jobs:
       - name: No unpinned action reference
         run: |
           set -euo pipefail
-          # Strip comments first: the CodeQL template ships a commented-out
-          # `uses: actions/setup-example@v1` that is an example, not a reference.
+          # Two traps this pattern has to avoid, both found by running it:
+          #  1. Comments. The CodeQL template ships a commented-out
+          #     `uses: actions/setup-example@v1`; that is an example, not a reference.
+          #  2. Its own help text. An unanchored `uses:` grep matches the echo below
+          #     and the guard fails on itself. So the match is anchored to the start
+          #     of a line, where a real YAML key or list item sits.
           unpinned="$(
             find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
               | xargs -0 sed 's/#.*//' \
-              | grep -oE 'uses:[[:space:]]*[^ #]+@[^[:space:]]+' \
+              | grep -oE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*[^ #]+@[^[:space:]]+' \
               | grep -vE '@[0-9a-f]{40}$' \
-              | grep -v '^uses:[[:space:]]*\./' \
+              | grep -vE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*\./' \
               || true
           )"
           if [ -n "$unpinned" ]; then
             echo "::error::These actions are not pinned to a commit SHA:"
             echo "$unpinned"
             echo
-            echo "Pin with:  uses: owner/repo@<40-char-sha> # vX.Y.Z"
+            echo "Pin each one to a 40-character commit SHA, keeping the version as a comment."
             exit 1
           fi
           echo "All actions in .github/workflows are pinned to commit SHAs."
