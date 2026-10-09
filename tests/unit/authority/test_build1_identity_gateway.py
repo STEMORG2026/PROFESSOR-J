@@ -13,10 +13,15 @@ import pytest
 import yaml
 
 # Get the workspace root
-WORKSPACE_ROOT = Path("/home/sajan/Projects")
+# The repository root, derived from this file. It used to be the author's absolute
+# workspace path — Path("/home/sajan/Projects") — which exists on exactly one machine, so every
+# test that reads authority/*.yaml raised "Allocation file not found" on CI. The old
+# value was also the repo's *parent*, so joining it with "authority/..." pointed outside
+# the checkout even locally.
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Ensure PROFESSOR-J is in path
-sys.path.insert(0, str(WORKSPACE_ROOT / "PROFESSOR-J"))
+sys.path.insert(0, str(REPO_ROOT))
 
 from app.authority.gateway import (
     AuthorityGateway,
@@ -179,7 +184,7 @@ class TestAuthorityGateway:
         gateway = AuthorityGateway(
             tool_executor=tools,
             safety_policy=SafetyPolicy(approval_callback=None),
-            allocation_path=os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml"),
+            allocation_path=os.path.join(REPO_ROOT, "authority/allocation.yaml"),
             permission_manifest_path=perm_path,
             audit_log_path=None,  # In-memory only
         )
@@ -272,7 +277,7 @@ class TestGatewayAllocationEnforcement:
 
     def test_researcher_allocated_to_professor_j(self):
         """Researcher is allocated to PROFESSOR-J with SENSITIVE tier."""
-        with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
+        with open(os.path.join(REPO_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
         prof_j = alloc["repo_allocation"]["PROFESSOR-J"]
@@ -281,7 +286,7 @@ class TestGatewayAllocationEnforcement:
 
     def test_jarvis_frozen_at_tier_1(self):
         """JARVIS is frozen at tier 1."""
-        with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
+        with open(os.path.join(REPO_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
         jarvis = alloc["repo_allocation"]["JARVIS"]
@@ -290,7 +295,7 @@ class TestGatewayAllocationEnforcement:
 
     def test_stem_isolation(self):
         """STEM domain skills only for STEM-tagged projects."""
-        with open(os.path.join(WORKSPACE_ROOT, "authority/allocation.yaml")) as f:
+        with open(os.path.join(REPO_ROOT, "authority/allocation.yaml")) as f:
             alloc = yaml.safe_load(f)
 
         stem_tagged = alloc["isolation"]["domain_skills_require_tag"]["domain/stem"]
