@@ -94,7 +94,7 @@ def shutdown_tracer_provider() -> None:
     """Shutdown tracer provider gracefully."""
     global _tracer_provider
     if _tracer_provider:
-        _tracer_provider.shutdown()  # type: ignore[no-untyped-call]
+        _tracer_provider.shutdown()
         _tracer_provider = None
         logger.info("OpenTelemetry tracer provider shutdown")
 
