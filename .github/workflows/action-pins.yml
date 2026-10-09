@@ -1,0 +1,51 @@
+name: Action pins
+
+# A one-time sweep is not a control. PROFESSOR-J carries two workflow files on an
+# unmerged branch that a sweep of `main` could never see, so pinning has to be
+# enforced where the change arrives rather than repaired afterwards. This fails
+# when any `uses:` in .github/workflows is not a full 40-character commit SHA.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    # Weekly, so a Dependabot bump that drops a pin is caught without waiting for a push.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: action-pins-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pins:
+    name: Every action is pinned to a commit SHA
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: No unpinned action reference
+        run: |
+          set -euo pipefail
+          # Strip comments first: the CodeQL template ships a commented-out
+          # `uses: actions/setup-example@v1` that is an example, not a reference.
+          unpinned="$(
+            find .github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 \
+              | xargs -0 sed 's/#.*//' \
+              | grep -oE 'uses:[[:space:]]*[^ #]+@[^[:space:]]+' \
+              | grep -vE '@[0-9a-f]{40}$' \
+              | grep -v '^uses:[[:space:]]*\./' \
+              || true
+          )"
+          if [ -n "$unpinned" ]; then
+            echo "::error::These actions are not pinned to a commit SHA:"
+            echo "$unpinned"
+            echo
+            echo "Pin with:  uses: owner/repo@<40-char-sha> # vX.Y.Z"
+            exit 1
+          fi
+          echo "All actions in .github/workflows are pinned to commit SHAs."
