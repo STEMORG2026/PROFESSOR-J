@@ -56,7 +56,7 @@ class PDFExtractor:
         if pdf_path.suffix.lower() != ".pdf":
             raise KnowledgeError(f"Not a PDF: {pdf_path}", code="PDF_INVALID_EXTENSION")
 
-        import fitz  # type: ignore[import-untyped]  # PyMuPDF lacks stubs
+        import fitz  # PyMuPDF ships its own types; the ignore was unused, and mypy rejects unused ignores
 
         try:
             doc: Any = fitz.open(str(pdf_path))
