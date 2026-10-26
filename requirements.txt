@@ -3,7 +3,7 @@
 
 # Runtime (Phase 0.5+)
 pydantic==2.14.1
-pydantic-settings>=2.16.0
+pydantic-settings>=2.16.1
 python-dotenv==1.2.4
 
 # Logging
