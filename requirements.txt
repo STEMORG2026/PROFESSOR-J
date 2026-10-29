@@ -59,7 +59,7 @@ ollama>=0.6.3
 
 # Dev / verification
 pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest-asyncio==1.4.1
 pytest-cov==7.1.0
 hypothesis==6.170.9
 mypy==2.4.0
